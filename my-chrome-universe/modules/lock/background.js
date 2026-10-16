@@ -16,7 +16,8 @@ const DEFAULT_SETTINGS = { idleMinutes: 0, lockOnScreenLock: true };
 // Storage layout (all keys prefixed "lock:"):
 //   local:   lock:auth (password record), lock:recovery (recovery code record),
 //            lock:settings, lock:failures, lock:lockoutUntil
-//   session: lock:unlocked (cleared when the browser closes, so every startup is locked), lock:savedTabs
+//   session: lock:unlocked (cleared when the browser closes, so every startup is locked), lock:savedTabs,
+//            lock:handoffPending + lock:firstRestored (unlock handoff to the dashboard not finished yet)
 // The on/off switch lives in core:modules (core/modules.js); core/gate.js derives the status.
 // Lock state lives in storage rather than in service-worker variables because
 // MV3 service workers are terminated when idle.
@@ -125,17 +126,26 @@ async function quarantine(tab) {
 async function lock() {
   if (!(await getAuth()) || !(await isModuleEnabled('lock'))) return false;
   await chrome.storage.session.set({ 'lock:unlocked': false });
+  await chrome.storage.session.remove(['lock:handoffPending', 'lock:firstRestored']);
   await sweep();
   return true;
 }
 
 const HANDOFF_FALLBACK_MS = 4000;
 let handoffTimer = null;
+let restoring = Promise.resolve(); // in-flight restoreTabs, awaited by finishUnlock
 
 // Restored tabs open in the background in the lock tab's window. The lock tab itself is
 // turned into the dashboard later (finishUnlock): the lock page asks for it with
 // lock:handoff after its animation; if it never does, a timer does it anyway.
-async function restoreTabs() {
+function restoreTabs() {
+  restoring = doRestoreTabs().catch(() => {});
+  return restoring;
+}
+
+async function doRestoreTabs() {
+  // Marker first: while it is set, finishUnlock owes the user an end state even if the lock tab vanished.
+  await chrome.storage.session.set({ 'lock:handoffPending': true });
   await saveQueue;
   const { 'lock:savedTabs': savedTabs = [] } = await chrome.storage.session.get('lock:savedTabs');
   await chrome.storage.session.remove('lock:savedTabs');
@@ -156,31 +166,51 @@ async function restoreTabs() {
   handoffTimer?.unref?.();
 }
 
+async function newTabAtEnd() {
+  const windows = (await chrome.windows.getAll({ windowTypes: ['normal'] })).filter((w) => !w.incognito);
+  const target = windows.find((w) => w.focused) || windows[0];
+  if (target) await chrome.tabs.create({ url: 'chrome://newtab/', windowId: target.id, active: true });
+  else await chrome.windows.create({ url: 'chrome://newtab/', focused: true });
+}
+
 // Turns the lock tab into the dashboard (or, with Tab Manager off, activates the first
-// restored tab and closes the lock tab). Idempotent and serialized: a second call finds
-// no lock tab and does nothing; it never runs while the browser is locked.
+// restored tab and closes the lock tab). Waits for the restore, is serialized and
+// idempotent: with nothing pending and no lock tab it does nothing; with a pending
+// handoff but no lock tab it still produces the end state. Never runs while locked.
 function finishUnlock() {
   clearTimeout(handoffTimer);
   handoffTimer = null;
   return serialized(async () => {
-    if ((await lockStatus()) !== 'open') return;
+    await restoring;
+    const open = async () => (await lockStatus()) === 'open';
+    if (!(await open())) return;
     const lockTabs = (await chrome.tabs.query({})).filter(isLockTab);
-    if (!lockTabs.length) return;
+    const { 'lock:handoffPending': pending = false, 'lock:firstRestored': firstId = null } =
+      await chrome.storage.session.get(['lock:handoffPending', 'lock:firstRestored']);
+    if (!lockTabs.length && !pending) return;
     const [lockTab, ...extra] = lockTabs;
     await removeTabs(extra.map((t) => t.id));
 
-    const { 'lock:firstRestored': firstId = null } = await chrome.storage.session.get('lock:firstRestored');
-    await chrome.storage.session.remove('lock:firstRestored');
+    const dashboard = await isModuleEnabled('tabs');
+    // Re-check right before touching tabs: lock() may have run in between.
+    if (!(await open())) return;
+    if (dashboard) await chrome.storage.session.set({ 'tm:arrive': true });
 
-    if (await isModuleEnabled('tabs')) {
-      await chrome.storage.session.set({ 'tm:arrive': true });
-      await chrome.tabs.move(lockTab.id, { index: -1 }).catch(() => {});
-      await chrome.tabs.update(lockTab.id, { url: 'chrome://newtab/', active: true }).catch(() => {});
+    if (dashboard) {
+      if (lockTab) {
+        await chrome.tabs.move(lockTab.id, { index: -1 }).catch(() => {});
+        await chrome.tabs.update(lockTab.id, { url: 'chrome://newtab/', active: true }).catch(() => {});
+      } else {
+        await newTabAtEnd();
+      }
     } else if (firstId !== null && (await chrome.tabs.update(firstId, { active: true }).then(() => true, () => false))) {
-      await removeTabs([lockTab.id]);
-    } else {
+      await removeTabs(lockTab ? [lockTab.id] : []);
+    } else if (lockTab) {
       await chrome.tabs.update(lockTab.id, { url: 'chrome://newtab/', active: true }).catch(() => {});
+    } else {
+      await newTabAtEnd();
     }
+    await chrome.storage.session.remove(['lock:handoffPending', 'lock:firstRestored']);
   });
 }
 

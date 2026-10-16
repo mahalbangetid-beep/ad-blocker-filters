@@ -822,7 +822,7 @@ test('unlock restores tabs and shows the dashboard', async () => {
   assert.ok(restored.every((t) => !t.active), 'restored tabs open in the background');
   assert.ok(!tabs.some((t) => t.url.includes('/modules/adblock/')), `extension pages were restored: ${tabs.map((t) => t.url)}`);
 
-  // The dashboard is the active tab, created after the restored ones.
+  // The dashboard is the lock tab turned into New Tab and moved to the end; it is the only active tab.
   const active = tabs.filter((t) => t.active);
   assert.equal(active.length, 1, `active tabs: ${JSON.stringify(active)}`);
   assert.match(active[0].url, /^(chrome:\/\/newtab\/|chrome-extension:\/\/[a-z]+\/modules\/tabs\/newtab\.html)$/);
