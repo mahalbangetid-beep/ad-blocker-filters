@@ -214,11 +214,12 @@ async function saveTabs(tabs, source, name) {
 export async function saveSession(source = $('save-session')) {
   const windowId = ctx.thisTab?.windowId;
   const close = closeAfter();
-  const rows = close ? [...$('windows').querySelectorAll(`.orow[data-window="${windowId}"][draggable="true"]`)] : [];
+  const rows = close ? [...$('windows').querySelectorAll(`.orow[data-window="${CSS.escape(String(windowId))}"][draggable="true"]`)] : [];
   if (rows.length) await rowsOut(rows, { opacity: 0, transform: 'translateX(40px)' });
   const result = await act(send('tm:saveSession', { windowId, close, keepTabId: ctx.thisTab?.id }),
     (r) => `${r.saved} tab disimpan sebagai koleksi baru`, 'download');
-  if (!result?.ok) return void renderTabs();
+  renderTabs(); // rows faded out above must never stay invisible (pinned tabs stay open)
+  if (!result?.ok) return;
   flyGhost(source, $('cols'), `${result.saved} tab`);
   ctx.onSaved(result.id);
 }
@@ -228,7 +229,7 @@ export async function dedupe() {
   if (rows.length) await rowsOut(rows, { opacity: 0, transform: 'scale(.8)', filter: 'blur(4px)' });
   const result = await act(send('tm:closeDuplicates'),
     (r) => (r.closed ? `${r.closed} tab duplikat ditutup` : 'Tidak ada tab duplikat'), 'copy');
-  if (!result?.ok) renderTabs();
+  renderTabs(); // the service worker's duplicate set may differ from the rows faded out above
 }
 
 // One tab into "Disimpan" of the active space (created on demand by the service worker).
@@ -236,7 +237,7 @@ async function saveOne(tab, button) {
   const data = ctx.getData();
   const space = data.spaces.find((s) => s.id === data.activeSpaceId) || data.spaces[0];
   const inbox = space.collections.find((c) => c.name === INBOX_NAME);
-  const target = (inbox && $('cols').querySelector(`.col[data-id="${inbox.id}"]`)) || $('cols');
+  const target = (inbox && $('cols').querySelector(`.col[data-id="${CSS.escape(inbox.id)}"]`)) || $('cols');
   flyGhost(button, target, shortUrl(tabUrl(tab)).split('/')[0]);
   const result = await act(send('tm:saveTab', { tab: { url: tabUrl(tab), title: tab.title } }),
     `Disimpan ke “${INBOX_NAME}” di ${space.name}`, 'download');

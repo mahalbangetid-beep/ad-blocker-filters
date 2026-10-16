@@ -16,8 +16,9 @@ export function setupGuide(options = {}) {
 export const guideShown = () => !$('guide-card').hidden;
 
 // focus: move focus to "Mengerti" (not when it appears by itself, so typing is never interrupted).
-export function showGuide({ focus = true } = {}) {
-  beforeShow();
+// auto: the one-time automatic show, which leaves an open drawer alone.
+export function showGuide({ focus = true, auto = false } = {}) {
+  if (!auto) beforeShow();
   $('tm').classList.add('guiding');
   $('guide-card').hidden = false;
   $('guide-btn').setAttribute('aria-expanded', 'true');
@@ -31,13 +32,20 @@ export function hideGuide() {
   $('guide-card').hidden = true;
   $('guide-btn').setAttribute('aria-expanded', 'false');
   if (hadFocus) $('guide-btn').focus({ preventScroll: true });
+  markSeen();
 }
 
-// First visit only: marked as seen as soon as it is shown, so it appears exactly once.
+const markSeen = () => chrome.storage.local.set({ [GUIDE_KEY]: true }).catch(() => {});
+
+// First visit only. The flag is written once the card is actually on screen (or dismissed), so
+// leaving the first New Tab before the delay keeps the guide for the next one.
 export async function autoShowGuide(delayMs = 1700) {
   const { [GUIDE_KEY]: seen } = await chrome.storage.local.get(GUIDE_KEY);
   if (seen) return;
-  await chrome.storage.local.set({ [GUIDE_KEY]: true });
   await wait(delayMs);
-  if (!guideShown()) showGuide({ focus: false });
+  if (document.hidden) await new Promise((r) => document.addEventListener('visibilitychange', r, { once: true }));
+  if (guideShown()) return markSeen();
+  if (document.getElementById('tm-open')?.classList.contains('open')) return; // the user is busy in the drawer
+  showGuide({ focus: false, auto: true });
+  if (guideShown()) await markSeen();
 }

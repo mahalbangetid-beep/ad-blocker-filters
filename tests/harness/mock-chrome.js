@@ -41,7 +41,7 @@
   const preset = params.get('theme');
   if (preset || params.get('motion')) local['core:appearance'] = { theme: preset || 'auto', motion: params.get('motion') || 'full' };
   if (!params.has('guide')) local['tm:guideSeen'] = true;
-  if (params.has('arrive')) session['tm:arrive'] = true;
+  if (params.has('arrive')) session['tm:arrive'] = 1; // id of tabs[0], the dashboard itself
   if (params.has('welcome')) {
     session['core:welcome'] = true;
     local['core:modules'] = { lock: false };

@@ -194,7 +194,8 @@ function finishUnlock() {
     const dashboard = await isModuleEnabled('tabs');
     // Re-check right before touching tabs: lock() may have run in between.
     if (!(await open())) return;
-    if (dashboard) await chrome.storage.session.set({ 'tm:arrive': true });
+    // The lock tab turning into the dashboard plays the arrival there (and only there).
+    if (dashboard && lockTab) await chrome.storage.session.set({ 'tm:arrive': lockTab.id });
 
     if (dashboard) {
       if (lockTab) {

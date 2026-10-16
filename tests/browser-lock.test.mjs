@@ -249,7 +249,8 @@ test('correct password unlocks and restores tabs', async () => {
   assert.deepEqual(await send({ type: 'lock:handoff' }), { ok: true });
   assert.deepEqual(tabs.map((t) => t.url), ['https://a.com/', 'https://b.com/', 'https://c.com/', NEWTAB]);
   assert.equal(tabs.at(-1).active, true);
-  assert.equal((await chrome.storage.session.get('tm:arrive'))['tm:arrive'], true);
+  // The arrival is meant for the lock tab that became the dashboard: its id, not a bare flag.
+  assert.equal((await chrome.storage.session.get('tm:arrive'))['tm:arrive'], tabs.at(-1).id);
   assert.equal((await send({ type: 'lock:getState' })).locked, false);
   assert.equal((await chrome.storage.local.get('lock:failures'))['lock:failures'], 0);
 });

@@ -74,7 +74,7 @@ const activeSpace = () => {
   return data.spaces.find((s) => s.id === data.activeSpaceId) || data.spaces[0];
 };
 
-const colEl = (collectionId) => $('cols').querySelector(`.col[data-id="${collectionId}"]`);
+const colEl = (collectionId) => $('cols').querySelector(`.col[data-id="${CSS.escape(collectionId)}"]`);
 
 // Resolves once the collection's element is on screen (data arrives via storage events).
 async function whenCol(collectionId, timeoutMs = 1500) {
@@ -365,7 +365,7 @@ export async function showSpace(space, { dir = 1 } = {}) {
 export function revealCollection(collectionId, { cardId = null } = {}) {
   const el = colEl(collectionId);
   if (!el) return;
-  const row = cardId && el.querySelector(`.row[data-id="${cardId}"]`);
+  const row = cardId && el.querySelector(`.row[data-id="${CSS.escape(cardId)}"]`);
   (row && !el.classList.contains('collapsed') ? row : el).scrollIntoView({ behavior: fast() ? 'auto' : 'smooth', block: 'center' });
   el.classList.remove('enter');
   pulse(el, 'flash');

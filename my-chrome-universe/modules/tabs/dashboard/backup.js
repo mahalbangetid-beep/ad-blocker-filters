@@ -47,6 +47,14 @@ export function importData(incoming, mode) {
 // Must be called from a user gesture (it asks for the optional bookmarks permission).
 // Resolves to the runOp reply plus { count }, or { ok: false, error }.
 export async function importBookmarks() {
+  try {
+    return await bookmarksToSpace();
+  } catch (err) {
+    return { ok: false, error: `Gagal mengimpor bookmark: ${err?.message || err}` };
+  }
+}
+
+async function bookmarksToSpace() {
   const granted = await chrome.permissions.request({ permissions: ['bookmarks'] });
   if (!granted) return { ok: false, error: 'Izin bookmark ditolak' };
   const [root] = await chrome.bookmarks.getTree();

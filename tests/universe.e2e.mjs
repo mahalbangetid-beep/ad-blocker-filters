@@ -967,20 +967,42 @@ test('theme button switches every open page', async () => {
   }
 });
 
+// A tab on a unique blank URL, its chrome.tabs id, and a session with error reporting; then `url` is loaded.
+async function openTabWithId(url, mark) {
+  const blank = `about:blank#${mark}`;
+  const { targetId } = await cdp.send('Target.createTarget', { url: blank });
+  const tabId = await until(() => swSession_(`chrome.tabs.query({}).then((t) => t.find((x) => x.url === ${JSON.stringify(blank)})?.id ?? null)`), `tab ${mark}`);
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+  const errors = [];
+  cdp.listeners.add((msg) => {
+    if (msg.sessionId === sessionId && msg.method === 'Runtime.exceptionThrown') errors.push(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
+  });
+  await cdp.send('Runtime.enable', {}, sessionId);
+  return { targetId, sessionId, tabId, errors, load: () => cdp.send('Page.navigate', { url }, sessionId) };
+}
+
 test('arrival plays only after unlock', async () => {
-  // Set by the service worker when the lock tab becomes the dashboard; consumed once.
-  await swSession_("chrome.storage.session.set({ 'tm:arrive': true })");
-  const first = await openWatched(dashboardUrl());
-  const second = { targetId: null };
+  // The service worker stores the id of the lock tab that becomes the dashboard; only that tab arrives.
+  const mine = await openTabWithId(dashboardUrl(), 'arrive-mine');
+  const other = await openTabWithId(dashboardUrl(), 'arrive-other');
+  const isArriving = (p) => evaluate(p.sessionId, "document.getElementById('tm').classList.contains('arrive')");
   try {
-    await waitFor(first.sessionId, `${dashReady} && document.getElementById('tm').classList.contains('arrive')`);
-    assert.equal(await sessionValue('tm:arrive'), null, 'arrival flag removed after reading');
-    Object.assign(second, await openWatched(dashboardUrl()));
-    await waitFor(second.sessionId, dashReady);
-    assert.equal(await evaluate(second.sessionId, "document.getElementById('tm').classList.contains('arrive')"), false, 'a plain new tab does not arrive');
-    assert.deepEqual(first.errors, []);
+    await swSession_(`chrome.storage.session.set({ 'tm:arrive': ${mine.tabId} })`);
+    await other.load();
+    await waitFor(other.sessionId, dashReady);
+    assert.equal(await isArriving(other), false, 'another new tab does not arrive');
+    assert.equal(await sessionValue('tm:arrive'), mine.tabId, 'and leaves the flag for its tab');
+
+    await mine.load();
+    await waitFor(mine.sessionId, `${dashReady} && document.getElementById('tm').classList.contains('arrive')`);
+    assert.equal(await sessionValue('tm:arrive'), null, 'arrival flag removed by its tab');
+    await cdp.send('Page.reload', {}, mine.sessionId);
+    await waitFor(mine.sessionId, dashReady, 8000);
+    assert.equal(await isArriving(mine), false, 'a reload does not arrive again');
+    assert.deepEqual([...mine.errors, ...other.errors], []);
   } finally {
-    for (const id of [first.targetId, second.targetId]) if (id) await cdp.send('Target.closeTarget', { targetId: id }).catch(() => {});
+    for (const p of [mine, other]) await cdp.send('Target.closeTarget', { targetId: p.targetId }).catch(() => {});
+    await swSession_("chrome.storage.session.remove('tm:arrive')");
   }
 });
 
@@ -1005,10 +1027,19 @@ test('welcome plays on the dashboard when Browser Lock is off', async () => {
 
 test('guide shows once', async () => {
   await swSession_("chrome.storage.local.remove('tm:guideSeen')");
+  // Leaving the first New Tab before the guide appears (e.g. typing in the omnibox) keeps it for the next one.
+  const early = await openWatched(dashboardUrl());
+  await waitFor(early.sessionId, dashReady);
+  await cdp.send('Page.navigate', { url: `${SITE}/page.html` }, early.sessionId);
+  await sleep(2500);
+  assert.equal(await localValue('tm:guideSeen'), null, 'guide marked seen without being shown');
+  await cdp.send('Target.closeTarget', { targetId: early.targetId }).catch(() => {});
+
   const { sessionId: s, targetId, errors } = await openWatched(dashboardUrl());
   const shown = "(() => { const g = document.getElementById('guide-card'); return !!g && g.checkVisibility(); })()";
   try {
     await waitFor(s, shown, 6000);
+    await until(async () => (await localValue('tm:guideSeen')) === true, 'guide marked seen once shown');
     if (process.env.SHOT_DIR) await sleep(800);
     await screenshot(s, 'dashboard-guide');
     assert.equal(await evaluate(s, "document.getElementById('tm').classList.contains('guiding')"), true);

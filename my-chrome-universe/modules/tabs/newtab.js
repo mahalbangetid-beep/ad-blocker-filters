@@ -61,9 +61,12 @@ if (isMac) {
 }
 
 // How the page enters: after an unlock the lock tab turns into this page and the service worker
-// raises tm:arrive (read once); after a browser start with Browser Lock off, the welcome plays here.
+// stores that tab's id in tm:arrive (consumed only by that tab); after a browser start with
+// Browser Lock off, the welcome plays here.
 const modules = await getModuleStates();
-const { 'tm:arrive': arrive = false } = await chrome.storage.session.get('tm:arrive');
+const thisTab = await chrome.tabs.getCurrent();
+const { 'tm:arrive': arriveTabId = null } = await chrome.storage.session.get('tm:arrive');
+const arrive = arriveTabId !== null && arriveTabId === thisTab?.id;
 if (arrive) await chrome.storage.session.remove('tm:arrive');
 const welcome = !arrive && !modules.lock && (await consumeWelcome().catch(() => false));
 const sky = createSky($('sky'), { mode: welcome ? 'welcome' : 'drift', fxCanvas: $('fx') });
@@ -74,7 +77,6 @@ if (welcome) {
 
 let data = await loadData();
 let query = new URLSearchParams(location.search).get('q') || '';
-const thisTab = await chrome.tabs.getCurrent();
 setupCollections({ getData: () => data, thisTab, sky });
 
 // ---------- Rendering ----------
@@ -363,7 +365,7 @@ document.addEventListener('keydown', (e) => {
   const el = document.activeElement;
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(el?.tagName) || el?.isContentEditable;
   const modal = $('dialog').open;
-  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k' && !modal) {
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k' && !modal && !el?.isContentEditable) {
     e.preventDefault();
     if (paletteOpen()) closePalette();
     else openPalette();
