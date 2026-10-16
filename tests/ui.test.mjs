@@ -5,6 +5,9 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ICONS, ic } from '../my-chrome-universe/ui/icons.js';
+import { normalizeAppearance } from '../my-chrome-universe/ui/appearance.js';
+import { MOTION_SCALE } from '../my-chrome-universe/ui/motion.js';
+import { createSky } from '../my-chrome-universe/ui/sky.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ui = join(root, 'my-chrome-universe', 'ui');
@@ -115,4 +118,28 @@ test('icons used in markup exist', () => {
       assert.ok(name in ICONS, `${f}: unknown icon ${name}`);
     }
   }
+});
+
+test('normalizeAppearance fills defaults and rejects junk', () => {
+  assert.deepEqual(normalizeAppearance({ theme: 'x', motion: 'balanced', accent: 'ion', welcome: 0 }), { theme: 'auto', motion: 'balanced', accent: 'ion', welcome: false });
+  assert.equal(normalizeAppearance(null, { reducedMotion: true }).motion, 'minimal');
+  assert.equal(normalizeAppearance({ motion: 'full' }, { reducedMotion: true }).motion, 'full');
+  assert.equal(normalizeAppearance(undefined).welcome, true);
+});
+
+test('motion and sky modules import cleanly in Node', () => {
+  assert.deepEqual(MOTION_SCALE, { full: 1, balanced: 0.75, minimal: 0 });
+  assert.equal(typeof createSky, 'function');
+});
+
+test('boot.js is a classic script that never throws', () => {
+  const src = read('boot.js');
+  assert.ok(!/^\s*(import|export)\b/m.test(src));
+  const attrs = {};
+  const g = { document: { documentElement: { dataset: attrs } }, localStorage: { getItem: () => { throw new Error('blocked'); } }, matchMedia: () => ({ matches: false }) };
+  assert.doesNotThrow(() => new Function('document', 'localStorage', 'matchMedia', src)(g.document, g.localStorage, g.matchMedia));
+  g.localStorage = { getItem: () => JSON.stringify({ theme: 'auto', motion: 'balanced', accent: 'ion' }) };
+  g.matchMedia = () => ({ matches: true });
+  new Function('document', 'localStorage', 'matchMedia', src)(g.document, g.localStorage, g.matchMedia);
+  assert.deepEqual({ ...attrs }, { ui: 'light', motion: 'balanced', accent: 'ion' });
 });

@@ -228,3 +228,40 @@ test('core messages from a web page are refused', async () => {
   assert.deepEqual(await send({ type: 'core:getModules' }, { id: 'other', url: 'chrome-extension://other/x.html' }), { ok: false, error: 'forbidden' });
   assert.equal(await isModuleEnabled('adblock'), true);
 });
+
+test('core:setAppearance validates, merges and is gated', async () => {
+  await import('../my-chrome-universe/core/background.js');
+  await chrome.storage.local.set({ 'lock:auth': { hash: 'x' } });
+  assert.deepEqual(await send({ type: 'core:setAppearance', patch: { theme: 'light' } }), { ok: false, error: 'locked' });
+  await chrome.storage.session.set({ 'lock:unlocked': true });
+  const web = { id: 'testid', url: 'https://evil.test/', tab: { id: 9, url: 'https://evil.test/' } };
+  assert.deepEqual(await send({ type: 'core:setAppearance', patch: { theme: 'light' } }, web), { ok: false, error: 'forbidden' });
+  const r1 = await send({ type: 'core:setAppearance', patch: { theme: 'light' } });
+  assert.equal(r1.ok, true);
+  assert.equal(r1.appearance.theme, 'light');
+  const r2 = await send({ type: 'core:setAppearance', patch: { accent: 'nova', motion: 'nope' } });
+  const want = { theme: 'light', motion: 'full', accent: 'nova', welcome: true };
+  assert.deepEqual(r2.appearance, want);
+  assert.deepEqual((await chrome.storage.local.get('core:appearance'))['core:appearance'], want);
+});
+
+test('old Tab Manager theme is migrated once', async () => {
+  const { migrateAppearance } = await import('../my-chrome-universe/core/background.js');
+  await chrome.storage.local.set({ 'tm:data': { settings: { theme: 'dark' } } });
+  await migrateAppearance();
+  assert.equal((await chrome.storage.local.get('core:appearance'))['core:appearance'].theme, 'dark');
+  await chrome.storage.local.set({ 'core:appearance': { theme: 'light', motion: 'full', accent: 'solar', welcome: true }, 'tm:data': { settings: { theme: 'dark' } } });
+  await migrateAppearance();
+  assert.equal((await chrome.storage.local.get('core:appearance'))['core:appearance'].theme, 'light');
+});
+
+test('startup and install raise the welcome flag', async () => {
+  await import('../my-chrome-universe/core/background.js');
+  await chrome.runtime.onStartup.fire();
+  assert.equal((await chrome.storage.session.get('core:welcome'))['core:welcome'], true);
+  chrome.storage.session.reset();
+  await chrome.runtime.onInstalled.fire({ reason: 'update' });
+  assert.equal('core:welcome' in chrome.storage.session.dump(), false);
+  await chrome.runtime.onInstalled.fire({ reason: 'install' });
+  assert.equal(chrome.storage.session.dump()['core:welcome'], true);
+});
