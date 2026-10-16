@@ -83,7 +83,7 @@ class Cdp {
 const exe = findChrome();
 if (!exe) throw new Error('Chromium (Playwright) tidak ditemukan: npx playwright@1 install chromium');
 const profile = mkdtempSync(join(tmpdir(), 'mcu-icons-'));
-await new Promise((ok) => server.listen(PORT, ok));
+await new Promise((ok) => server.listen(PORT, '127.0.0.1', ok));
 const chrome = spawn(exe, ['--headless=new', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${profile}`,
   '--no-first-run', '--hide-scrollbars', ...platformArgs, 'about:blank'], { stdio: 'ignore' });
 try {

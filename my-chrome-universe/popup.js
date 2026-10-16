@@ -3,9 +3,10 @@
 import { guardPage } from './core/page-guard.js';
 import { MODULES, getModuleStates, onModuleStatesChanged } from './core/modules.js';
 import { favTile } from './core/panel.js';
+import { errorText } from './core/dom.js';
 import { initAppearance } from './ui/appearance.js';
 import { hydrateIcons, icon } from './ui/icons.js';
-import { installEffects, countUp, toast } from './ui/motion.js';
+import { installEffects, countUp, toast, collapseThenLock } from './ui/motion.js';
 
 await guardPage('popup');
 await initAppearance();
@@ -80,7 +81,6 @@ function refreshStatus(module) {
     .catch(() => { if (seq === entry.seq) entry.status.textContent = ''; });
 }
 
-const errorText = (result) => (result?.error === 'locked' ? 'Browser sedang terkunci.' : result?.error || 'Gagal menyimpan');
 
 async function onSwitch(module, input) {
   const on = input.checked;
@@ -284,9 +284,14 @@ $('mcu-open-tabs').addEventListener('click', async () => {
   window.close();
 });
 
-$('mcu-lock-now').addEventListener('click', async () => {
-  await send('lock:lock').catch(() => {});
-  window.close();
+$('mcu-lock-now').addEventListener('click', async (e) => {
+  const button = e.currentTarget;
+  if (button.disabled) return;
+  button.disabled = true;
+  const result = await collapseThenLock($('mcu-pop'));
+  if (result?.ok) return void window.close();
+  button.disabled = false;
+  toast(errorText(result, 'Gagal mengunci browser'), { icon: 'info' });
 });
 
 syncHome(await getModuleStates());

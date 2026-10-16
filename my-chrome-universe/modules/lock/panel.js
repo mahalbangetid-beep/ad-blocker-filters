@@ -1,12 +1,11 @@
 // Browser Lock panel in the toolbar popup: padlock, facts (auto-lock, screen lock, shortcut),
 // lock now, settings link, and the password form that turning the lock off requires.
 // The popup only opens while the lock is open, so the locked/setup states never show here.
-import { send } from './common.js';
+import { send, lockShortcut } from './common.js';
 import { loadStyles, offNotice, messageLine } from '../../core/panel.js';
+import { errorText } from '../../core/dom.js';
 import { hydrateIcons } from '../../ui/icons.js';
 import { shake, wait } from '../../ui/motion.js';
-
-const errorText = (result) => (result?.error === 'locked' ? 'Browser sedang terkunci.' : result?.error || 'Gagal menyimpan');
 
 // Inline form; prompt() is unreliable in popups.
 const MARKUP = `
@@ -31,15 +30,6 @@ const MARKUP = `
   <button class="btn ghost block sm rp" type="button" id="lock-settings" style="--i:4"><i data-ic="sliders"></i>Atur Browser Lock</button>
 `;
 
-async function shortcut() {
-  try {
-    const commands = await chrome.commands.getAll();
-    return commands.find((c) => c.name === 'lock-browser')?.shortcut || '';
-  } catch {
-    return '';
-  }
-}
-
 export async function status() {
   const state = await send('lock:getState');
   return state.enabled ? 'aktif' : 'nonaktif';
@@ -62,7 +52,7 @@ async function openSettings() {
 // `disable`: opened from the card switch being turned off, so show the password form at once.
 export async function render(root, { disable = false } = {}) {
   await loadStyles(new URL('./panel.css', import.meta.url).href);
-  const [state, keys] = await Promise.all([send('lock:getState'), shortcut()]);
+  const [state, keys] = await Promise.all([send('lock:getState'), lockShortcut()]);
   if (!root.isConnected) return;
   if (!state.enabled) return void root.replaceChildren(offNotice(), settingsButton());
 

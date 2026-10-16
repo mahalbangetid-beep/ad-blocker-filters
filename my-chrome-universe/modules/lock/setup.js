@@ -25,6 +25,7 @@ form.addEventListener('submit', async (event) => {
   if (busy) return;
   busy = true;
   saveButton.classList.add('loading');
+  saveButton.setAttribute('aria-busy', 'true');
   showMessage(msg, '');
 
   let result;
@@ -32,6 +33,7 @@ form.addEventListener('submit', async (event) => {
     result = await send('lock:setup', { password: $('password').value, confirm: $('confirm').value });
   } finally {
     saveButton.classList.remove('loading');
+    saveButton.removeAttribute('aria-busy');
     busy = false;
   }
 

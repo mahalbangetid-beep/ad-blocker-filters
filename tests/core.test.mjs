@@ -254,16 +254,13 @@ test('core:setAppearance validates, merges and is gated', async () => {
   await chrome.storage.session.set({ 'lock:unlocked': true });
   const web = { id: 'testid', url: 'https://evil.test/', tab: { id: 9, url: 'https://evil.test/' } };
   assert.deepEqual(await send({ type: 'core:setAppearance', patch: { theme: 'light' } }, web), { ok: false, error: 'forbidden' });
-  const r1 = await send({ type: 'core:setAppearance', patch: { theme: 'light' } });
-  assert.equal(r1.ok, true);
-  assert.equal(r1.appearance.theme, 'light');
-  const r2 = await send({ type: 'core:setAppearance', patch: { accent: 'nova', motion: 'nope' } });
-  assert.deepEqual(r2.appearance, { theme: 'light', motion: 'full', accent: 'nova', welcome: true });
   const stored = async () => (await chrome.storage.local.get('core:appearance'))['core:appearance'];
+  assert.deepEqual(await send({ type: 'core:setAppearance', patch: { theme: 'light' } }), { ok: true });
+  assert.deepEqual(await stored(), { theme: 'light' });
+  assert.deepEqual(await send({ type: 'core:setAppearance', patch: { accent: 'nova', motion: 'nope' } }), { ok: true });
   assert.deepEqual(await stored(), { theme: 'light', accent: 'nova' });
   await chrome.storage.local.set({ 'core:appearance': { theme: 'light', motion: 'minimal' } });
-  const r3 = await send({ type: 'core:setAppearance', patch: { motion: 'nope', welcome: 'yes' } });
-  assert.equal(r3.appearance.motion, 'minimal');
+  assert.deepEqual(await send({ type: 'core:setAppearance', patch: { motion: 'nope', welcome: 'yes' } }), { ok: true });
   assert.deepEqual(await stored(), { theme: 'light', motion: 'minimal' });
 });
 

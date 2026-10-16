@@ -52,7 +52,7 @@
     async 'core:setAppearance'({ patch }) {
       const next = { ...(local['core:appearance'] || {}), ...patch };
       await chrome.storage.local.set({ 'core:appearance': next });
-      return { ok: true, appearance: next };
+      return { ok: true };
     },
     async 'ab:getOptions'() {
       return { ok: true, totalBlocked: local['ab:total'] };

@@ -2,7 +2,7 @@
 import { MODULES, getModuleStates, onModuleStatesChanged, setModuleState } from './modules.js';
 import { messageAllowed, senderAllowed } from './gate.js';
 import { rebuildMenus } from './menus.js';
-import { APPEARANCE_KEY, WELCOME_KEY, normalizeAppearance, validPatch } from '../ui/appearance.js';
+import { APPEARANCE_KEY, WELCOME_KEY, validPatch } from '../ui/appearance.js';
 
 // Context menus are rebuilt from the module providers whenever they may be stale.
 chrome.runtime.onInstalled.addListener((details) => {
@@ -45,7 +45,7 @@ const handlers = {
     const raw = got[APPEARANCE_KEY] && typeof got[APPEARANCE_KEY] === 'object' ? got[APPEARANCE_KEY] : {};
     const next = { ...raw, ...validPatch(patch) };
     await chrome.storage.local.set({ [APPEARANCE_KEY]: next });
-    return { ok: true, appearance: normalizeAppearance(next) };
+    return { ok: true };
   },
 };
 

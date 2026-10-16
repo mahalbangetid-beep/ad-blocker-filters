@@ -2,7 +2,6 @@
 kbd { font: 500 11px/1 var(--f-mono); padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line-strong); background: rgb(var(--tint) / .05); color: var(--dust); }
 .ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; transition: transform 420ms var(--spring); }
 .faint { color: var(--faint); }
-.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 
 /* ---------- motion levels ---------- */
 [data-motion="minimal"] *, [data-motion="minimal"] *::before, [data-motion="minimal"] *::after {
@@ -13,9 +12,9 @@ kbd { font: 500 11px/1 var(--f-mono); padding: 4px 6px; border-radius: 6px; bord
 /* ---------- space backdrop ---------- */
 .nebula { position: fixed; inset: -20%; z-index: 0; pointer-events: none; filter: blur(70px); opacity: var(--neb-op); }
 .nebula i { position: absolute; border-radius: 50%; mix-blend-mode: var(--neb-blend); animation: drift var(--t) ease-in-out infinite alternate; }
-.nebula i:nth-child(1) { width: 46vmax; height: 46vmax; left: 6%; top: 10%; background: radial-gradient(circle, rgba(255,181,71,.34), transparent 64%); --t: 26s; }
-.nebula i:nth-child(2) { width: 54vmax; height: 54vmax; right: 2%; top: 26%; background: radial-gradient(circle, rgba(255,110,150,.26), transparent 64%); --t: 32s; animation-delay: -8s; }
-.nebula i:nth-child(3) { width: 40vmax; height: 40vmax; left: 34%; bottom: 0; background: radial-gradient(circle, rgba(70,220,200,.2), transparent 64%); --t: 38s; animation-delay: -14s; }
+.nebula i:nth-child(1) { width: 46vmax; height: 46vmax; left: 6%; top: 10%; background: radial-gradient(circle, var(--neb-1), transparent 64%); --t: 26s; }
+.nebula i:nth-child(2) { width: 54vmax; height: 54vmax; right: 2%; top: 26%; background: radial-gradient(circle, var(--neb-2), transparent 64%); --t: 32s; animation-delay: -8s; }
+.nebula i:nth-child(3) { width: 40vmax; height: 40vmax; left: 34%; bottom: 0; background: radial-gradient(circle, var(--neb-3), transparent 64%); --t: 38s; animation-delay: -14s; }
 @keyframes drift { to { transform: translate3d(6vmax, -4vmax, 0) scale(1.15); } }
 
 /* ---------- entrances ---------- */
@@ -126,20 +125,21 @@ kbd { font: 500 11px/1 var(--f-mono); padding: 4px 6px; border-radius: 6px; bord
 #fx { z-index: 95; }
 .scene { position: fixed; inset: 0; z-index: 1; }
 .scene[hidden] { display: none !important; }
-.scene.leave-zoom, .scene.leave-warp, .scene.leave-collapse { pointer-events: none; }
+.scene.leave-zoom, .scene.leave-warp { pointer-events: none; }
 .scene.leave-zoom { animation: leave-zoom 760ms var(--ease-in) forwards; }
 @keyframes leave-zoom { to { opacity: 0; transform: scale(1.45); filter: blur(16px); } }
 .scene.leave-warp { animation: leave-warp 720ms var(--ease-in) forwards; }
 @keyframes leave-warp { 35% { transform: scale(.94); filter: blur(0); } to { opacity: 0; transform: scale(2.2); filter: blur(24px); } }
-.scene.leave-collapse { animation: leave-collapse 640ms var(--ease-in) forwards; }
+/* Kunci (ui/motion.js collapseThenLock): the page collapses (≤ 450 ms) before the lock screen takes over. */
+.collapsing { animation: leave-collapse 420ms var(--ease-in) forwards; pointer-events: none; }
 @keyframes leave-collapse { to { opacity: 0; transform: scale(.55); filter: blur(14px) brightness(1.8); } }
 
 /* ---------- welcome (ui/welcome.js) ---------- */
 .welcome { z-index: 2; display: grid; place-items: center; text-align: center; cursor: pointer; }
 .w-center { display: flex; flex-direction: column; align-items: center; gap: 22px; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); max-width: 1200px; }
 .w-flash, .w-ring { position: absolute; left: 50%; top: 50%; border-radius: 50%; pointer-events: none; }
-.w-flash { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: #FFF6E2; box-shadow: 0 0 80px 30px var(--solar); opacity: 0; }
-.w-ring { width: 120px; height: 120px; margin: -60px 0 0 -60px; border: 1.5px solid rgba(255,214,150,.7); opacity: 0; }
+.w-flash { width: 14px; height: 14px; margin: -7px 0 0 -7px; background: var(--flash); box-shadow: 0 0 80px 30px var(--solar); opacity: 0; }
+.w-ring { width: 120px; height: 120px; margin: -60px 0 0 -60px; border: 1.5px solid var(--flash-ring); opacity: 0; }
 .welcome.is-active .w-flash { animation: bang 1500ms var(--ease-out) both; }
 .welcome.is-active .w-ring { animation: ring 1700ms 120ms var(--ease-out) both; }
 @keyframes bang { 0% { opacity: 1; transform: scale(0); } 18% { opacity: 1; transform: scale(1.6); } 100% { opacity: 0; transform: scale(22); } }

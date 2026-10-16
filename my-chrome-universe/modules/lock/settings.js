@@ -5,6 +5,8 @@ import {
 } from '../../core/settings-ui.js';
 import { guardAction } from '../../core/gate.js';
 import { onModuleStatesChanged } from '../../core/modules.js';
+import { lockShortcut } from './common.js';
+import { collapseThenLock } from '../../ui/motion.js';
 
 export const summary = { sub: 'Password, kunci otomatis', desc: 'Kapan browser terkunci dan cara membukanya kembali.' };
 
@@ -12,17 +14,8 @@ const statusText = (on) => (on
   ? 'Aktif: password diminta setiap kali browser dibuka. Mematikannya butuh password saat ini.'
   : 'Nonaktif: browser tidak dikunci saat dibuka, saat tidak ada aktivitas, saat layar dikunci, maupun lewat shortcut. Password tetap tersimpan, jadi mengaktifkan kembali tidak perlu password baru.');
 
-async function shortcutKeys() {
-  try {
-    const commands = await chrome.commands.getAll();
-    return commands.find((c) => c.name === 'lock-browser')?.shortcut || '';
-  } catch {
-    return '';
-  }
-}
-
 export async function render(root, ctx) {
-  const [state, keys] = await Promise.all([ctx.send('lock:getState'), shortcutKeys()]);
+  const [state, keys] = await Promise.all([ctx.send('lock:getState'), lockShortcut()]);
   if (!state?.hasPassword) return renderSetup(root);
 
   let enabled = state.enabled;
@@ -163,7 +156,13 @@ export async function render(root, ctx) {
   function lockNowRow() {
     const lockButton = button('Kunci', { id: 'lock-now', ic: 'lock', cls: 'btn sm rp' });
     lockButton.disabled = !enabled;
-    lockButton.addEventListener('click', () => ctx.send('lock:lock'));
+    lockButton.addEventListener('click', async () => {
+      lockButton.disabled = true;
+      const result = await collapseThenLock(document.getElementById('st') || document.body);
+      if (result?.ok) return; // the lock sweep closes this page
+      lockButton.disabled = !enabled;
+      ctx.toast(errorText(result, 'Gagal mengunci browser'), { icon: 'info' });
+    });
     const parts = (keys || '').split('+').filter(Boolean);
     const keyBox = h('span', { class: 'keys' });
     parts.forEach((k, i) => keyBox.append(...(i ? ['+'] : []), h('kbd', {}, k)));

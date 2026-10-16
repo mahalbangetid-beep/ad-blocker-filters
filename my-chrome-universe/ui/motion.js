@@ -21,6 +21,16 @@ export function animate(el, keyframes, opts = {}) {
   return el.animate(keyframes, { easing: 'cubic-bezier(.22,1,.36,1)', ...opts, duration: Math.max(1, (opts.duration || 300) * (k || 0.001)) });
 }
 
+// Kunci: a short collapse of `el` (.collapsing, ≤ 450 ms), then lock:lock, whose sweep closes
+// extension tabs. Resolves with the reply; on failure the collapse is undone.
+export async function collapseThenLock(el) {
+  el.classList.add('collapsing');
+  await wait(420);
+  const result = await chrome.runtime.sendMessage({ type: 'lock:lock' }).catch(() => null);
+  if (!result?.ok) el.classList.remove('collapsing');
+  return result;
+}
+
 export function countUp(el, to, ms = 1100) {
   if (!el) return;
   // Hidden pages get no animation frames: show the final value at once.
@@ -39,7 +49,9 @@ export function shake(el) {
 }
 
 // Auto-dismiss uses JS timers: in minimal motion CSS animations jump to their end state.
+// A toast with an action (e.g. "Urungkan") stays 6 s and runs the action at most once.
 export function toast(text, opts = {}) {
+  const ms = opts.action ? 6000 : 4200;
   let box = document.querySelector('.toasts');
   if (!box) {
     box = document.createElement('div');
@@ -51,6 +63,7 @@ export function toast(text, opts = {}) {
   t.className = 'toast';
   t.innerHTML = `<span class="t-ic">${ic(opts.icon || 'check')}</span><span class="t-text"></span><span class="t-bar"></span>`;
   t.querySelector('.t-text').textContent = text;
+  t.querySelector('.t-bar').style.animationDuration = `${ms}ms`;
   let timer;
   const dismiss = () => {
     clearTimeout(timer);
@@ -63,12 +76,16 @@ export function toast(text, opts = {}) {
     b.className = 'btn ghost sm';
     b.innerHTML = ic('undo');
     b.append(opts.action.label);
-    b.addEventListener('click', () => { opts.action.run(); dismiss(); });
+    b.addEventListener('click', () => {
+      b.disabled = true;
+      opts.action.run();
+      dismiss();
+    }, { once: true });
     t.insertBefore(b, t.querySelector('.t-bar'));
   }
   box.prepend(t);
   while (box.children.length > 3) box.lastElementChild.remove();
-  timer = setTimeout(dismiss, 4200);
+  timer = setTimeout(dismiss, ms);
 }
 
 const installed = new WeakSet();

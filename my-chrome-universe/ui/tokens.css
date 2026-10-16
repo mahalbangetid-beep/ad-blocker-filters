@@ -21,6 +21,8 @@
   --ad-a: #3A2410; --ad-b: #2A1426; --ad-text: #FFD9A0; --ad-title: #FFE6C2;
   --title-grad: linear-gradient(100deg, var(--solar) 0%, #FFD9A0 22%, var(--nova) 48%, var(--ion) 82%, var(--solar) 100%);
   --neb-blend: screen; --neb-op: .5; --logo-ring: rgba(238, 241, 255, .55);
+  --neb-1: rgba(255, 181, 71, .34); --neb-2: rgba(255, 110, 150, .26); --neb-3: rgba(70, 220, 200, .2);
+  --flash: #FFF6E2; --flash-ring: rgba(255, 214, 150, .7);
   color-scheme: dark;
 }
 /* Light theme "Fajar": the same universe at dawn; fills keep brand hues, text uses deeper variants for 4.5:1 contrast. */

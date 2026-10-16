@@ -4,6 +4,7 @@ import { h, row, toggleRow, button, rowMsg, showMsg } from '../../core/settings-
 import { runOp, loadData, onDataChanged } from './common.js';
 import { exportData, readImportFile, importData, importBookmarks } from './dashboard/backup.js';
 import { askImportMode } from './dashboard/dialogs.js';
+import { getModuleStates, onModuleStatesChanged } from '../../core/modules.js';
 
 export const summary = { sub: 'Simpan, cadangan', desc: 'Cara tab disimpan dan cadangan datanya.' };
 
@@ -69,11 +70,20 @@ export async function render(root, ctx) {
     ctx.toast(`${result.count} folder bookmark diimpor ke ruang “Bookmark Chrome”`, { icon: 'upload' });
   });
 
+  const openButton = button('Buka dashboard', { id: 'open-dashboard', ic: 'layers', onclick: () => location.assign(chrome.runtime.getURL('modules/tabs/newtab.html')) });
   const dashboard = row({
     title: 'Dashboard',
     desc: 'Ruang, koleksi, dan tab tersimpan di halaman New Tab.',
-    control: button('Buka dashboard', { id: 'open-dashboard', ic: 'layers', onclick: () => location.assign(chrome.runtime.getURL('modules/tabs/newtab.html')) }),
+    control: openButton,
   });
+  // The dashboard only opens while Tab Manager is on (follows the module switch live).
+  const syncOpen = (on) => {
+    openButton.disabled = !on;
+    if (on) openButton.removeAttribute('title');
+    else openButton.title = 'Tab Manager sedang nonaktif';
+  };
+  syncOpen((await getModuleStates()).tabs);
+  onModuleStatesChanged((states) => syncOpen(states.tabs));
 
   root.replaceChildren(closeAfter.item, backup, bookmarks, dashboard);
 }

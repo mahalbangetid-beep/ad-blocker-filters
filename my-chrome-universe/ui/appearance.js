@@ -42,8 +42,11 @@ export async function readAppearance() {
   return normalizeAppearance(got[APPEARANCE_KEY], { reducedMotion: reduced() });
 }
 
+// The theme actually shown: "auto" follows the system.
+export const isLight = (a) => a.theme === 'light' || (a.theme === 'auto' && prefersLight());
+
 export function applyAppearance(a, root = document.documentElement) {
-  const light = a.theme === 'light' || (a.theme === 'auto' && prefersLight());
+  const light = isLight(a);
   root.dataset.ui = light ? 'light' : 'dark';
   root.dataset.motion = a.motion;
   root.dataset.accent = a.accent;
@@ -57,8 +60,11 @@ export function watchAppearance(cb) {
       cb(normalizeAppearance(changes[APPEARANCE_KEY].newValue, { reducedMotion: reduced() }));
     }
   });
+  // System changes matter while the stored theme is "auto" or no motion level is stored.
+  const reread = () => { readAppearance().then(cb).catch(() => {}); };
   try {
-    matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { readAppearance().then(cb).catch(() => {}); });
+    matchMedia('(prefers-color-scheme: light)').addEventListener('change', reread);
+    matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', reread);
   } catch { /* no matchMedia */ }
 }
 

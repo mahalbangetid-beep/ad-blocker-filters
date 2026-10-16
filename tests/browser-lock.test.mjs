@@ -424,6 +424,16 @@ test('lock now, idle and screen lock', async () => {
   assert.equal((await send({ type: 'lock:getState' })).locked, false);
 });
 
+test('a manual lock clears an unplayed startup welcome', async () => {
+  await chrome.storage.session.set({ 'core:welcome': true });
+  assert.equal((await send({ type: 'lock:lock' })).ok, true);
+  await settle();
+  assert.equal('core:welcome' in chrome.storage.session.dump(), false);
+  await send({ type: 'lock:unlock', password: 'rahasia1' });
+  await settle();
+  assert.equal((await send({ type: 'lock:getState' })).locked, false);
+});
+
 test('restart while lock module is disabled does not lock', async () => {
   tabs.length = 0;
   tabs.push({ id: nextId++, url: 'https://a.com/', windowId: 100, incognito: false });

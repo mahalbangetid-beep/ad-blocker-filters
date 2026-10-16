@@ -4,6 +4,8 @@
 // DevTools Protocol.
 //
 // Run: node --test tests/universe.e2e.mjs   (CHROME_PATH=... to pick a browser)
+// Only the Ad Blocker/feed checks (what the daily filter bot needs before publishing):
+//      node --test --test-name-pattern="^adblock: " tests/universe.e2e.mjs
 import { test, after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -156,10 +158,17 @@ async function waitFor(sessionId, expression, timeoutMs = 5000) {
 }
 
 // Sends a message to the extension's background, like the popup would.
+// A page that was closed meanwhile (e.g. by "Hapus duplikat") is replaced by a fresh one.
 async function bg(message) {
-  const pageSession = await openPage(`chrome-extension://${extId}/popup.html`, false);
-  const value = await evaluate(pageSession, `chrome.runtime.sendMessage(${JSON.stringify(message)})`);
-  return value;
+  const url = `chrome-extension://${extId}/popup.html`;
+  const expression = `chrome.runtime.sendMessage(${JSON.stringify(message)})`;
+  try {
+    return await evaluate(await openPage(url, false), expression);
+  } catch (err) {
+    if (!/session|target/i.test(err.message)) throw err;
+    openSessions.delete(url);
+    return evaluate(await openPage(url, false), expression);
+  }
 }
 
 const openSessions = new Map();
@@ -260,14 +269,14 @@ after(async () => {
   } catch {}
 });
 
-test('static rulesets are accepted and the defaults are enabled', async () => {
+test('adblock: static rulesets are accepted and the defaults are enabled', async () => {
   const enabled = await evaluate(swSession, 'chrome.declarativeNetRequest.getEnabledRulesets()');
   assert.deepEqual(enabled.sort(), ['ads', 'security']);
   const available = await evaluate(swSession, 'chrome.declarativeNetRequest.getAvailableStaticRuleCount()');
   assert.ok(available > 0, `available static rules: ${available}`);
 });
 
-test('ads are blocked and hidden, normal content is untouched', async () => {
+test('adblock: ads are blocked and hidden, normal content is untouched', async () => {
   const r = await loadTestPage();
   assert.equal(r.loads.normal, true, 'normal script should load');
   assert.equal(r.loads.pattern, false, '/js/flyad.js should be blocked');
@@ -278,7 +287,7 @@ test('ads are blocked and hidden, normal content is untouched', async () => {
   assert.ok(!hits.some((h) => h.includes('flyad') || h.startsWith('adnxs.com')), `blocked requests reached the server: ${hits}`);
 });
 
-test('popup state counts blocked requests on the page', async () => {
+test('adblock: popup state counts blocked requests on the page', async () => {
   const { targetInfos } = await cdp.send('Target.getTargets');
   const page = targetInfos.filter((t) => t.type === 'page' && t.url.startsWith(SITE)).at(-1);
   const tabId = await evaluate(swSession, `chrome.tabs.query({}).then(t => t.find(x => x.url && x.url.startsWith(${JSON.stringify(SITE)}))?.id)`);
@@ -290,7 +299,7 @@ test('popup state counts blocked requests on the page', async () => {
   assert.ok(state.totalBlocked >= 3, `totalBlocked = ${state.totalBlocked}`);
 });
 
-test('custom filters block and hide immediately', async () => {
+test('adblock: custom filters block and hide immediately', async () => {
   const result = await bg({ type: 'ab:saveCustomFilters', text: '/custom-block.js\nsite.test##.my-custom-ad' });
   assert.equal(result.ok, true);
   assert.equal(result.stats.network, 1);
@@ -300,7 +309,7 @@ test('custom filters block and hide immediately', async () => {
   assert.equal(r.customAd, 'none');
 });
 
-test('allowlisting a site turns everything off there, and back on', async () => {
+test('adblock: allowlisting a site turns everything off there, and back on', async () => {
   await bg({ type: 'ab:setAllowlisted', domain: 'site.test', allowlisted: true });
   let r = await loadTestPage();
   assert.equal(r.loads.pattern, true);
@@ -313,7 +322,7 @@ test('allowlisting a site turns everything off there, and back on', async () => 
   assert.equal(r.adBanner, 'none');
 });
 
-test('pause disables all lists; enabling another list works', async () => {
+test('adblock: pause disables all lists; enabling another list works', async () => {
   await bg({ type: 'ab:setPaused', paused: true });
   assert.deepEqual(await evaluate(swSession, 'chrome.declarativeNetRequest.getEnabledRulesets()'), []);
   let r = await loadTestPage();
@@ -332,7 +341,7 @@ test('pause disables all lists; enabling another list works', async () => {
 
 const enabledRulesets = () => evaluate(swSession, 'chrome.declarativeNetRequest.getEnabledRulesets()');
 
-test('turning Ad Blocker off stops blocking and keeps pause separate', async () => {
+test('adblock: turning Ad Blocker off stops blocking and keeps pause separate', async () => {
   // Pause and the module switch are separate settings: switching the module off and on keeps the pause.
   await bg({ type: 'ab:setPaused', paused: true });
   assert.equal((await bg({ type: 'core:setModule', id: 'adblock', enabled: false })).ok, true);
@@ -409,7 +418,7 @@ async function screenshot(sessionId, name, selector) {
   writeFileSync(join(process.env.SHOT_DIR, `${name}.png`), Buffer.from(data, 'base64'));
 }
 
-test('block element picker hides the clicked element and saves a filter', async () => {
+test('adblock: block element picker hides the clicked element and saves a filter', async () => {
   const session = await openPage(`${SITE}/page.html`);
   const tabId = await evaluate(swSession, `chrome.tabs.query({}).then(t => t.filter(x => x.url && x.url.startsWith(${JSON.stringify(SITE)})).at(-1).id)`);
   await bg({ type: 'ab:startPicker', tabId });
@@ -445,7 +454,7 @@ async function loadYoutube() {
   }))()`);
 }
 
-test('YouTube video ads are stripped from player data and skipped', async () => {
+test('adblock: YouTube video ads are stripped from player data and skipped', async () => {
   const r = await loadYoutube();
   assert.deepEqual(r.inline, ['videoDetails'], 'inline ytInitialPlayerResponse');
   assert.deepEqual(r.parsed, ['videoDetails'], 'JSON.parse');
@@ -455,7 +464,7 @@ test('YouTube video ads are stripped from player data and skipped', async () => 
   assert.equal(r.masthead, 'none');
 });
 
-test('YouTube scripts follow pause and the YouTube setting', async () => {
+test('adblock: YouTube scripts follow pause and the YouTube setting', async () => {
   await bg({ type: 'ab:setPaused', paused: true });
   let r = await loadYoutube();
   assert.ok(r.inline.includes('adPlacements'), 'paused: player data untouched');
@@ -499,7 +508,7 @@ const bundledCosmetic = () => JSON.parse(readFileSync(join(adblockDir, 'cosmetic
 const disabledIds = () => evaluate(swSession, "chrome.declarativeNetRequest.getDisabledRuleIds({ rulesetId: 'ads' })");
 let removedRule;
 
-test('daily update adds new rules, disables removed ones and refreshes element hiding', async () => {
+test('adblock: daily update adds new rules, disables removed ones and refreshes element hiding', async () => {
   const bundled = bundledRules();
   // The feed dropped the domain group containing adnxs.com and added a new ad server.
   removedRule = bundled.find((r) => r.condition.requestDomains?.includes('adnxs.com'));
@@ -528,7 +537,7 @@ test('daily update adds new rules, disables removed ones and refreshes element h
   assert.equal(r.loads.normal, true);
 });
 
-test('a feed with a bad checksum is rejected and the last good update stays', async () => {
+test('adblock: a feed with a bad checksum is rejected and the last good update stays', async () => {
   publishFeed({ version: '209901010001', rules: [], cosmetic: bundledCosmetic(), corruptChecksum: true });
   const result = await bg({ type: 'ab:updateFilters' });
   assert.equal(result.feed.status, 'error');
@@ -538,7 +547,7 @@ test('a feed with a bad checksum is rejected and the last good update stays', as
   assert.equal(r.loads.feedNew, false);
 });
 
-test('a feed older than the bundled rules clears downloaded updates', async () => {
+test('adblock: a feed older than the bundled rules clears downloaded updates', async () => {
   publishFeed({ version: '200001010000', rules: bundledRules(), cosmetic: bundledCosmetic() });
   const result = await bg({ type: 'ab:updateFilters' });
   assert.equal(result.feed.status, 'current');
@@ -964,17 +973,104 @@ test('theme button switches every open page', async () => {
   const b = await openWatched(dashboardUrl());
   try {
     for (const p of [a, b]) await waitFor(p.sessionId, `${dashReady} && document.documentElement.dataset.ui === 'light'`);
+    // Which icon the button shows (sun: circle r=4 with rays; moon: the crescent path).
+    const themeIcon = (p) => evaluate(p.sessionId, `(() => {
+      const html = document.getElementById('theme-btn').innerHTML;
+      return html.includes('M12 3a6 6') ? 'moon' : html.includes('r="4"') ? 'sun' : 'other';
+    })()`);
+    assert.equal(await themeIcon(a), 'sun', 'light: the button shows the sun');
     await evaluate(b.sessionId, 'window.notReloaded = true');
     await evaluate(a.sessionId, "document.getElementById('theme-btn').click()");
     for (const p of [a, b]) await waitFor(p.sessionId, "document.documentElement.dataset.ui === 'dark'");
     assert.equal(await evaluate(b.sessionId, 'window.notReloaded'), true, 'the other page changed without a reload');
     assert.equal((await localValue('core:appearance')).theme, 'dark');
+    for (const p of [a, b]) await waitFor(p.sessionId, "document.getElementById('theme-btn').title === 'Tema gelap (Malam)'");
+    for (const p of [a, b]) assert.equal(await themeIcon(p), 'moon', 'dark: the button shows the moon');
+
+    // Every click changes the theme shown; from "auto" it flips whatever the system shows.
+    await evaluate(b.sessionId, "document.getElementById('theme-btn').click()");
+    for (const p of [a, b]) await waitFor(p.sessionId, "document.documentElement.dataset.ui === 'light'");
+    assert.equal((await localValue('core:appearance')).theme, 'light');
+    await swSession_(`chrome.storage.local.set({ 'core:appearance': { ...${JSON.stringify(before || {})}, theme: 'auto' } })`);
+    const system = await evaluate(a.sessionId, "matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'");
+    await waitFor(a.sessionId, `document.documentElement.dataset.ui === ${JSON.stringify(system)}`);
+    await evaluate(a.sessionId, "document.getElementById('theme-btn').click()");
+    const flipped = system === 'light' ? 'dark' : 'light';
+    for (const p of [a, b]) await waitFor(p.sessionId, `document.documentElement.dataset.ui === ${JSON.stringify(flipped)}`);
+    assert.equal((await localValue('core:appearance')).theme, flipped);
     assert.deepEqual([...a.errors, ...b.errors], []);
   } finally {
     for (const p of [a, b]) await cdp.send('Target.closeTarget', { targetId: p.targetId }).catch(() => {});
     await swSession_(before
       ? `chrome.storage.local.set({ 'core:appearance': ${JSON.stringify(before)} })`
       : "chrome.storage.local.remove('core:appearance')");
+  }
+});
+
+test('open tabs: save session, close duplicates, save one tab, search', async () => {
+  const snapshot = await tmData(); // restored at the end
+  const [space] = await addSpaces([{ name: 'Uji Tab Terbuka', collections: [] }]);
+  await bg({ type: 'tm:op', op: { type: 'space/activate', spaceId: space.id } });
+  const A = `${SITE}/terbuka-a.js`, B = `${SITE}/terbuka-b.js`, DUP = `${SITE}/terbuka-ganda.js`;
+  // Real tabs in a window of their own (so "Simpan sesi" saves and closes only these),
+  // with a dashboard tab in that window.
+  const win = await swSession_(`chrome.windows.create({ url: ${JSON.stringify([A, B])} }).then((w) => w.id)`);
+  const dashInWin = `${dashboardUrl()}#tab-terbuka`;
+  await swSession_(`chrome.tabs.create({ windowId: ${win}, url: ${JSON.stringify(dashInWin)} }).then(() => true)`);
+  const target = await until(async () => (await cdp.send('Target.getTargets')).targetInfos
+    .find((t) => t.type === 'page' && t.url === dashInWin), 'dashboard tab in the new window');
+  const { sessionId: s } = await cdp.send('Target.attachToTarget', { targetId: target.targetId, flatten: true });
+  await cdp.send('Runtime.enable', {}, s);
+  const winTabs = () => swSession_(`chrome.tabs.query({ windowId: ${win} }).then((t) => t.map((x) => x.url || x.pendingUrl))`);
+  const rows = `document.querySelectorAll('#windows .orow[data-window="${win}"]')`;
+  const spaceCols = async () => (await tmData()).spaces.find((x) => x.id === space.id)?.collections || [];
+  let results;
+  try {
+    await waitFor(s, dashReady, 8000);
+    await waitFor(s, `${rows}.length === 2`);
+
+    // "Tutup tab setelah disimpan" + "Simpan sesi": the window's tabs become a collection and close.
+    await evaluate(s, "document.getElementById('close-after').click()");
+    await until(async () => (await tmData()).settings.closeAfterSave === true, 'close after save stored');
+    await sleep(300); // the page receives the stored setting
+    await evaluate(s, "document.getElementById('save-session').click()");
+    const saved = await until(async () => (await spaceCols()).find((c) => c.cards.some((k) => k.url === A)), 'session saved as a collection');
+    assert.deepEqual(saved.cards.map((c) => c.url).sort(), [A, B]);
+    await until(async () => {
+      const urls = await winTabs();
+      return urls.length === 1 && urls[0].startsWith(dashboardUrl());
+    }, 'saved tabs closed, the dashboard stays');
+    await waitFor(s, `!!document.querySelector('#cols .col[data-id="${saved.id}"]') && ${rows}.length === 0`);
+    await evaluate(s, "document.getElementById('close-after').click()");
+    await until(async () => (await tmData()).settings.closeAfterSave === false, 'close after save off again');
+    await sleep(300);
+
+    // "Hapus duplikat": the second copy of a URL closes and the badge updates.
+    await swSession_(`Promise.all([0, 1].map(() => chrome.tabs.create({ windowId: ${win}, url: ${JSON.stringify(DUP)}, active: false }))).then(() => true)`);
+    await waitFor(s, `${rows}.length === 2 && document.querySelectorAll('#windows .orow.dup[data-window="${win}"]').length === 1`);
+    await waitFor(s, "!document.getElementById('dup-count').hidden && Number(document.getElementById('dup-count').textContent) >= 1");
+    await evaluate(s, "document.getElementById('dedupe').click()");
+    await until(async () => (await winTabs()).filter((u) => u === DUP).length === 1, 'duplicate tab closed');
+    await waitFor(s, `${rows}.length === 1 && document.getElementById('dup-count').hidden && document.getElementById('dup-count').textContent === '0'`);
+
+    // Save one tab to "Disimpan" (created on demand); with close-after off the tab stays open.
+    await evaluate(s, `document.querySelector('#windows .orow[data-window="${win}"] .save-one').click()`);
+    const inbox = await until(async () => (await spaceCols()).find((c) => c.name === 'Disimpan' && c.cards.some((k) => k.url === DUP)), '"Disimpan" has the tab');
+    await waitFor(s, `!!document.querySelector('#cols .col[data-id="${inbox.id}"]')`);
+    assert.equal((await winTabs()).filter((u) => u === DUP).length, 1, 'the saved tab stays open');
+
+    // newtab.html?q=… opens straight into the search results.
+    results = await openWatched(`${dashboardUrl()}?q=terbuka-ganda`);
+    const r = results.sessionId;
+    await waitFor(r, `${dashReady} && document.getElementById('space-title').textContent.includes('Hasil pencarian')`);
+    await waitFor(r, `[...document.querySelectorAll('#cols .col')].map((c) => c.dataset.id).join() === ${JSON.stringify(inbox.id)}`);
+    assert.ok((await evaluate(r, "document.getElementById('cols').innerText")).includes('terbuka-ganda'));
+    assert.equal(await evaluate(r, "document.getElementById('search-actions').hidden"), false);
+    assert.deepEqual(results.errors, [], 'dashboard logged errors');
+  } finally {
+    if (results) await cdp.send('Target.closeTarget', { targetId: results.targetId }).catch(() => {});
+    await swSession_(`chrome.windows.remove(${win}).catch(() => {})`);
+    await swSession_(`chrome.storage.local.set({ 'tm:data': ${JSON.stringify(snapshot)} })`);
   }
 });
 
@@ -1520,9 +1616,12 @@ test('unlock restores tabs and shows the dashboard', async () => {
 const visible = (sel) => `(() => { const el = document.querySelector(${JSON.stringify(sel)}); return !!el && el.checkVisibility({ visibilityProperty: true }); })()`;
 
 test('startup shows the welcome, then the login card', async () => {
-  // The service worker raises this flag on browser startup; the lock screen consumes it once.
-  await evaluate(swSession, "chrome.storage.session.set({ 'core:welcome': true })");
+  // On browser startup the service worker raises this flag while the browser is locked (a manual
+  // lock clears it); the lock screen loaded after that consumes it once.
   lockSession = await lockBrowser();
+  assert.equal(await sessionValue('core:welcome'), null, 'a manual lock leaves no welcome flag');
+  await evaluate(swSession, "chrome.storage.session.set({ 'core:welcome': true })");
+  await cdp.send('Page.reload', {}, lockSession);
   await waitFor(lockSession, visible('#welcome'));
   await screenshot(lockSession, 'lock-welcome');
   // The card behind the welcome can be neither focused nor clicked.
@@ -1721,6 +1820,33 @@ test('the Kunci button collapses the dashboard, then locks', async () => {
   await waitFor(sessionId, "document.readyState === 'complete'");
   assert.equal((await fromLock(sessionId, { type: 'lock:unlock', password: PASSWORD })).ok, true);
   await waitUnlocked();
+});
+
+test('Kunci in the popup footer and in Settings also collapse first', async () => {
+  const pages = [
+    { url: extUrl('popup.html'), ready: "document.querySelectorAll('.mcu-card').length === 3 && !document.getElementById('mcu-lock-now').hidden", button: 'mcu-lock-now', root: 'mcu-pop' },
+    { url: settingsUrl('#lock'), ready: `${settingsReady} && !!document.getElementById('lock-now') && !document.getElementById('lock-now').disabled`, button: 'lock-now', root: 'st' },
+  ];
+  for (const { url, ready, button, root } of pages) {
+    const { sessionId: s } = await openWatched(url);
+    await waitFor(s, ready, 8000);
+    forgetBgPage();
+    const collapsing = await evaluate(s, `(() => {
+      document.getElementById(${JSON.stringify(button)}).click();
+      return document.getElementById(${JSON.stringify(root)}).classList.contains('collapsing');
+    })()`);
+    assert.equal(collapsing, true, `${url}: the collapse starts on click`);
+    await until(async () => {
+      const open = await pageTargets();
+      return open.length === 1 && open[0].url.startsWith(LOCK_PAGE());
+    }, `${url}: locked, only the lock screen is open`);
+    const [lockTarget] = await pageTargets();
+    const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: lockTarget.targetId, flatten: true });
+    await cdp.send('Runtime.enable', {}, sessionId);
+    await waitFor(sessionId, "document.readyState === 'complete'");
+    assert.equal((await fromLock(sessionId, { type: 'lock:unlock', password: PASSWORD })).ok, true);
+    await waitUnlocked();
+  }
 });
 
 test('recovery code opens the browser and replaces the password', async () => {

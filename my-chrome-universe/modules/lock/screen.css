@@ -23,7 +23,7 @@ body { overflow: hidden; }
 .login.is-active .login-card { animation: card-in 1000ms 250ms var(--ease-out) backwards; }
 @keyframes card-in { from { opacity: 0; transform: perspective(1000px) translateY(30px) scale(.9) rotateX(14deg); filter: blur(12px); } }
 
-.lc-mark { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 20px; margin-bottom: 4px; background: radial-gradient(circle at 30% 25%, rgba(255,181,71,.35), rgba(255,143,168,.12) 60%, transparent); border: 1px solid var(--line-strong); color: var(--accent-text); }
+.lc-mark { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 20px; margin-bottom: 4px; background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--accent) 35%, transparent), color-mix(in srgb, var(--nova) 12%, transparent) 60%, transparent); border: 1px solid var(--line-strong); color: var(--accent-text); }
 .lc-mark .ic { width: 30px; height: 30px; stroke-width: 1.6; }
 .lc-mark .shackle { transition: transform 500ms var(--spring); transform-box: fill-box; transform-origin: 100% 100%; }
 .login-card.unlocked .lc-mark .shackle { transform: translateY(-3px) rotate(28deg); }
@@ -45,7 +45,7 @@ body { overflow: hidden; }
 .btn-unlock { height: 50px; font-size: 15px; border-radius: 14px; }
 .btn-unlock .lbl, .btn-unlock .spin, .btn-unlock .done { transition: opacity 200ms, transform 320ms var(--spring); }
 .btn-unlock .spin, .btn-unlock .done { position: absolute; left: 50%; top: 50%; opacity: 0; transform: translate(-50%, -50%) scale(.5); }
-.btn-unlock .spin { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid rgba(27,18,4,.25); border-top-color: var(--accent-ink); animation: spin 700ms linear infinite; }
+.btn-unlock .spin { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--accent-ink) 25%, transparent); border-top-color: var(--accent-ink); animation: spin 700ms linear infinite; }
 .btn-unlock.loading .lbl, .btn-unlock.ok .lbl { opacity: 0; transform: translateY(-8px); }
 .btn-unlock.loading .spin { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 .btn-unlock.ok .done { opacity: 1; transform: translate(-50%, -50%) scale(1); }

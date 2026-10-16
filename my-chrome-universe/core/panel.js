@@ -12,15 +12,6 @@ export function loadStyles(href) {
   return loaded;
 }
 
-// Adds a panel-specific <style> block once (keyed by `key`).
-export function addStyle(key, css) {
-  if (document.head.querySelector(`style[data-panel="${key}"]`)) return;
-  const style = document.createElement('style');
-  style.dataset.panel = key;
-  style.textContent = css;
-  document.head.append(style);
-}
-
 // Shown instead of the panel's controls while the module is switched off.
 export function offNotice() {
   const box = document.createElement('div');

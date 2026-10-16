@@ -5,9 +5,9 @@ import { search } from './store.js';
 import { send, runOp, loadData, onDataChanged, h } from './common.js';
 import { guardPage } from '../../core/page-guard.js';
 import { isModuleEnabled, getModuleStates, onModuleStatesChanged } from '../../core/modules.js';
-import { initAppearance, watchAppearance, consumeWelcome } from '../../ui/appearance.js';
+import { initAppearance, watchAppearance, consumeWelcome, isLight } from '../../ui/appearance.js';
 import { hydrateIcons, icon } from '../../ui/icons.js';
-import { installEffects, toast, wait, countUp, motionLevel } from '../../ui/motion.js';
+import { installEffects, toast, wait, countUp, motionLevel, collapseThenLock } from '../../ui/motion.js';
 import { createSky } from '../../ui/sky.js';
 import { playWelcome } from '../../ui/welcome.js';
 import { renderRail, setActiveSpace } from './dashboard/rail.js';
@@ -222,12 +222,9 @@ async function lockNow() {
   hideGuide();
   closeDrawer();
   sky.reverse(900);
-  $('tm').classList.add('collapsing');
-  await wait(420);
-  const result = await send('lock:lock').catch(() => null);
+  const result = await collapseThenLock($('tm'));
   if (result?.ok) return; // this page is about to close
   locking = false;
-  $('tm').classList.remove('collapsing');
   toast(modules.lock ? 'Gagal mengunci browser' : 'Browser Lock sedang nonaktif', { icon: 'info' });
 }
 
@@ -241,11 +238,12 @@ onModuleStatesChanged((states) => {
   showModules(states);
 });
 
-// Theme: auto → light → dark, stored in the shared appearance so every open page follows.
-const THEME_ORDER = ['auto', 'light', 'dark'];
-const THEME_INFO = { auto: ['monitor', 'Tema: ikuti sistem'], light: ['sun', 'Tema terang (Fajar)'], dark: ['moon', 'Tema gelap (Malam)'] };
+// Theme button: flips the theme shown (light ↔ dark), stored in the shared appearance so every
+// open page follows. "Otomatis" stays available in Settings.
+const THEME_INFO = { light: ['sun', 'Tema terang (Fajar)'], dark: ['moon', 'Tema gelap (Malam)'] };
+const shownTheme = () => (isLight(appearance) ? 'light' : 'dark');
 function showTheme() {
-  const [name, label] = THEME_INFO[appearance.theme] || THEME_INFO.auto;
+  const [name, label] = THEME_INFO[shownTheme()];
   $('theme-btn').replaceChildren(icon(name));
   $('theme-btn').title = label;
   $('theme-btn').setAttribute('aria-label', `Ganti tema (sekarang: ${label})`);
@@ -255,14 +253,14 @@ watchAppearance((next) => {
   appearance = next;
   showTheme();
 });
-async function cycleTheme(source = $('theme-btn')) {
-  const next = THEME_ORDER[(THEME_ORDER.indexOf(appearance.theme) + 1) % THEME_ORDER.length];
+async function toggleTheme(source = $('theme-btn')) {
+  const next = shownTheme() === 'light' ? 'dark' : 'light';
   const result = await send('core:setAppearance', { patch: { theme: next } });
   if (!result?.ok) return toast(result?.error || 'Gagal mengganti tema', { icon: 'info' });
   sky.burstAt(source, 16);
   toast(THEME_INFO[next][1], { icon: THEME_INFO[next][0] });
 }
-$('theme-btn').addEventListener('click', (e) => cycleTheme(e.currentTarget));
+$('theme-btn').addEventListener('click', (e) => toggleTheme(e.currentTarget));
 $('tm-lock').addEventListener('click', lockNow);
 $('open-palette').addEventListener('click', () => openPalette());
 
@@ -302,7 +300,7 @@ function commands() {
     { ic: 'plus', label: 'Buat ruang baru', run: addSpace },
     !query && { ic: 'fold', label: allFolded ? 'Bentangkan semua koleksi' : 'Lipat semua koleksi', run: () => foldAll() },
     narrow && { ic: 'window', label: 'Tampilkan tab terbuka', run: openDrawer },
-    { ic: THEME_INFO[appearance.theme]?.[0] || 'moon', label: 'Ganti tema', keywords: 'gelap terang malam fajar tampilan', run: () => cycleTheme() },
+    { ic: THEME_INFO[shownTheme()][0], label: 'Ganti tema', keywords: 'gelap terang malam fajar tampilan', run: () => toggleTheme() },
     { ic: 'help', label: 'Tunjukkan kerangka Tab Manager', keywords: 'panduan bantuan', run: () => showGuide() },
     { ic: 'settings', label: 'Buka pengaturan', run: () => { location.href = $('settings-btn').href; } },
     { ic: 'download', label: 'Ekspor data (JSON)', keywords: 'cadangan backup', run: () => exportData(data) },

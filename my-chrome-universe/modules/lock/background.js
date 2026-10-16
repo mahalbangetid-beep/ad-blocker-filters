@@ -1,6 +1,7 @@
 import { createPasswordRecord, verifyPassword, generateRecoveryCode, normalizeRecoveryCode } from './crypto.js';
 import { guardAction, lockStatus, messageAllowed, senderAllowed, LOCK_PATH, SETUP_PATH } from '../../core/gate.js';
 import { isModuleEnabled, setModuleState } from '../../core/modules.js';
+import { WELCOME_KEY } from '../../ui/appearance.js';
 
 const LOCK_URL = chrome.runtime.getURL(LOCK_PATH);
 const SETUP_URL = chrome.runtime.getURL(SETUP_PATH);
@@ -133,7 +134,8 @@ async function quarantine(tab) {
 async function lock() {
   if (!(await getAuth()) || !(await isModuleEnabled('lock'))) return false;
   await chrome.storage.session.set({ 'lock:unlocked': false });
-  await chrome.storage.session.remove(['lock:handoffPending', 'lock:firstRestored']);
+  // A manual or idle lock never plays the startup welcome (even if it was never consumed).
+  await chrome.storage.session.remove(['lock:handoffPending', 'lock:firstRestored', WELCOME_KEY]);
   await sweep();
   return true;
 }
