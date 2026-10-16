@@ -2,7 +2,7 @@
 import { MODULES, getModuleStates, onModuleStatesChanged, setModuleState } from './modules.js';
 import { messageAllowed, senderAllowed } from './gate.js';
 import { rebuildMenus } from './menus.js';
-import { APPEARANCE_KEY, APPEARANCE_DEFAULTS, WELCOME_KEY, normalizeAppearance } from '../ui/appearance.js';
+import { APPEARANCE_KEY, WELCOME_KEY, normalizeAppearance, validPatch } from '../ui/appearance.js';
 
 // Context menus are rebuilt from the module providers whenever they may be stale.
 chrome.runtime.onInstalled.addListener((details) => {
@@ -21,7 +21,7 @@ export async function migrateAppearance() {
   if (got[APPEARANCE_KEY]) return;
   const theme = got['tm:data']?.settings?.theme;
   if (['auto', 'light', 'dark'].includes(theme)) {
-    await chrome.storage.local.set({ [APPEARANCE_KEY]: { ...APPEARANCE_DEFAULTS, theme } });
+    await chrome.storage.local.set({ [APPEARANCE_KEY]: { theme } });
   }
 }
 migrateAppearance().catch(() => {});
@@ -42,9 +42,10 @@ const handlers = {
   async 'core:setAppearance'({ patch }) {
     if (!patch || typeof patch !== 'object') return { ok: false, error: 'Permintaan tidak valid.' };
     const got = await chrome.storage.local.get(APPEARANCE_KEY);
-    const appearance = normalizeAppearance({ ...normalizeAppearance(got[APPEARANCE_KEY]), ...patch });
-    await chrome.storage.local.set({ [APPEARANCE_KEY]: appearance });
-    return { ok: true, appearance };
+    const raw = got[APPEARANCE_KEY] && typeof got[APPEARANCE_KEY] === 'object' ? got[APPEARANCE_KEY] : {};
+    const next = { ...raw, ...validPatch(patch) };
+    await chrome.storage.local.set({ [APPEARANCE_KEY]: next });
+    return { ok: true, appearance: normalizeAppearance(next) };
   },
 };
 

@@ -240,16 +240,20 @@ test('core:setAppearance validates, merges and is gated', async () => {
   assert.equal(r1.ok, true);
   assert.equal(r1.appearance.theme, 'light');
   const r2 = await send({ type: 'core:setAppearance', patch: { accent: 'nova', motion: 'nope' } });
-  const want = { theme: 'light', motion: 'full', accent: 'nova', welcome: true };
-  assert.deepEqual(r2.appearance, want);
-  assert.deepEqual((await chrome.storage.local.get('core:appearance'))['core:appearance'], want);
+  assert.deepEqual(r2.appearance, { theme: 'light', motion: 'full', accent: 'nova', welcome: true });
+  const stored = async () => (await chrome.storage.local.get('core:appearance'))['core:appearance'];
+  assert.deepEqual(await stored(), { theme: 'light', accent: 'nova' });
+  await chrome.storage.local.set({ 'core:appearance': { theme: 'light', motion: 'minimal' } });
+  const r3 = await send({ type: 'core:setAppearance', patch: { motion: 'nope', welcome: 'yes' } });
+  assert.equal(r3.appearance.motion, 'minimal');
+  assert.deepEqual(await stored(), { theme: 'light', motion: 'minimal' });
 });
 
 test('old Tab Manager theme is migrated once', async () => {
   const { migrateAppearance } = await import('../my-chrome-universe/core/background.js');
   await chrome.storage.local.set({ 'tm:data': { settings: { theme: 'dark' } } });
   await migrateAppearance();
-  assert.equal((await chrome.storage.local.get('core:appearance'))['core:appearance'].theme, 'dark');
+  assert.deepEqual((await chrome.storage.local.get('core:appearance'))['core:appearance'], { theme: 'dark' });
   await chrome.storage.local.set({ 'core:appearance': { theme: 'light', motion: 'full', accent: 'solar', welcome: true }, 'tm:data': { settings: { theme: 'dark' } } });
   await migrateAppearance();
   assert.equal((await chrome.storage.local.get('core:appearance'))['core:appearance'].theme, 'light');

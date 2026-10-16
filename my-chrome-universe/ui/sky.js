@@ -151,8 +151,9 @@ export function createSky(canvas, opts = {}) {
   document.addEventListener('visibilitychange', onVis);
 
   let lastMotion = level();
+  let lastUi = root.dataset.ui;
   const mo = new MutationObserver(() => {
-    setTheme(root.dataset.ui === 'light');
+    if (root.dataset.ui !== lastUi) { lastUi = root.dataset.ui; setTheme(lastUi === 'light'); }
     const m = level();
     if (m !== lastMotion) {
       lastMotion = m;

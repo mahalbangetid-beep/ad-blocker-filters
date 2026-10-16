@@ -9,6 +9,17 @@ const THEMES = ['auto', 'light', 'dark'];
 const MOTIONS = ['full', 'balanced', 'minimal'];
 const ACCENTS = ['solar', 'ion', 'nova'];
 
+// Keep only the patch keys whose values are valid; used to store appearance sparsely.
+export function validPatch(patch) {
+  const out = {};
+  if (!patch || typeof patch !== 'object') return out;
+  if (THEMES.includes(patch.theme)) out.theme = patch.theme;
+  if (MOTIONS.includes(patch.motion)) out.motion = patch.motion;
+  if (ACCENTS.includes(patch.accent)) out.accent = patch.accent;
+  if (typeof patch.welcome === 'boolean') out.welcome = patch.welcome;
+  return out;
+}
+
 export function normalizeAppearance(raw, opts = {}) {
   const r = raw && typeof raw === 'object' ? raw : {};
   return {
