@@ -1,7 +1,9 @@
 import { createPasswordRecord, verifyPassword } from './crypto.js';
+import { lockStatus, messageAllowed, LOCK_PATH, SETUP_PATH } from '../../core/gate.js';
+import { isModuleEnabled, setModuleState } from '../../core/modules.js';
 
-const LOCK_URL = chrome.runtime.getURL('modules/lock/lock.html');
-const SETUP_URL = chrome.runtime.getURL('modules/lock/setup.html');
+const LOCK_URL = chrome.runtime.getURL(LOCK_PATH);
+const SETUP_URL = chrome.runtime.getURL(SETUP_PATH);
 const EXTENSION_ORIGIN = chrome.runtime.getURL('');
 
 const MIN_PASSWORD_LENGTH = 4;
@@ -11,28 +13,25 @@ const MAX_LOCKOUT_MS = 15 * 60 * 1000;
 
 const DEFAULT_SETTINGS = { idleMinutes: 0, lockOnScreenLock: true };
 
-// Storage layout:
-//   local:   auth (password record), settings, failures, lockoutUntil
-//   session: unlocked (cleared when the browser closes, so every startup is locked), savedTabs
+// Storage layout (all keys prefixed "lock:"):
+//   local:   lock:auth (password record), lock:settings, lock:failures, lock:lockoutUntil
+//   session: lock:unlocked (cleared when the browser closes, so every startup is locked), lock:savedTabs
+// The on/off switch lives in core:modules (core/modules.js); core/gate.js derives the status.
 // Lock state lives in storage rather than in service-worker variables because
 // MV3 service workers are terminated when idle.
 
 async function getAuth() {
-  const { auth } = await chrome.storage.local.get('auth');
+  const { 'lock:auth': auth } = await chrome.storage.local.get('lock:auth');
   return auth || null;
 }
 
 async function getSettings() {
-  const { settings } = await chrome.storage.local.get('settings');
+  const { 'lock:settings': settings } = await chrome.storage.local.get('lock:settings');
   return { ...DEFAULT_SETTINGS, ...settings };
 }
 
 async function isLocked() {
-  const [{ auth }, { unlocked }] = await Promise.all([
-    chrome.storage.local.get('auth'),
-    chrome.storage.session.get('unlocked'),
-  ]);
-  return Boolean(auth) && !unlocked;
+  return (await lockStatus()) === 'locked';
 }
 
 function tabUrl(tab) {
@@ -56,9 +55,9 @@ function rememberTabs(tabs) {
   const urls = tabs.filter(isWorthRestoring).map(tabUrl);
   if (!urls.length) return saveQueue;
   saveQueue = saveQueue.then(async () => {
-    const { savedTabs = [] } = await chrome.storage.session.get('savedTabs');
+    const { 'lock:savedTabs': savedTabs = [] } = await chrome.storage.session.get('lock:savedTabs');
     for (const url of urls) if (!savedTabs.includes(url)) savedTabs.push(url);
-    await chrome.storage.session.set({ savedTabs });
+    await chrome.storage.session.set({ 'lock:savedTabs': savedTabs });
   });
   return saveQueue;
 }
@@ -119,34 +118,39 @@ async function quarantine(tab) {
   await removeTabs([tab.id]);
 }
 
+// Every lock path (button, shortcut, idle, screen lock) comes through here. Refused while
+// there is no password or the module is switched off; when already locked it just re-sweeps,
+// which brings the lock screen back to the front.
 async function lock() {
-  if (!(await getAuth())) return false;
-  await chrome.storage.session.set({ unlocked: false });
+  if (!(await getAuth()) || !(await isModuleEnabled('lock'))) return false;
+  await chrome.storage.session.set({ 'lock:unlocked': false });
   await sweep();
   return true;
 }
 
+// Restored tabs open in the background; with Tab Manager on, a new dashboard tab
+// (New Tab override) is created last so it is the one the user sees.
 async function restoreTabs() {
   await saveQueue;
-  const { savedTabs = [] } = await chrome.storage.session.get('savedTabs');
-  await chrome.storage.session.remove('savedTabs');
+  const { 'lock:savedTabs': savedTabs = [] } = await chrome.storage.session.get('lock:savedTabs');
+  await chrome.storage.session.remove('lock:savedTabs');
 
   const lockTabs = (await chrome.tabs.query({})).filter(isLockTab);
   const windowId = lockTabs[0]?.windowId;
+  const dashboard = await isModuleEnabled('tabs');
 
-  if (savedTabs.length) {
-    for (const [i, url] of savedTabs.entries()) {
-      await chrome.tabs.create({ url, windowId, active: i === 0 }).catch(() => {});
-    }
-  } else {
+  for (const [i, url] of savedTabs.entries()) {
+    await chrome.tabs.create({ url, windowId, active: !dashboard && i === 0 }).catch(() => {});
+  }
+  if (dashboard || !savedTabs.length) {
     await chrome.tabs.create({ windowId, active: true }).catch(() => {});
   }
   await removeTabs(lockTabs.map((t) => t.id));
 }
 
 async function getThrottle() {
-  const { failures = 0, lockoutUntil = 0 } = await chrome.storage.local.get(['failures', 'lockoutUntil']);
-  return { failures, lockoutUntil };
+  const stored = await chrome.storage.local.get(['lock:failures', 'lock:lockoutUntil']);
+  return { failures: stored['lock:failures'] || 0, lockoutUntil: stored['lock:lockoutUntil'] || 0 };
 }
 
 // Checks the password with brute-force throttling: after FREE_ATTEMPTS wrong
@@ -159,7 +163,7 @@ async function checkPassword(password) {
 
   const auth = await getAuth();
   if (auth && (await verifyPassword(password, auth))) {
-    await chrome.storage.local.set({ failures: 0, lockoutUntil: 0 });
+    await chrome.storage.local.set({ 'lock:failures': 0, 'lock:lockoutUntil': 0 });
     return { ok: true };
   }
 
@@ -169,12 +173,21 @@ async function checkPassword(password) {
     const wait = Math.min(BASE_LOCKOUT_MS * 2 ** (nextFailures - FREE_ATTEMPTS), MAX_LOCKOUT_MS);
     retryAt = now + wait;
   }
-  await chrome.storage.local.set({ failures: nextFailures, lockoutUntil: retryAt });
+  await chrome.storage.local.set({ 'lock:failures': nextFailures, 'lock:lockoutUntil': retryAt });
   return {
     ok: false,
     error: retryAt ? 'lockout' : 'wrong',
     retryAt,
     attemptsLeft: Math.max(FREE_ATTEMPTS - nextFailures, 0),
+  };
+}
+
+// Settings pages show these instead of the raw checkPassword codes.
+function currentPasswordError(check) {
+  return {
+    ok: false,
+    error: check.error === 'lockout' ? 'Terlalu banyak percobaan. Coba lagi nanti.' : 'Password saat ini salah.',
+    retryAt: check.retryAt,
   };
 }
 
@@ -193,70 +206,95 @@ async function applyIdleSettings() {
 }
 
 const handlers = {
-  async getState() {
-    const [auth, locked, settings, throttle] = await Promise.all([getAuth(), isLocked(), getSettings(), getThrottle()]);
-    return { hasPassword: Boolean(auth), locked, settings, ...throttle, minLength: MIN_PASSWORD_LENGTH };
+  async 'lock:getState'() {
+    const [auth, status, enabled, settings, throttle] = await Promise.all([
+      getAuth(), lockStatus(), isModuleEnabled('lock'), getSettings(), getThrottle(),
+    ]);
+    return {
+      hasPassword: Boolean(auth),
+      locked: status === 'locked',
+      status,
+      enabled,
+      settings,
+      ...throttle,
+      minLength: MIN_PASSWORD_LENGTH,
+    };
   },
 
-  async setup({ password, confirm }) {
+  async 'lock:setup'({ password, confirm }) {
     if (await getAuth()) return { ok: false, error: 'Password sudah diatur. Ganti lewat halaman Pengaturan.' };
     const invalid = validateNewPassword(password, confirm);
     if (invalid) return { ok: false, error: invalid };
-    await chrome.storage.local.set({ auth: await createPasswordRecord(password), failures: 0, lockoutUntil: 0 });
-    await chrome.storage.session.set({ unlocked: true });
+    await chrome.storage.local.set({
+      'lock:auth': await createPasswordRecord(password),
+      'lock:failures': 0,
+      'lock:lockoutUntil': 0,
+    });
+    await chrome.storage.session.set({ 'lock:unlocked': true });
     return { ok: true };
   },
 
-  async unlock({ password }) {
+  async 'lock:unlock'({ password }) {
     if (!(await isLocked())) return { ok: true };
     const result = await checkPassword(password);
     if (result.ok) {
-      await chrome.storage.session.set({ unlocked: true });
+      await chrome.storage.session.set({ 'lock:unlocked': true });
       restoreTabs();
     }
     return result;
   },
 
-  async changePassword({ current, password, confirm }) {
+  async 'lock:changePassword'({ current, password, confirm }) {
     if (await isLocked()) return { ok: false, error: 'Browser sedang terkunci.' };
     const check = await checkPassword(current);
-    if (!check.ok) {
-      return { ok: false, error: check.error === 'lockout' ? 'Terlalu banyak percobaan. Coba lagi nanti.' : 'Password saat ini salah.', retryAt: check.retryAt };
-    }
+    if (!check.ok) return currentPasswordError(check);
     const invalid = validateNewPassword(password, confirm);
     if (invalid) return { ok: false, error: invalid };
-    await chrome.storage.local.set({ auth: await createPasswordRecord(password) });
+    await chrome.storage.local.set({ 'lock:auth': await createPasswordRecord(password) });
     return { ok: true };
   },
 
-  async removePassword({ current }) {
+  // Turning the lock off needs the current password (same throttle as unlocking); the
+  // password stays stored, so turning it back on needs nothing and does not lock at once.
+  async 'lock:setEnabled'({ enabled, current }) {
+    if (typeof enabled !== 'boolean') return { ok: false, error: 'Permintaan tidak valid.' };
     if (await isLocked()) return { ok: false, error: 'Browser sedang terkunci.' };
-    const check = await checkPassword(current);
-    if (!check.ok) return { ok: false, error: 'Password saat ini salah.', retryAt: check.retryAt };
-    await chrome.storage.local.remove('auth');
-    return { ok: true };
+    if (!(await getAuth())) return { ok: false, error: 'Buat password terlebih dahulu.' };
+    if (!enabled) {
+      const check = await checkPassword(current);
+      if (!check.ok) return currentPasswordError(check);
+    } else {
+      await chrome.storage.session.set({ 'lock:unlocked': true });
+    }
+    await setModuleState('lock', enabled);
+    return { ok: true, enabled };
   },
 
-  async saveSettings({ settings }) {
+  async 'lock:saveSettings'({ settings }) {
     if (await isLocked()) return { ok: false, error: 'Browser sedang terkunci.' };
     const clean = {
       idleMinutes: Math.max(0, Math.min(240, Number(settings?.idleMinutes) || 0)),
       lockOnScreenLock: Boolean(settings?.lockOnScreenLock),
     };
-    await chrome.storage.local.set({ settings: clean });
+    await chrome.storage.local.set({ 'lock:settings': clean });
     await applyIdleSettings();
     return { ok: true, settings: clean };
   },
 
-  async lock() {
+  async 'lock:lock'() {
     return { ok: await lock() };
   },
 };
 
+// Only the lock screen/setup messages (core/gate.js PUBLIC_MESSAGES) are served while
+// locked or before a password exists; handlers keep their own checks as a second layer.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const handler = handlers[message?.type];
-  if (!handler) return false;
-  handler(message)
+  const type = message?.type;
+  if (typeof type !== 'string' || !Object.hasOwn(handlers, type)) return false;
+  (async () => {
+    if (!(await messageAllowed(type))) return { ok: false, error: 'locked' };
+    return handlers[type](message);
+  })()
     .then(sendResponse)
     .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
   return true;

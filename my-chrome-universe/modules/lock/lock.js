@@ -27,7 +27,7 @@ function startLockout(retryAt) {
   countdown = setInterval(tick, 1000);
 }
 
-const state = await send('getState');
+const state = await send('lock:getState');
 if (!state.locked) {
   // Nothing to unlock (e.g. the page was opened manually).
   const tab = await chrome.tabs.getCurrent();
@@ -41,7 +41,7 @@ form.addEventListener('submit', async (event) => {
   button.disabled = true;
   showMessage(msg, 'Memeriksa…', 'ok');
 
-  const result = await send('unlock', { password: input.value });
+  const result = await send('lock:unlock', { password: input.value });
   input.value = '';
 
   if (result.ok) {

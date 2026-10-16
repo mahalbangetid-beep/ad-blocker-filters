@@ -20,6 +20,20 @@
 
       <div id="has-password" hidden>
         <section>
+          <h2>Aktif / nonaktif</h2>
+          <label class="check"><input type="checkbox" id="enabled"> Browser Lock aktif</label>
+          <p class="note">Saat nonaktif, browser tidak dikunci saat dibuka, saat tidak ada aktivitas, saat layar
+            dikunci, maupun lewat shortcut. Password tetap tersimpan, jadi mengaktifkan kembali tidak perlu password baru.</p>
+          <form id="disable-form" hidden>
+            <label for="disable-current">Password saat ini (wajib untuk mematikan)</label>
+            <input type="password" id="disable-current" autocomplete="current-password" required>
+            <button type="submit" class="danger">Matikan Browser Lock</button>
+            <button type="button" class="secondary" id="disable-cancel">Batal</button>
+          </form>
+          <p class="msg" id="enabled-msg" role="alert"></p>
+        </section>
+
+        <section>
           <h2>Kunci otomatis</h2>
           <label for="idle">Kunci saat tidak ada aktivitas selama</label>
           <select id="idle">
@@ -46,16 +60,6 @@
             <input type="password" id="confirm" autocomplete="new-password" required>
             <button type="submit">Ganti Password</button>
             <p class="msg" id="change-msg" role="alert"></p>
-          </form>
-        </section>
-
-        <section>
-          <h2>Hapus password</h2>
-          <form id="remove-form">
-            <label for="remove-current">Password saat ini</label>
-            <input type="password" id="remove-current" autocomplete="current-password" required>
-            <button type="submit" class="danger">Hapus Password &amp; Matikan Kunci</button>
-            <p class="msg" id="remove-msg" role="alert"></p>
           </form>
         </section>
       </div>

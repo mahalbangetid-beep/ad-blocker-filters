@@ -4,7 +4,7 @@ const form = document.getElementById('form');
 const msg = document.getElementById('msg');
 const saveButton = document.getElementById('save');
 
-const state = await send('getState');
+const state = await send('lock:getState');
 if (state.hasPassword) {
   location.replace('options.html');
 }
@@ -14,7 +14,7 @@ form.addEventListener('submit', async (event) => {
   saveButton.disabled = true;
   showMessage(msg, '');
 
-  const result = await send('setup', {
+  const result = await send('lock:setup', {
     password: document.getElementById('password').value,
     confirm: document.getElementById('confirm').value,
   });

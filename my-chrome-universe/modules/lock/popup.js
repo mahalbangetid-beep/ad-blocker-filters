@@ -1,11 +1,13 @@
 import { send } from './common.js';
 
 const $ = (id) => document.getElementById(id);
-const state = await send('getState');
+const state = await send('lock:getState');
 
 if (state.locked) {
   $('status').textContent = 'Browser sedang terkunci.';
   $('options').hidden = true;
+} else if (state.hasPassword && !state.enabled) {
+  $('status').textContent = 'Browser Lock nonaktif.';
 } else if (state.hasPassword) {
   $('status').textContent = 'Kunci aktif.';
   $('lock').hidden = false;
@@ -15,7 +17,7 @@ if (state.locked) {
 }
 
 $('lock').addEventListener('click', async () => {
-  await send('lock');
+  await send('lock:lock');
   window.close();
 });
 $('setup').addEventListener('click', () => {
