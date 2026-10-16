@@ -134,13 +134,23 @@ async function evaluate(sessionId, expression) {
   return result.value;
 }
 
-// Polls `expression` in the page every 100 ms until it is truthy.
+// Polls `expression` in the page every 100 ms until it is truthy. An evaluation that fails while
+// the page is still navigating (e.g. a tab turning into the dashboard) counts as "not yet".
 async function waitFor(sessionId, expression, timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
+  let lastError = null;
   for (;;) {
-    const value = await evaluate(sessionId, expression);
+    let value;
+    try {
+      value = await evaluate(sessionId, expression);
+      lastError = null;
+    } catch (err) {
+      lastError = err;
+    }
     if (value) return value;
-    if (Date.now() >= deadline) throw new Error(`waitFor timed out after ${timeoutMs} ms: ${expression}`);
+    if (Date.now() >= deadline) {
+      throw new Error(`waitFor timed out after ${timeoutMs} ms: ${expression}${lastError ? ` (last error: ${lastError.message})` : ''}`);
+    }
     await sleep(100);
   }
 }
@@ -968,6 +978,41 @@ test('theme button switches every open page', async () => {
   }
 });
 
+// Counts requestAnimationFrame calls on a fresh dashboard tab (the counter is installed before any page script).
+async function rafCalls(motion) {
+  const before = await localValue('core:appearance');
+  await swSession_(`chrome.storage.local.set({ 'core:appearance': { ...${JSON.stringify(before || {})}, motion: ${JSON.stringify(motion)}, welcome: false } })`);
+  const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
+  try {
+    const { sessionId: s } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+    await cdp.send('Page.enable', {}, s);
+    await cdp.send('Runtime.enable', {}, s);
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      window.__raf = 0;
+      const realRaf = window.requestAnimationFrame.bind(window);
+      window.requestAnimationFrame = (cb) => { window.__raf++; return realRaf(cb); };` }, s);
+    await cdp.send('Page.navigate', { url: dashboardUrl() }, s);
+    await waitFor(s, `${dashReady} && document.documentElement.dataset.motion === ${JSON.stringify(motion)}`, 8000);
+    await sleep(1500); // let entrance animations finish
+    await evaluate(s, 'window.__raf = 0');
+    await sleep(1000);
+    return await evaluate(s, 'window.__raf');
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+    await swSession_(before
+      ? `chrome.storage.local.set({ 'core:appearance': ${JSON.stringify(before)} })`
+      : "chrome.storage.local.remove('core:appearance')");
+  }
+}
+
+test('minimal motion stops the canvas loop', async () => {
+  // Control: with full motion the star field runs a frame loop, so the counter does see it.
+  const full = await rafCalls('full');
+  assert.ok(full > 10, `full motion: ${full} rAF calls in 1 s`);
+  const minimal = await rafCalls('minimal');
+  assert.ok(minimal <= 2, `minimal motion: ${minimal} rAF calls in 1 s`);
+});
+
 // A tab on a unique blank URL, its chrome.tabs id, and a session with error reporting; then `url` is loaded.
 async function openTabWithId(url, mark) {
   const blank = `about:blank#${mark}`;
@@ -1175,7 +1220,8 @@ test('shared settings page has every module setting on one page', async () => {
       document.getElementById('custom').value = ${JSON.stringify(`${savedCustom}\n||iklan-pengaturan.test^`)};
       document.getElementById('save-custom').click();
     })()`);
-    await waitFor(s, "/filter jaringan/.test(document.getElementById('custom-msg').textContent)");
+    // The line already shows the counts of the saved filters; wait for the reply to this save.
+    await waitFor(s, "/^Tersimpan\\. .*filter jaringan/.test(document.getElementById('custom-msg').textContent)");
     assert.ok((await bg({ type: 'ab:getOptions' })).settings.customFilters.includes('iklan-pengaturan.test'));
     assert.equal((await bg({ type: 'ab:saveCustomFilters', text: savedCustom })).ok, true);
 
@@ -1223,6 +1269,83 @@ test('shared settings page has every module setting on one page', async () => {
     }
     await screenshot(s, 'settings');
     assert.deepEqual(errors, [], 'settings page logged errors');
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+  }
+});
+
+test('quick settings changes are not lost', async () => {
+  const { sessionId: s, targetId, errors } = await openWatched(settingsUrl('#lock'));
+  const lockBefore = await localValue('lock:settings');
+  const listsBefore = (await bg({ type: 'ab:getOptions' })).settings.enabledLists;
+  try {
+    await waitFor(s, settingsReady);
+    // Replies to saves arrive late, as when the service worker is busy: the next change happens first.
+    await evaluate(s, `(() => {
+      const orig = chrome.runtime.sendMessage.bind(chrome.runtime);
+      chrome.runtime.sendMessage = (m, ...rest) => /:saveSettings$/.test(m?.type)
+        ? orig(m, ...rest).then((r) => new Promise((ok) => setTimeout(() => ok(r), 400)))
+        : orig(m, ...rest);
+    })()`);
+    const idle = (v) => evaluate(s, `(() => {
+      const el = document.getElementById('idle');
+      el.value = '${v}';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    const start = lockBefore?.idleMinutes ?? 0;
+    const screen = lockBefore?.lockOnScreenLock ?? true;
+
+    // Slider moved and back again before the first reply: the last value wins.
+    await idle(start + 30);
+    await idle(start);
+    await sleep(1500);
+    assert.equal((await localValue('lock:settings')).idleMinutes, start, 'idle minutes went back to the start value');
+
+    // Two lock rows changed at once: neither overwrites the other.
+    await idle(start + 45);
+    await evaluate(s, "document.getElementById('screen-lock').click()");
+    await sleep(1500);
+    assert.deepEqual(await localValue('lock:settings'), { idleMinutes: start + 45, lockOnScreenLock: !screen });
+
+    // Two filter lists switched quickly: both changes are kept.
+    const flip = (id) => `document.querySelector('#lists input[data-list="${id}"]').click();`;
+    await evaluate(s, flip('privacy') + flip('annoyances'));
+    await sleep(1500);
+    const lists = (await bg({ type: 'ab:getOptions' })).settings.enabledLists;
+    assert.equal(lists.includes('privacy'), !listsBefore.includes('privacy'), 'privacy switched');
+    assert.equal(lists.includes('annoyances'), !listsBefore.includes('annoyances'), 'annoyances switched');
+    assert.deepEqual(errors, []);
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+    await bg({ type: 'lock:saveSettings', settings: lockBefore || { idleMinutes: 0, lockOnScreenLock: true } });
+    await bg({ type: 'ab:saveSettings', patch: { enabledLists: listsBefore } });
+  }
+});
+
+test('a shown recovery code is cleared when its row closes', async () => {
+  const { sessionId: s, targetId, errors } = await openWatched(settingsUrl('#lock'));
+  try {
+    await waitFor(s, settingsReady);
+    // A stand-in reply, so the real recovery code (used by the lock tests) stays valid.
+    await evaluate(s, `(() => {
+      const orig = chrome.runtime.sendMessage.bind(chrome.runtime);
+      chrome.runtime.sendMessage = (m, ...rest) => m?.type === 'lock:newRecoveryCode'
+        ? Promise.resolve({ ok: true, recoveryCode: 'UJI1-UJI2-UJI3-UJI4-UJI5' })
+        : orig(m, ...rest);
+    })()`);
+    const toggle = "document.getElementById('recovery-form').closest('.item').querySelector('.x-toggle').click()";
+    await evaluate(s, toggle);
+    await evaluate(s, `(() => {
+      document.getElementById('recovery-current').value = 'apa saja';
+      document.getElementById('recovery-form').requestSubmit();
+    })()`);
+    await waitFor(s, "document.getElementById('recovery-code').textContent === 'UJI1-UJI2-UJI3-UJI4-UJI5' && !document.getElementById('recovery-result').hidden");
+    await evaluate(s, toggle); // closed without "Saya sudah mencatatnya"
+    await waitFor(s, "!document.getElementById('recovery-form').closest('.item').classList.contains('open')");
+    assert.equal(await evaluate(s, "document.getElementById('recovery-code').textContent"), '');
+    assert.equal(await evaluate(s, "document.getElementById('recovery-result').hidden && !document.getElementById('recovery-form').hidden"), true);
+    assert.deepEqual(errors, []);
   } finally {
     await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
   }
@@ -1320,6 +1443,36 @@ test('locking closes every extension page and refuses module messages', async ()
   assert.deepEqual(pages.map((t) => t.url.split('?')[0]), [LOCK_PAGE()], 'only the lock screen remains');
 });
 
+test('guard notice uses the new style', async () => {
+  // The sweep closes extension tabs while locked, so the popup is loaded in a frame of the lock screen.
+  const notice = await evaluate(lockSession, `new Promise((resolve) => {
+    const f = document.createElement('iframe');
+    f.id = 'guard-test';
+    f.style.cssText = 'position:fixed;left:0;top:0;width:370px;height:300px;border:0;z-index:9999';
+    f.src = '/popup.html';
+    document.body.append(f);
+    const t0 = Date.now();
+    (function poll() {
+      const box = f.contentDocument?.querySelector('.guard-notice');
+      const btn = box?.querySelector('button');
+      if (btn) {
+        const style = f.contentWindow.getComputedStyle(box);
+        return resolve({ text: box.innerText, button: btn.textContent.trim(), font: style.fontFamily, radius: style.borderTopLeftRadius });
+      }
+      if (Date.now() - t0 > 5000) return resolve(null);
+      setTimeout(poll, 100);
+    })();
+  })`);
+  assert.ok(notice, 'the popup shows a .guard-notice with a button while locked');
+  assert.match(notice.text, /Browser terkunci/);
+  assert.equal(notice.button, 'Buka layar kunci');
+  assert.match(notice.font, /Plus Jakarta Sans/, 'uses the Universe fonts');
+  assert.notEqual(notice.radius, '0px', 'drawn as a card');
+  await sleep(700);
+  await screenshot(lockSession, 'guard-notice', '#guard-test');
+  await evaluate(lockSession, "document.getElementById('guard-test').remove()");
+});
+
 test('unlock restores tabs and shows the dashboard', async () => {
   const wrong = await fromLock(lockSession, { type: 'lock:unlock', password: 'salah' });
   assert.equal(wrong.ok, false);
@@ -1327,10 +1480,13 @@ test('unlock restores tabs and shows the dashboard', async () => {
 
   assert.equal((await fromLock(lockSession, { type: 'lock:unlock', password: PASSWORD })).ok, true);
   await waitUnlocked();
+  // Wait for the end state itself: the lock screen's target URL can change before chrome.tabs reports
+  // the committed dashboard URL, so "an active tab with a URL" could still be the old lock page.
+  const dashUrl = /^(chrome:\/\/newtab\/|chrome-extension:\/\/[a-z]+\/modules\/tabs\/newtab\.html)$/;
   const tabs = await until(async () => {
-    const all = await evaluate(swSession, "chrome.tabs.query({}).then((t) => t.map((x) => ({ url: x.url || x.pendingUrl || '', active: x.active, index: x.index, windowId: x.windowId })))");
-    return all.some((t) => t.url.startsWith(SITE)) && all.some((t) => t.active && t.url) && all;
-  }, 'restored website tab and an active tab with a URL', 20000);
+    const all = await evaluate(swSession, "chrome.tabs.query({}).then((t) => t.map((x) => ({ url: x.url || x.pendingUrl || '', active: x.active, index: x.index, windowId: x.windowId, status: x.status })))");
+    return all.some((t) => t.url.startsWith(SITE)) && all.some((t) => t.active && dashUrl.test(t.url)) && all;
+  }, 'restored website tab and the dashboard as the active tab', 20000);
 
   // Website tabs come back in the background; extension pages (options, dashboard) are not restored.
   const restored = tabs.filter((t) => t.url.startsWith(SITE));
@@ -1341,7 +1497,7 @@ test('unlock restores tabs and shows the dashboard', async () => {
   // The dashboard is the lock tab turned into New Tab and moved to the end; it is the only active tab.
   const active = tabs.filter((t) => t.active);
   assert.equal(active.length, 1, `active tabs: ${JSON.stringify(active)}`);
-  assert.match(active[0].url, /^(chrome:\/\/newtab\/|chrome-extension:\/\/[a-z]+\/modules\/tabs\/newtab\.html)$/);
+  assert.match(active[0].url, dashUrl);
   const inWindow = tabs.filter((t) => t.windowId === active[0].windowId);
   assert.equal(active[0].index, Math.max(...inWindow.map((t) => t.index)), 'dashboard is the last tab');
   assert.equal(new Set(tabs.map((t) => t.windowId)).size, 1, 'everything is in the lock screen window');
@@ -1459,6 +1615,80 @@ test('manual lock shows no welcome', async () => {
   // Leave the browser open for the next test.
   assert.equal((await fromLock(session, { type: 'lock:unlock', password: PASSWORD })).ok, true);
   await waitUnlocked();
+});
+
+test('the login appears even when the star field fails, and the lock note is honest', async () => {
+  const session = await lockBrowser();
+  // The note after a manual lock only mentions saved tabs when there are some.
+  await waitFor(session, "!!document.querySelector('.toast .t-text')");
+  const { savedTabs } = await fromLock(session, { type: 'lock:getState' });
+  const note = await evaluate(session, "document.querySelector('.toast .t-text').textContent");
+  assert.equal(note, savedTabs > 0 ? `Browser dikunci. ${savedTabs} tab disimpan dan akan dipulihkan setelah dibuka.` : 'Browser dikunci.');
+  await sleep(900);
+  await screenshot(session, 'lock-note');
+
+  // A broken canvas makes createSky throw; the password form must still become usable.
+  const { identifier } = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+    source: "HTMLCanvasElement.prototype.getContext = () => { throw new Error('no canvas'); };",
+  }, session);
+  try {
+    await cdp.send('Page.reload', {}, session);
+    await waitFor(session, `${visible('#form')} && document.activeElement?.id === 'password'`, 8000);
+    assert.equal(await evaluate(session, "!!document.querySelector('.login-card').closest('[inert]')"), false);
+  } finally {
+    await cdp.send('Page.removeScriptToEvaluateOnNewDocument', { identifier }, session).catch(() => {});
+  }
+  assert.equal((await fromLock(session, { type: 'lock:unlock', password: PASSWORD })).ok, true);
+  await waitUnlocked();
+});
+
+// Records every request a page makes from its first load (Network enabled before navigating).
+async function openWithNetwork(url) {
+  const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+  const urls = [];
+  cdp.listeners.add((msg) => {
+    if (msg.sessionId === sessionId && msg.method === 'Network.requestWillBeSent') urls.push(msg.params.request.url);
+  });
+  await cdp.send('Network.enable', {}, sessionId);
+  await cdp.send('Runtime.enable', {}, sessionId);
+  await cdp.send('Page.navigate', { url }, sessionId);
+  await waitFor(sessionId, "document.readyState === 'complete'");
+  return { sessionId, targetId, urls };
+}
+
+test('extension pages make no third-party requests', async () => {
+  const own = (u) => u.startsWith(`chrome-extension://${extId}/`) || u.startsWith('chrome://') || u.startsWith('data:');
+  const seen = {};
+  const dash = await openWithNetwork(dashboardUrl());
+  await waitFor(dash.sessionId, dashReady);
+  const popup = await openWithNetwork(extUrl('popup.html'));
+  await waitFor(popup.sessionId, "document.querySelectorAll('.mcu-card').length === 3");
+  const options = await openWithNetwork(settingsUrl());
+  await waitFor(options.sessionId, settingsReady);
+  await sleep(1200); // entrance animations, fonts, favicons
+  Object.assign(seen, { dashboard: dash.urls, popup: popup.urls, options: options.urls });
+  for (const p of [dash, popup, options]) await cdp.send('Target.closeTarget', { targetId: p.targetId }).catch(() => {});
+
+  // The lock screen, reloaded with Network on so its first load is recorded too.
+  const session = await lockBrowser();
+  const lockUrls = [];
+  cdp.listeners.add((msg) => {
+    if (msg.sessionId === session && msg.method === 'Network.requestWillBeSent') lockUrls.push(msg.params.request.url);
+  });
+  await cdp.send('Network.enable', {}, session);
+  await cdp.send('Page.reload', {}, session);
+  await waitFor(session, `${visible('#form')} && document.activeElement?.id === 'password'`, 8000);
+  await sleep(1200);
+  seen.lock = lockUrls;
+  assert.equal((await fromLock(session, { type: 'lock:unlock', password: PASSWORD })).ok, true);
+  await waitUnlocked();
+
+  for (const [page, urls] of Object.entries(seen)) {
+    assert.ok(urls.length > 3, `${page}: requests were recorded (${urls.length})`);
+    assert.deepEqual(urls.filter((u) => !own(u)), [], `${page} requested other hosts`);
+  }
+  assert.ok(seen.lock.some((u) => u.endsWith('.woff2')), 'the lock screen loads its fonts locally');
 });
 
 test('the Kunci button collapses the dashboard, then locks', async () => {

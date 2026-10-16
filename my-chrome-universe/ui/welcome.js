@@ -63,10 +63,12 @@ export function playWelcome(container, sky) {
   skip.focus({ preventScroll: true });
 
   let done = false;
-  sky?.setMode('welcome');
+  // The sky is decoration: if it throws, the welcome still plays and ends.
+  const skyCall = (fn) => { try { fn(); } catch {} };
+  skyCall(() => sky?.setMode('welcome'));
   if (!minimal && sky) {
     // Particles need the final glyph positions, so wait for the display font.
-    document.fonts.ready.then(() => requestAnimationFrame(() => { if (!done) sky.buildText(title); }));
+    document.fonts.ready.then(() => requestAnimationFrame(() => { if (!done) skyCall(() => sky.buildText(title)); }));
   }
 
   return new Promise((resolve) => {
@@ -83,8 +85,8 @@ export function playWelcome(container, sky) {
       clearTimeout(timer);
       container.removeEventListener('click', finish);
       document.removeEventListener('keydown', onKey, true);
-      sky?.scatter();
-      sky?.setMode('orbit');
+      skyCall(() => sky?.scatter());
+      skyCall(() => sky?.setMode('orbit'));
       container.classList.add('leave-zoom');
       await wait(480);
       resolve();

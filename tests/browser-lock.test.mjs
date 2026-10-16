@@ -226,6 +226,13 @@ test('messages other than the lock screen ones are refused while locked', async 
   assert.equal((await send({ type: 'lock:getState' })).locked, true);
 });
 
+test('the lock screen learns how many tabs were saved', async () => {
+  // Shown in the "Browser dikunci" note; a count only, never the URLs.
+  const state = await send({ type: 'lock:getState' });
+  assert.equal(state.savedTabs, 3);
+  assert.equal(JSON.stringify(state).includes('a.com'), false);
+});
+
 test('wrong passwords are throttled', async () => {
   for (let i = 0; i < 4; i++) {
     const r = await send({ type: 'lock:unlock', password: 'salah' });

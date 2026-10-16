@@ -62,10 +62,16 @@ if (state.hasPassword) {
 } else {
   await initAppearance().catch(() => {});
   const welcome = await consumeWelcome().catch(() => false);
-  sky = createSky($('sky'), { mode: welcome ? 'welcome' : 'orbit', fxCanvas: $('fx') });
-  // The card stays inert (not focusable or clickable) until the welcome is over.
-  if (welcome) await playWelcome($('welcome'), sky);
-  scene.inert = false;
-  scene.classList.add('is-active');
-  $('password').focus({ preventScroll: true });
+  // The form appears even if the sky or the welcome fails.
+  try {
+    sky = createSky($('sky'), { mode: welcome ? 'welcome' : 'orbit', fxCanvas: $('fx') });
+    // The card stays inert (not focusable or clickable) until the welcome is over.
+    if (welcome) await playWelcome($('welcome'), sky);
+  } catch {
+    $('welcome').hidden = true;
+  } finally {
+    scene.inert = false;
+    scene.classList.add('is-active');
+    $('password').focus({ preventScroll: true });
+  }
 }

@@ -16,7 +16,7 @@ import {
   foldAll, addCollection,
 } from './dashboard/collections.js';
 import { onDragEnd, isDragging } from './dashboard/drag.js';
-import { act, askText, openDialog, closeMenu } from './dashboard/dialogs.js';
+import { act, askText, askImportMode, closeMenu } from './dashboard/dialogs.js';
 import {
   setupOpenTabs, renderTabs, syncOpenSettings, saveSession, dedupe, saveDropToSpace, openDrawer, closeDrawer, drawerOpen,
 } from './dashboard/open-tabs.js';
@@ -280,21 +280,8 @@ $('import-file').addEventListener('change', async (e) => {
   } catch (err) {
     return toast(`Gagal membaca file: ${err.message}`, { icon: 'info' });
   }
-  const choice = await openDialog({
-    title: 'Impor data',
-    message: `File: ${file.name}`,
-    fields: [{
-      name: 'mode',
-      label: 'Cara impor',
-      value: 'merge',
-      options: [
-        { value: 'merge', label: 'Tambahkan ke data yang ada' },
-        { value: 'replace', label: 'Ganti semua data yang ada' },
-      ],
-    }],
-    submitLabel: 'Impor',
-  });
-  if (choice) await act(importData(incoming, choice.mode), 'Data diimpor', 'upload');
+  const mode = await askImportMode(file.name);
+  if (mode) await act(importData(incoming, mode), 'Data diimpor', 'upload');
 });
 
 async function addSpace() {

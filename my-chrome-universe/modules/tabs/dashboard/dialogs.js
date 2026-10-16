@@ -45,6 +45,25 @@ export async function askText(title, label, value = '') {
   return result?.value.trim() || null;
 }
 
+// Asks how a picked backup file is imported; resolves to 'merge', 'replace' or null (cancelled).
+export async function askImportMode(fileName) {
+  const choice = await openDialog({
+    title: 'Impor data',
+    message: `File: ${fileName}`,
+    fields: [{
+      name: 'mode',
+      label: 'Cara impor',
+      value: 'merge',
+      options: [
+        { value: 'merge', label: 'Tambahkan ke data yang ada' },
+        { value: 'replace', label: 'Ganti semua data yang ada' },
+      ],
+    }],
+    submitLabel: 'Impor',
+  });
+  return choice?.mode || null;
+}
+
 export async function confirmDanger(title, message, submitLabel = 'Hapus') {
   return (await openDialog({ title, message, submitLabel, danger: true })) !== null;
 }

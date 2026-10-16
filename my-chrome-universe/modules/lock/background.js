@@ -64,6 +64,13 @@ function rememberTabs(tabs) {
   return saveQueue;
 }
 
+// How many tabs wait to be restored (after any save still in progress); the lock screen shows it.
+async function savedTabCount() {
+  await saveQueue.catch(() => {});
+  const { 'lock:savedTabs': savedTabs = [] } = await chrome.storage.session.get('lock:savedTabs');
+  return savedTabs.length;
+}
+
 async function removeTabs(ids) {
   if (!ids.length) return;
   await chrome.tabs.remove(ids).catch(() => {});
@@ -307,8 +314,8 @@ async function applyIdleSettings() {
 
 const handlers = {
   async 'lock:getState'() {
-    const [auth, status, enabled, settings, throttle] = await Promise.all([
-      getAuth(), lockStatus(), isModuleEnabled('lock'), getSettings(), getThrottle(),
+    const [auth, status, enabled, settings, throttle, savedTabs] = await Promise.all([
+      getAuth(), lockStatus(), isModuleEnabled('lock'), getSettings(), getThrottle(), savedTabCount(),
     ]);
     return {
       hasPassword: Boolean(auth),
@@ -318,6 +325,7 @@ const handlers = {
       settings,
       ...throttle,
       minLength: MIN_PASSWORD_LENGTH,
+      savedTabs,
     };
   },
 

@@ -13,7 +13,7 @@ const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${port}`);
   let path = decodeURIComponent(url.pathname);
-  if (path.includes('/_favicon/')) path = '/my-chrome-universe/modules/tabs/icons/icon16.png';
+  if (path.includes('/_favicon/')) path = '/my-chrome-universe/icons/icon16.png';
   const file = normalize(join(root, path));
   if (!file.startsWith(root)) return res.writeHead(403).end();
   try {

@@ -78,7 +78,8 @@ export function toggleRow(ctx, { id, title, desc, checked, data, save }) {
 }
 
 // Collapsible row (`.item.block` with `.x-body`); `trigger` is the control that opens it.
-export function expandRow({ title, desc, trigger, body, extra }) {
+// `onToggle(open)` runs on every open/close.
+export function expandRow({ title, desc, trigger, body, extra, onToggle }) {
   const inner = h('div', {}, body);
   const item = h('div', { class: 'item block' },
     h('div', { class: 'item-row' }, itemText(title, desc), trigger),
@@ -90,6 +91,7 @@ export function expandRow({ title, desc, trigger, body, extra }) {
     inner.inert = !open;
     if (trigger.matches('button')) trigger.setAttribute('aria-expanded', String(open));
     if (focus) setTimeout(() => item.querySelector('.x-body input')?.focus({ preventScroll: true }), 60);
+    onToggle?.(open);
   };
   return { item, setOpen, isOpen: () => item.classList.contains('open') };
 }

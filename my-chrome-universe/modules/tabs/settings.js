@@ -3,7 +3,7 @@
 import { h, row, toggleRow, button, rowMsg, showMsg } from '../../core/settings-ui.js';
 import { runOp, loadData, onDataChanged } from './common.js';
 import { exportData, readImportFile, importData, importBookmarks } from './dashboard/backup.js';
-import { openDialog } from './dashboard/dialogs.js';
+import { askImportMode } from './dashboard/dialogs.js';
 
 export const summary = { sub: 'Simpan, cadangan', desc: 'Cara tab disimpan dan cadangan datanya.' };
 
@@ -45,22 +45,9 @@ export async function render(root, ctx) {
     } catch (err) {
       return showMsg(backupMsg, `Gagal membaca file: ${err.message}`);
     }
-    const choice = await openDialog({
-      title: 'Impor data',
-      message: `File: ${picked.name}`,
-      fields: [{
-        name: 'mode',
-        label: 'Cara impor',
-        value: 'merge',
-        options: [
-          { value: 'merge', label: 'Tambahkan ke data yang ada' },
-          { value: 'replace', label: 'Ganti semua data yang ada' },
-        ],
-      }],
-      submitLabel: 'Impor',
-    });
-    if (!choice) return;
-    const result = await importData(incoming, choice.mode);
+    const mode = await askImportMode(picked.name);
+    if (!mode) return;
+    const result = await importData(incoming, mode);
     if (!result?.ok) return showMsg(backupMsg, result?.error || 'Gagal mengimpor');
     ctx.markSaved();
     ctx.toast('Data diimpor', { icon: 'upload' });

@@ -111,6 +111,7 @@ function setLoading(btn, on) {
 // Success: check mark, open shackle, sparks, then warp out and let the service worker turn this
 // tab into the dashboard (it falls back on its own after a few seconds if this never arrives).
 async function leave(btn, msgEl) {
+  scene.inert = true; // nothing can flip or submit the card during the success beat
   showMessage(msgEl, 'Terbuka. Memulihkan tab…', 'ok');
   btn.classList.add('ok');
   card.classList.add('unlocked');
@@ -123,10 +124,14 @@ async function leave(btn, msgEl) {
   send('lock:handoff').catch(() => {});
 }
 
-function enterLogin(fromStartup) {
+function enterLogin(fromStartup, savedTabs) {
   scene.inert = false;
   scene.classList.add('is-active');
-  if (!fromStartup) toast('Browser dikunci. Tab disimpan dan akan dipulihkan setelah dibuka.', { icon: 'lock' });
+  if (!fromStartup) {
+    toast(savedTabs > 0
+      ? `Browser dikunci. ${savedTabs} tab disimpan dan akan dipulihkan setelah dibuka.`
+      : 'Browser dikunci.', { icon: 'lock' });
+  }
   if (!countdown) input.focus({ preventScroll: true });
 }
 
@@ -283,13 +288,15 @@ if (!state.locked) {
   showFoot(state.settings);
   await initAppearance().catch(() => {});
   const welcome = await consumeWelcome().catch(() => false);
-  sky = createSky($('sky'), { mode: welcome ? 'welcome' : 'orbit', fxCanvas: $('fx') });
-  if (welcome) {
+  // The login is the only way to unlock: it appears even if the sky or the welcome fails.
+  try {
+    sky = createSky($('sky'), { mode: welcome ? 'welcome' : 'orbit', fxCanvas: $('fx') });
     // The card stays inert (not focusable or clickable) until the welcome is over.
-    await playWelcome($('welcome'), sky);
-    enterLogin(true);
-  } else {
-    sky.reverse(900);
-    enterLogin(false);
+    if (welcome) await playWelcome($('welcome'), sky);
+    else sky.reverse(900);
+  } catch {
+    $('welcome').hidden = true;
+  } finally {
+    enterLogin(welcome, state.savedTabs);
   }
 }

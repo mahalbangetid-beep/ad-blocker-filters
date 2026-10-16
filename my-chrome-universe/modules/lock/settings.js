@@ -27,6 +27,22 @@ export async function render(root, ctx) {
 
   let enabled = state.enabled;
   let settings = { ...state.settings };
+  // Lock settings are one stored object: every save sends all latest wanted values (including
+  // ones still being saved), one save at a time, so rows never overwrite each other.
+  const wanted = { ...settings };
+  let queue = Promise.resolve();
+  function sendSettings(patch) {
+    Object.assign(wanted, patch);
+    const run = queue.then(async () => {
+      const result = await ctx.send('lock:saveSettings', { settings: { ...wanted } });
+      if (result?.ok) settings = result.settings;
+      // A failed value falls back to the saved one, unless a newer change of that key is queued.
+      else for (const [key, value] of Object.entries(patch)) if (wanted[key] === value) wanted[key] = settings[key];
+      return result;
+    });
+    queue = run.catch(() => {});
+    return run;
+  }
   const rows = [enabledRow(), idleRow(), screenRow(), lockNowRow(), changeRow(), recoveryRow(),
     row({ title: 'Mode Incognito', desc: 'Kunci ini mencegah orang lain memakai browser secara langsung, tapi bukan enkripsi. Agar mode Incognito juga terkunci, aktifkan "Izinkan dalam mode Incognito" di chrome://extensions.' })];
   root.replaceChildren(...rows.map((r) => r.item || r));
@@ -93,12 +109,11 @@ export async function render(root, ctx) {
   // ---------- auto-lock and screen lock ----------
   async function saveSettings(item, patch) {
     showMsg(rowMsg(item), '');
-    const result = await ctx.send('lock:saveSettings', { settings: { ...settings, ...patch } });
+    const result = await sendSettings(patch).catch((err) => ({ ok: false, error: String(err?.message || err) }));
     if (!result?.ok) {
       showMsg(rowMsg(item), errorText(result));
       return false;
     }
-    settings = result.settings;
     ctx.markSaved();
     return true;
   }
@@ -118,10 +133,15 @@ export async function render(root, ctx) {
       h('div', { class: 'range' }, input, out));
     item.dataset.searchExtra = 'idle menit waktu';
     // Saved while dragging (debounced) and once more on release.
+    // Compared with the last value sent, not the last reply: a reply can still be on its way.
     let timer = 0;
+    let sent = settings.idleMinutes;
     const save = () => {
       clearTimeout(timer);
-      if (Number(input.value) !== settings.idleMinutes) saveSettings(item, { idleMinutes: Number(input.value) });
+      const value = Number(input.value);
+      if (value === sent) return;
+      sent = value;
+      saveSettings(item, { idleMinutes: value }).then((ok) => { if (!ok) sent = settings.idleMinutes; });
     };
     input.addEventListener('input', () => {
       show();
@@ -136,11 +156,7 @@ export async function render(root, ctx) {
     return toggleRow(ctx, {
       id: 'screen-lock', title: 'Kunci saat layar komputer dikunci', checked: settings.lockOnScreenLock,
       desc: 'Browser ikut terkunci ketika kamu mengunci layar komputer.',
-      save: async (on) => {
-        const result = await ctx.send('lock:saveSettings', { settings: { ...settings, lockOnScreenLock: on } });
-        if (result?.ok) settings = result.settings;
-        return result;
-      },
+      save: (on) => sendSettings({ lockOnScreenLock: on }),
     }).item;
   }
 
@@ -196,10 +212,17 @@ export async function render(root, ctx) {
       h('p', {}, 'Simpan kode pemulihan ini di tempat aman. Kode ini hanya ditampilkan sekali dan bisa membuka browser bila kamu lupa password.'),
       h('div', { class: 'btn-row' }, noted));
     const trigger = expandButton('Buat kode baru');
+    // The code is removed from the page and the form comes back when it is noted or the row closes.
+    const clearCode = () => {
+      code.textContent = '';
+      result.hidden = true;
+      form.hidden = false;
+    };
     const x = expandRow({
       title: 'Kode pemulihan',
       desc: 'Kode pemulihan bisa membuka browser bila kamu lupa password. Membuat kode baru membuat kode yang lama tidak berlaku.',
       trigger, body: h('div', {}, form, result),
+      onToggle: (open) => { if (!open) clearCode(); },
     });
     trigger.addEventListener('click', () => x.setOpen(!x.isOpen()));
     // A new code is shown once (at once, no animation), then removed from the page.
@@ -216,9 +239,7 @@ export async function render(root, ctx) {
       ctx.markSaved();
     });
     noted.addEventListener('click', () => {
-      code.textContent = '';
-      result.hidden = true;
-      form.hidden = false;
+      clearCode();
       showMsg(msg, 'Kode pemulihan baru tersimpan. Kode yang lama tidak berlaku lagi.', 'ok');
     });
     return x;

@@ -59,6 +59,11 @@ export async function render(root, ctx) {
     lastTotal = total;
   }
 
+  // The wanted lists are read from the switches themselves (a reply for an earlier switch may still
+  // be on its way), and saves go one at a time so an older list never lands last.
+  let listQueue = Promise.resolve();
+  const switchedOn = () => [...listBox.querySelectorAll('input[data-list]')].filter((i) => i.checked).map((i) => i.dataset.list);
+
   function renderLists() {
     const enabled = new Set(data.settings.enabledLists);
     listBox.replaceChildren(...data.lists.map((list) => {
@@ -66,10 +71,9 @@ export async function render(root, ctx) {
       const { input, el } = switchEl({ id, checked: enabled.has(list.id), dataset: { list: list.id }, 'aria-label': list.title });
       input.addEventListener('change', async () => {
         showMsg(listsMsg, '');
-        const next = new Set(data.settings.enabledLists);
-        if (input.checked) next.add(list.id);
-        else next.delete(list.id);
-        const result = await ctx.send('ab:saveSettings', { patch: { enabledLists: [...next] } });
+        const run = listQueue.then(() => ctx.send('ab:saveSettings', { patch: { enabledLists: switchedOn() } }));
+        listQueue = run.catch(() => {});
+        const result = await run.catch((err) => ({ ok: false, error: String(err?.message || err) }));
         if (!result?.ok) {
           input.checked = !input.checked;
           return showMsg(listsMsg, errorText(result));

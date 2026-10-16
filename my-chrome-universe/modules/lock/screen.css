@@ -68,3 +68,6 @@ body { overflow: hidden; }
 .login-foot .ic { width: 14px; height: 14px; }
 .login.is-active .login-foot { animation: rise 700ms 900ms var(--ease-out) backwards; }
 @media (max-width: 760px) { .login-foot { bottom: 80px; } }
+
+/* Toasts sit at the top, clear of the auto-lock line (.login-foot) and the welcome's controls. */
+.toasts { top: 24px; bottom: auto; flex-direction: column; }
