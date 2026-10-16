@@ -4,7 +4,8 @@
 //
 // Run: node tests/youtube.live.mjs [videoUrl]
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, existsSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { findChrome, platformArgs } from './chromium.mjs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,14 +17,6 @@ const CDP_PORT = 9334;
 const WATCH_MS = 25000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function findChrome() {
-  const base = join(process.env.LOCALAPPDATA || '', 'ms-playwright');
-  for (const dir of readdirSync(base).filter((d) => /^chromium-\d+$/.test(d)).sort().reverse()) {
-    const exe = join(base, dir, 'chrome-win64', 'chrome.exe');
-    if (existsSync(exe)) return exe;
-  }
-  throw new Error('Chromium (Playwright) tidak ditemukan');
-}
 
 let nextId = 0;
 const pending = new Map();
@@ -40,7 +33,10 @@ async function evaluate(sessionId, expression) {
 }
 
 const profile = mkdtempSync(join(tmpdir(), 'ab-yt-'));
-const chrome = spawn(findChrome(), [
+const exe = findChrome();
+if (!exe) throw new Error('Chromium (Playwright) tidak ditemukan');
+const chrome = spawn(exe, [
+  ...platformArgs,
   '--headless=new', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${profile}`,
   `--load-extension=${extDir}`, `--disable-extensions-except=${extDir}`,
   '--no-first-run', '--no-default-browser-check', '--lang=id-ID', '--autoplay-policy=no-user-gesture-required',

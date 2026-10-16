@@ -19,8 +19,12 @@ node --test tests/ad-blocker.e2e.mjs
 Iklan video YouTube tidak bisa diblokir lewat aturan jaringan; `ad-blocker/youtube-main.js` membuang data iklan
 dari respons pemutar. Cek langsung ke YouTube asli (butuh internet): `node tests/youtube.live.mjs [url-video]`.
 
-Tes E2E Ad Blocker memuat extension ke Chromium milik Playwright (`%LOCALAPPDATA%\ms-playwright\chromium-*`),
-karena Chrome bermerek tidak lagi menerima `--load-extension`.
+Tes E2E Ad Blocker memuat extension ke Chromium milik Playwright (`npx playwright@1 install chromium`; dicari oleh
+`tests/chromium.mjs` di Windows/Linux/macOS, atau atur `CHROME_PATH`), karena Chrome bermerek tidak lagi menerima
+`--load-extension`. `node tests/feed.live.mjs` menguji update dari feed GitHub Pages yang asli.
+
+Konteks untuk Claude Code: `CLAUDE.md` (aturan kerja), `HANDOFF.md` (briefing lanjutan), `docs/PROJECT_HISTORY.md`
+(riwayat, temuan reverse-engineering, keputusan).
 
 ## Filter bot (update filter list Ad Blocker)
 

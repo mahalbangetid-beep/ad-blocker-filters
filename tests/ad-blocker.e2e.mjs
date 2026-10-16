@@ -2,17 +2,18 @@
 // still honours --load-extension), serves a local page full of "ads", and checks
 // what actually got blocked or hidden. Drives the browser over the DevTools Protocol.
 //
-// Run: node tests/ad-blocker.e2e.mjs [path-to-chrome.exe]
+// Run: node --test tests/ad-blocker.e2e.mjs   (CHROME_PATH=... to pick a browser)
 import { test, after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { createServer as createTlsServer } from 'node:https';
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { findChrome, platformArgs } from './chromium.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const extDir = join(root, 'ad-blocker');
@@ -23,22 +24,6 @@ const YOUTUBE = `https://www.youtube.com:${TLS_PORT}`;
 const CDP_PORT = 9333;
 const SITE = `http://site.test:${PORT}`;
 
-// Playwright's Chromium: %LOCALAPPDATA%\ms-playwright on Windows, ~/.cache/ms-playwright on Linux (CI).
-function findChrome() {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
-  const bases = [
-    join(process.env.LOCALAPPDATA || '', 'ms-playwright'),
-    join(process.env.HOME || '', '.cache', 'ms-playwright'),
-  ];
-  for (const base of bases.filter(existsSync)) {
-    for (const dir of readdirSync(base).filter((d) => /^chromium-\d+$/.test(d)).sort().reverse()) {
-      for (const exe of [join(base, dir, 'chrome-win64', 'chrome.exe'), join(base, dir, 'chrome-linux', 'chrome'), join(base, dir, 'chrome-linux64', 'chrome')]) {
-        if (existsSync(exe)) return exe;
-      }
-    }
-  }
-  return null;
-}
 
 // ---------- Local site with ads ----------
 
@@ -194,8 +179,7 @@ before(async () => {
     '--no-default-browser-check',
     '--lang=en-US',
     '--ignore-certificate-errors',
-    // GitHub's Linux runners do not allow Chromium's sandbox.
-    ...(process.platform === 'linux' ? ['--no-sandbox'] : []),
+    ...platformArgs,
     'about:blank',
   ], { stdio: 'ignore' });
 
