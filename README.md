@@ -1,7 +1,8 @@
 # My Chrome Universe
 
 Satu extension Chrome (Manifest V3, JavaScript murni, tanpa build step) yang menyatukan tiga modul. Semua data lokal,
-tanpa akun, tanpa telemetri, tanpa "Acceptable Ads".
+tanpa akun, tanpa telemetri, tanpa "Acceptable Ads". Tampilannya satu sistem desain "Universe" bertema luar angkasa:
+tema gelap "Malam" dan terang "Fajar", animasi di setiap elemen, font dan ikon lokal (tanpa request ke server lain).
 
 | Modul | Meniru | Isi |
 |---|---|---|
@@ -16,9 +17,24 @@ my-chrome-universe/
   manifest.json, background.js     satu service worker; meng-import core lalu tiap modul
   popup.html/.js/.css              popup toolbar: grid modul → panel modul
   options.html/.js/.css            halaman pengaturan tunggal (satu halaman gulir; settings-general.js = Umum + Tentang)
-  core/                            registry modul, gerbang kunci, menu klik kanan bersama, helper panel
-  modules/{lock,tabs,adblock}/     kode tiap modul (background, panel.js, halaman, aset)
+  core/                            registry modul, gerbang kunci, menu klik kanan bersama, helper panel/pengaturan
+  ui/                              sistem desain: token dua tema, komponen, ikon + logo, font lokal, gerak, kanvas bintang, sambutan
+  icons/                           ikon extension (logo orbit; dibuat dengan tools/make-icons.mjs)
+  modules/{lock,tabs,adblock}/     kode tiap modul (background, panel.js, settings.js, halaman)
 ```
+
+## Tampilan
+
+- **Saat browser dibuka**: animasi layar penuh "Welcome to My Chrome Universe", lalu kartu login. Setelah password benar,
+  tab layar kunci itu sendiri berubah menjadi dashboard Tab Manager (tanpa ganti tab), dan tab yang tersimpan pulih di
+  latar belakang. Kunci manual/otomatis langsung menampilkan login (tanpa sambutan).
+- **Dashboard (New Tab)**: rail Ruang (jam, sapaan, ruang, Berbintang) → grid Koleksi → panel Tab terbuka (laci di layar
+  sempit) → palet cari & perintah (Ctrl K atau `/`). Panduan bernomor tampil sekali; tombol (?) membukanya lagi.
+- **Popup**: kartu situs aktif (jumlah iklan diblokir), kartu modul dengan sakelar, panel tiap modul, "Kunci sekarang".
+- **Pengaturan** (`options.html#<id>`): satu halaman gulir dengan pencarian. Bagian **Umum → Tampilan**:
+  Tema (Otomatis/Terang/Gelap), Tingkat animasi (Penuh/Seimbang/Minim; bawaan Minim bila sistem meminta animasi
+  dikurangi), Warna aksen (Surya/Ion/Nova), Animasi sambutan. Perubahan langsung berlaku di semua halaman yang terbuka.
+- Panel "Blokir elemen" di situs memakai palet yang sama (font sistem, gelap/terang mengikuti situs).
 
 ## Memasang
 
@@ -27,16 +43,21 @@ Bila sebelumnya memasang tiga extension lama (Browser Lock, Tab Manager, Ad Bloc
 shortcut, menu klik kanan, dan New Tab tidak bentrok. Data lama tidak ikut pindah. Saat pertama dibuka, extension
 meminta pembuatan password (Browser Lock) dan menampilkan kode pemulihan sekali; simpan kode itu.
 
-Ikon toolbar membuka popup berisi grid modul; ketuk satu modul untuk panelnya, sakelar "Aktif" di tiap panel
-mematikan/menyalakan modul itu. Tombol ⚙ membuka halaman pengaturan (`options.html#<id>`): satu halaman gulir
-dengan bagian Umum (tema, animasi, aksen, sakelar modul), tiap modul, dan Tentang; perubahan langsung tersimpan. Mematikan Browser Lock selalu meminta password saat ini.
+Ikon toolbar membuka popup berisi kartu modul; sakelar di tiap kartu mematikan/menyalakan modul itu, ketuk kartu untuk
+panelnya. Tombol roda gigi membuka halaman pengaturan (`options.html#<id>`): bagian Umum (tampilan, sakelar modul), tiap
+modul, dan Tentang; perubahan langsung tersimpan. Mematikan Browser Lock selalu meminta password saat ini.
 
 ## Tes
 
 ```bash
-node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs
+node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs
 node --test tests/universe.e2e.mjs      # E2E seluruh extension di Chromium sungguhan
+SHOT_DIR=/tmp/shots node --test tests/universe.e2e.mjs   # sekaligus menyimpan tangkapan layar beberapa permukaan
+node tools/make-icons.mjs               # buat ulang icons/*.png dari logo orbit (hanya bila logo berubah)
 ```
+
+`tests/ui.test.mjs` menjaga sistem desain: tidak ada URL luar di CSS, file font ada, tema terang menimpa semua token,
+kontras teks ≥ 4,5:1 di kedua tema, dan setiap ikon yang dipakai ada di `ui/icons.js`.
 
 Iklan video YouTube tidak bisa diblokir lewat aturan jaringan; `modules/adblock/youtube-main.js` membuang data iklan
 dari respons pemutar. Cek langsung ke YouTube asli (butuh internet): `node tests/youtube.live.mjs [url-video]`.
@@ -46,7 +67,8 @@ Tes E2E memuat extension ke Chromium milik Playwright (`npx playwright@1 install
 `--load-extension`. `node tests/feed.live.mjs` menguji update dari feed GitHub Pages yang asli.
 
 Konteks untuk Claude Code: `CLAUDE.md` (aturan kerja), `HANDOFF.md` (briefing lanjutan), `docs/PROJECT_HISTORY.md`
-(riwayat, temuan reverse-engineering, keputusan), `docs/superpowers/specs/2026-10-16-my-chrome-universe-design.md` (desain penyatuan).
+(riwayat, temuan reverse-engineering, keputusan), `docs/superpowers/specs/2026-10-16-my-chrome-universe-design.md` (desain penyatuan),
+`docs/superpowers/specs/2026-10-16-global-redesign-design.md` + `specs/assets/2026-10-16-universe-prototype.html` (redesign Universe dan prototipenya).
 
 ## Filter bot (update filter list Ad Blocker)
 
@@ -100,8 +122,11 @@ UI Tab Manager bisa dicoba di browser biasa dengan API `chrome` tiruan:
 2. Daftarkan di `MODULES` (`core/modules.js`): `id`, `name`, `icon` (nama ikon dari `ui/icons.js`), `panel`, `settings`
    (path `modules/<id>/settings.js`). Kartu modul di popup (dengan sakelar aktif/nonaktif) dan bagian modul di halaman
    pengaturan otomatis mengikuti daftar ini. `settings.js` mengekspor `summary` (`{ sub, desc }`) dan
-   `render(root, ctx)` yang mengisi kartu bagiannya dengan baris `.item` (helper di `core/settings-ui.js`; `ctx` berisi
-   `send`, `markSaved`, `toast`, `burst`, `goto`). Simpan langsung lalu panggil `ctx.markSaved()`; error tampil di dekat kontrolnya.
+   `render(root, ctx)` yang mengisi kartu bagiannya dengan baris `.item` (helper di `core/settings-ui.js`: `row`,
+   `toggleRow`, `expandRow`, `field`, `button`, `segment`; `ctx` berisi `send`, `markSaved`, `toast`, `burst`, `goto`).
+   Simpan langsung lalu panggil `ctx.markSaved()`; error tampil di dekat kontrolnya, seketika. Bila beberapa baris
+   menyimpan satu objek yang sama, kirim berurutan dengan nilai terbaru yang diinginkan (contoh: `modules/lock/settings.js`).
+   Pakai komponen dan token dari `ui/` (tanpa warna literal) dan ikon dari `ui/icons.js` (bukan emoji).
 3. `panel.js` mengekspor `render(root, opts)` (isi panel di popup; helper `offNotice`/`messageLine`/`loadStyles`/`favTile`
    ada di `core/panel.js`; gaya panel di `panel.css` modul lewat `loadStyles`), `status()` (teks kecil di kartu, mis.
    "aktif"), dan opsional `hero()` (`{ title, subtitle, value, favUrl? }` atau `null`) untuk kartu situs di beranda popup.
@@ -109,8 +134,10 @@ UI Tab Manager bisa dicoba di browser biasa dengan API `chrome` tiruan:
 5. Di `background.js` modul: daftarkan listener di top level, jangan top-level await, simpan state di `chrome.storage`.
    Handler pesan memanggil `messageAllowed(type)` (`core/gate.js`) sehingga tertolak (`{ok:false,error:'locked'}`)
    saat browser terkunci; tipe yang boleh dipakai layar kunci masuk `PUBLIC_MESSAGES`.
-6. Setiap halaman extension (kecuali layar kunci dan setup) memanggil `await guardPage('tab' | 'popup' | 'frame')`
-   (`core/page-guard.js`) sebelum membaca data apa pun.
+6. Setiap halaman extension (kecuali layar kunci dan setup) memanggil `await guardPage('tab' | 'popup')`
+   (`core/page-guard.js`) sebelum membaca data apa pun atau memutar animasi yang memperlihatkan data. Saat terkunci,
+   halaman diganti kartu pemberitahuan (`.guard-notice`). Halaman baru memuat `ui/boot.js` di `<head>` lalu
+   `ui/tokens.css` + `ui/components.css`, dan memanggil `initAppearance()`/`watchAppearance()` (`ui/appearance.js`).
 7. Item menu klik kanan didaftarkan lewat `registerMenuProvider(id, async () => [props])` (`core/menus.js`); jangan memanggil
    `chrome.contextMenus.removeAll` sendiri. Menu dibangun ulang bila modul dinyalakan/dimatikan.
 8. `import './modules/<id>/background.js'` di `background.js`; tambahkan `permissions`/`commands` ke manifest

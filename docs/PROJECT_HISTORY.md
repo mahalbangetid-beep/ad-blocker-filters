@@ -6,7 +6,7 @@ mengapa keputusan diambil, dan kesalahan yang sudah pernah terjadi. Extension as
 Chrome di Windows (`%LOCALAPPDATA%\Google\Chrome\User Data\Default\Extensions\<id>\<versi>`); di Linux lokasinya
 `~/.config/google-chrome/Default/Extensions/<id>/<versi>`. ABP dan Toby sudah dicopot pengguna setelah dianalisis.
 
-Urutan kerja: Browser Lock → Tab Manager → Ad Blocker → iklan video YouTube → filter bot + GitHub → update harian → penyatuan.
+Urutan kerja: Browser Lock → Tab Manager → Ad Blocker → iklan video YouTube → filter bot + GitHub → update harian → penyatuan → redesign "Universe" (§8).
 
 Catatan path: §1-§6 ditulis saat ketiga extension masih folder terpisah (`browser-lock/`, `tab-manager/`, `ad-blocker/`).
 Setelah §7 isinya ada di `my-chrome-universe/modules/lock|tabs|adblock/`; nama file di dalamnya tidak berubah.
@@ -166,7 +166,7 @@ Desain lengkap: `docs/superpowers/specs/2026-10-16-my-chrome-universe-design.md`
 - **Ikon toolbar tidak lagi diganti** per tab (dulu Ad Blocker mengabukan ikon saat situs diizinkan/dijeda); status Ad Blocker
   tampil di ubin dan panel. Badge hitungan tetap.
 - **Halaman pengaturan bersama** `options.html#<id>`: menu samping dari `MODULES`, sakelar, dan halaman opsi modul dalam `<iframe>`
-  (halaman itu memanggil `guardPage('frame')`); Tab Manager tanpa halaman opsi → sakelar + tombol "Buka dashboard".
+  (halaman itu memanggil `guardPage('frame')`; jenis ini hilang setelah redesign §8 karena iframe dihapus); Tab Manager tanpa halaman opsi → sakelar + tombol "Buka dashboard".
 - Awalan: `lock:` (Browser Lock, dulu tanpa awalan), `tm:`, `ab:`, `core:`. Maksimal 4 shortcut ber-`suggested_key`; terpakai 3.
 
 **Bentrokan yang ditemukan**
@@ -191,6 +191,63 @@ Desain lengkap: `docs/superpowers/specs/2026-10-16-my-chrome-universe-design.md`
 - Tes picker "Blokir elemen" tidak stabil tanpa menunggu kondisi (`waitFor`) → semua langkah kini menunggu kondisi, bukan `sleep`.
 - Tes gerbang kunci mengunci browser sungguhan, jadi harus tetap **terakhir** di `tests/universe.e2e.mjs`; tes baru ditaruh sebelum bagian itu.
 - Pesan yang boleh dilayani saat terkunci didaftar eksplisit (`PUBLIC_MESSAGES`); default menolak (fail closed).
+
+## 8. Redesign global "Universe" (`my-chrome-universe/ui/` dan semua halaman)
+
+Desain: `docs/superpowers/specs/2026-10-16-global-redesign-design.md`; acuan visual = prototipe interaktif yang disetujui
+pengguna ("aku suka sekali"), salinannya `docs/superpowers/specs/assets/2026-10-16-universe-prototype.html`; rencana
+sembilan tugas `docs/superpowers/plans/2026-10-16-global-redesign.md`. Dikerjakan di branch `universe-redesign`
+(belum di-merge/push saat dokumen ini ditulis), satu commit per tugas.
+
+**Keputusan**
+- **Satu sistem desain di `ui/`** (bukan di `core/`, yang berisi logika SW): token dua tema, komponen, ikon SVG + logo
+  orbit, gerak, kanvas bintang, sambutan. Komponen hanya memakai token; nilai token disalin dari prototipe, kecuali
+  `--faint` gelap `#787FA3` (nilai prototipe `#747CA0` gagal kontras 4,5:1). Tema terang "Fajar" atas permintaan pengguna.
+- **Font lokal**: Unbounded, Plus Jakarta Sans, JetBrains Mono sebagai tiga woff2 *variable* (subset latin) + `OFL.txt`,
+  bukan tujuh file statis. Halaman extension tidak boleh meminta apa pun dari host lain (dijaga E2E lewat CDP `Network`).
+- **Cermin localStorage**: `core:appearance` ada di `chrome.storage` (asinkron), tetapi tema harus terpasang sebelum render
+  pertama. `applyAppearance` menulis `localStorage['mcu:appearance']`, dan `ui/boot.js` (skrip klasik di `<head>`)
+  membacanya secara sinkron → tidak ada kilatan tema yang salah.
+- **Penyimpanan tampilan jarang**: `core:setAppearance` hanya menyimpan kunci yang diubah pengguna (patch tidak valid
+  diabaikan). Menyimpan objek yang sudah dinormalkan mengunci `motion: 'full'` selamanya walau OS kemudian meminta
+  *reduce motion*. Pembaca menormalkan sendiri (`readAppearance`).
+- **Handoff tab** (alur buka kunci tanpa ganti tab): setelah `lock:unlock`, layar kunci memutar warp lalu mengirim
+  `lock:handoff`; SW memindahkan tab kunci ke akhir dan `chrome.tabs.update(id, { url: 'chrome://newtab/' })` sehingga tab
+  itu sendiri menjadi dashboard (bilah alamat kosong seperti New Tab biasa; dari halaman kunci ini tidak memicu loop,
+  beda dengan spike §7 yang memanggilnya dari halaman override itu sendiri). Tab tersimpan pulih di latar belakang lebih
+  dulu (`finishUnlock` menunggu `restoring`). **Cadangan**: penanda `lock:handoffPending` + timer 4 dtk di SW; bila layar
+  kunci tidak sempat mengirim, SW tetap menghasilkan dashboard aktif di akhir jendela.
+- **Arrival khusus tab**: `tm:arrive` berisi id tab kunci, bukan boolean; hanya tab itu yang memutar animasi tiba
+  (sebelumnya New Tab lain yang dibuka bersamaan bisa "mencuri" animasinya).
+- **Sambutan** hanya saat browser baru dibuka (penanda session `core:welcome` dari `onStartup`), bagian dari `lock.html`
+  (tanpa halaman extension tambahan saat terkunci); bila Browser Lock mati, diputar di dashboard pertama.
+- **Panduan sekali**: panduan bernomor dashboard tampil otomatis sampai benar-benar terlihat lalu ditutup (`tm:guideSeen`),
+  bukan sekadar "pernah dirender".
+- **Pengaturan tanpa iframe**: `options.html` satu halaman gulir; registry memakai `settings` (`render(root, ctx)`)
+  sejajar dengan `panel`. Halaman opsi lama tinggal pengalih agar bookmark/tes lama tidak 404.
+- **Picker di situs orang lain** tetap di shadow DOM tertutup dengan palet sendiri dan font sistem (tidak memuat aset
+  extension ke halaman); geometri panel tidak diubah karena E2E mengklik berdasarkan koordinat.
+- **Ikon** dibuat sekali dari `logo()` dengan `tools/make-icons.mjs` (Chromium + CDP `Page.captureScreenshot`, latar
+  transparan, tanpa dependensi); ukuran 16/32 memakai matahari lebih besar dan cincin lebih tebal agar tetap terbaca.
+
+**Pelajaran**
+- **Data sebelum gerbang**: animasi masuk tidak boleh merender data sebelum `guardPage` resolve; kartu `.guard-notice`
+  menggantikan halaman tanpa membaca data modul. Karena halaman extension ditutup penyapuan saat terkunci, E2E memuat
+  popup di dalam iframe layar kunci untuk memeriksa pemberitahuan itu.
+- **Satu-satunya UI pembuka harus tahan gagal**: bila kanvas/sambutan melempar error, form login tetap harus aktif
+  (`try/finally` di `lock.js`/`setup.js`; `playWelcome` menelan error kanvas). Diuji dengan `getContext` yang dirusak.
+- **Penyimpanan cepat di pengaturan**: membandingkan slider dengan *balasan* terakhir (bukan nilai terakhir yang
+  dikirim), membangun daftar filter dari data (bukan dari sakelar di halaman), dan dua baris yang mengirim objek
+  `lock:settings` utuh dari salinan lokal masing-masing → perubahan hilang. Kini: nilai terakhir yang dikirim, status
+  dari DOM, satu antrean berisi nilai terbaru yang diinginkan. E2E memperlambat balasan 400 ms untuk membuktikannya.
+- **Teks jujur**: catatan "Tab disimpan…" setelah kunci manual kini memakai jumlah dari `lock:getState().savedTabs`
+  (hanya angka, menunggu penyimpanan yang sedang berjalan) dan tidak muncul bila tidak ada tab yang disimpan.
+- **E2E yang flaky** (`unlock restores tabs…`, 1 dari 4 run di Task 7): tes menunggu "ada tab aktif ber-URL", yang bisa
+  masih URL layar kunci karena URL target CDP berubah sebelum `chrome.tabs` melaporkan URL dashboard yang sudah
+  di-commit; `waitFor` juga langsung gagal bila evaluasi jatuh di tengah navigasi. Perbaikan: tunggu kondisi akhir (tab
+  aktif = dashboard) dan anggap evaluasi gagal saat navigasi sebagai "belum" — bukan menaikkan timeout.
+- **Minim = tanpa loop**: tes menghitung `requestAnimationFrame` lewat skrip yang dipasang sebelum halaman dimuat
+  (`Page.addScriptToEvaluateOnNewDocument`), dengan kontrol: gerak Penuh harus menghasilkan banyak frame.
 
 ## Kebiasaan lingkungan Windows yang tidak berlaku di Linux
 
