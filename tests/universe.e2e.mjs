@@ -539,3 +539,144 @@ test('extension pages render without errors', async () => {
     await screenshot(s, page.split('/').pop().replace('.html', ''));
   }
 });
+
+// ---------- Lock gate (keep these last: they lock the browser) ----------
+
+const extUrl = (path) => `chrome-extension://${extId}/${path}`;
+const LOCK_PAGE = () => extUrl('modules/lock/lock.html');
+const pageTargets = async () => (await cdp.send('Target.getTargets')).targetInfos.filter((t) => t.type === 'page');
+
+// Polls an async Node-side check every 100 ms until it returns something truthy.
+async function until(check, what, timeoutMs = 10000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const value = await check();
+    if (value) return value;
+    if (Date.now() >= deadline) throw new Error(`timed out after ${timeoutMs} ms: ${what}`);
+    await sleep(100);
+  }
+}
+
+// The lock sweep closes the page bg() talks through, so forget it; the next bg() opens a fresh one.
+function forgetBgPage() {
+  openSessions.delete(extUrl('modules/adblock/popup.html'));
+}
+
+// Locks and waits until the lock screen is the only page left; returns a session on it.
+async function lockBrowser() {
+  // The page sending lock:lock is itself closed by the sweep and its reply never arrives
+  // (CDP leaves the evaluation pending), so send it like bg() but without awaiting the reply.
+  const session = await openPage(extUrl('modules/adblock/popup.html'), false);
+  forgetBgPage();
+  await evaluate(session, "void chrome.runtime.sendMessage({ type: 'lock:lock' }).catch(() => {})");
+  await until(async () => {
+    const pages = await pageTargets();
+    return pages.length === 1 && pages[0].url.startsWith(LOCK_PAGE());
+  }, 'only the lock screen is open');
+  const [lockTarget] = await pageTargets();
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: lockTarget.targetId, flatten: true });
+  await cdp.send('Runtime.enable', {}, sessionId);
+  await waitFor(sessionId, "document.readyState === 'complete'");
+  return sessionId;
+}
+
+// Sends a message from the lock screen (the only extension page allowed while locked).
+const fromLock = (session, message) => evaluate(session, `chrome.runtime.sendMessage(${JSON.stringify(message)})`);
+
+// Waits for the unlock to finish restoring tabs (the lock tab is closed last).
+async function waitUnlocked() {
+  await until(async () => !(await pageTargets()).some((t) => t.url.startsWith(LOCK_PAGE())), 'lock screen closed');
+}
+
+let lockSession;
+const SECRET_SPACE = 'Ruang saat terkunci';
+
+test('locking closes every extension page and refuses module messages', async () => {
+  const dash = await openPage('chrome://newtab/');
+  await waitFor(dash, "document.querySelectorAll('#space-list li').length > 0");
+  const options = await openPage(extUrl('modules/adblock/options.html'));
+  assert.ok((await evaluate(options, 'document.body.innerText')).length > 50, 'options page did not render');
+  // A website tab to be remembered and restored.
+  await openPage(`${SITE}/page.html`);
+
+  lockSession = await lockBrowser();
+  assert.equal((await fromLock(lockSession, { type: 'lock:getState' })).locked, true);
+  assert.deepEqual(
+    await fromLock(lockSession, { type: 'tm:op', op: { type: 'space/create', name: SECRET_SPACE } }),
+    { ok: false, error: 'locked' },
+  );
+  assert.deepEqual(await fromLock(lockSession, { type: 'tm:getData' }), { ok: false, error: 'locked' });
+  assert.deepEqual(await fromLock(lockSession, { type: 'ab:getOptions' }), { ok: false, error: 'locked' });
+  assert.deepEqual(await fromLock(lockSession, { type: 'core:setModule', id: 'lock', enabled: false }), { ok: false, error: 'locked' });
+
+  // An extension page opened while locked is closed again.
+  const { targetId } = await cdp.send('Target.createTarget', { url: extUrl('modules/adblock/popup.html') });
+  await until(async () => !(await pageTargets()).some((t) => t.targetId === targetId), 'popup opened while locked is closed');
+  const pages = await pageTargets();
+  assert.deepEqual(pages.map((t) => t.url.split('?')[0]), [LOCK_PAGE()], 'only the lock screen remains');
+});
+
+test('unlock restores tabs and shows the dashboard', async () => {
+  const wrong = await fromLock(lockSession, { type: 'lock:unlock', password: 'salah' });
+  assert.equal(wrong.ok, false);
+  assert.equal(wrong.error, 'wrong');
+
+  assert.equal((await fromLock(lockSession, { type: 'lock:unlock', password: PASSWORD })).ok, true);
+  await waitUnlocked();
+  const tabs = await until(async () => {
+    const all = await evaluate(swSession, "chrome.tabs.query({}).then((t) => t.map((x) => ({ url: x.url || x.pendingUrl || '', active: x.active, index: x.index, windowId: x.windowId })))");
+    return all.some((t) => t.url.startsWith(SITE)) && all.some((t) => t.active && t.url) && all;
+  }, 'restored website tab and an active tab with a URL');
+
+  // Website tabs come back in the background; extension pages (options, dashboard) are not restored.
+  const restored = tabs.filter((t) => t.url.startsWith(SITE));
+  assert.ok(restored.length >= 1, 'site.test tab restored');
+  assert.ok(restored.every((t) => !t.active), 'restored tabs open in the background');
+  assert.ok(!tabs.some((t) => t.url.includes('/modules/adblock/')), `extension pages were restored: ${tabs.map((t) => t.url)}`);
+
+  // The dashboard is the active tab, created after the restored ones.
+  const active = tabs.filter((t) => t.active);
+  assert.equal(active.length, 1, `active tabs: ${JSON.stringify(active)}`);
+  assert.match(active[0].url, /^(chrome:\/\/newtab\/|chrome-extension:\/\/[a-z]+\/modules\/tabs\/newtab\.html)$/);
+  const inWindow = tabs.filter((t) => t.windowId === active[0].windowId);
+  assert.equal(active[0].index, Math.max(...inWindow.map((t) => t.index)), 'dashboard is the last tab');
+  assert.equal(new Set(tabs.map((t) => t.windowId)).size, 1, 'everything is in the lock screen window');
+
+  // The dashboard renders again, and nothing sent while locked was applied.
+  const dashTarget = (await pageTargets()).find((t) => t.url === active[0].url || t.url.endsWith('/modules/tabs/newtab.html'));
+  assert.ok(dashTarget, 'dashboard target not found');
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: dashTarget.targetId, flatten: true });
+  await cdp.send('Runtime.enable', {}, sessionId);
+  await waitFor(sessionId, "document.querySelectorAll('#space-list li').length > 0");
+  const data = await bg({ type: 'tm:getData' });
+  assert.ok(Array.isArray(data.spaces), `tm:getData: ${JSON.stringify(data)}`);
+  assert.ok(!data.spaces.some((s) => s.name === SECRET_SPACE), 'tm:op sent while locked was applied');
+  assert.equal((await bg({ type: 'ab:getOptions' })).settings.paused, false);
+});
+
+test('recovery code opens the browser and replaces the password', async () => {
+  const NEW_PASSWORD = 'baru-rahasia2';
+  lockSession = await lockBrowser();
+
+  const recovered = await fromLock(lockSession, { type: 'lock:recover', code: recoveryCode, password: NEW_PASSWORD, confirm: NEW_PASSWORD });
+  assert.equal(recovered.ok, true, recovered.error);
+  assert.ok(recovered.recoveryCode && recovered.recoveryCode !== recoveryCode, 'a new recovery code is issued');
+  // Recovery replaces the password but does not unlock by itself.
+  assert.equal((await fromLock(lockSession, { type: 'lock:getState' })).locked, true);
+
+  // The used code is spent and the old password no longer works.
+  const reused = await fromLock(lockSession, { type: 'lock:recover', code: recoveryCode, password: 'lagi1234', confirm: 'lagi1234' });
+  assert.equal(reused.ok, false);
+  assert.equal(reused.error, 'wrong');
+  const old = await fromLock(lockSession, { type: 'lock:unlock', password: PASSWORD });
+  assert.equal(old.ok, false);
+  assert.equal(old.error, 'wrong');
+
+  // The new password opens the browser (and leaves it open for the end of the suite).
+  assert.equal((await fromLock(lockSession, { type: 'lock:unlock', password: NEW_PASSWORD })).ok, true);
+  await waitUnlocked();
+  const state = await bg({ type: 'lock:getState' });
+  assert.equal(state.locked, false);
+  assert.equal(state.failures, 0, 'a successful unlock resets the failure counter');
+  assert.equal((await bg({ type: 'ab:getOptions' })).settings.paused, false);
+});
