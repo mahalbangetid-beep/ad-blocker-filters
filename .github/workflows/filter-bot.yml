@@ -1,0 +1,78 @@
+# Daily filter bot: fetches the filter lists from every source, merges and compiles
+# them, verifies the result in a real Chromium with the extension loaded, and
+# publishes the feed to the gh-pages branch (served by GitHub Pages).
+name: Filter bot
+
+on:
+  schedule:
+    - cron: '17 1 * * *' # every day 01:17 UTC (08:17 WIB)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: filter-bot
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # The previous feed is the fallback when a source is down, and the baseline for changes.json.
+      - name: Check out previous feed (gh-pages)
+        run: |
+          git config user.name "filter-bot"
+          git config user.email "filter-bot@users.noreply.github.com"
+          if git fetch --depth=1 origin gh-pages; then
+            git worktree add -B gh-pages feed origin/gh-pages
+          else
+            git worktree add --orphan -b gh-pages feed
+          fi
+
+      - name: Unit tests
+        run: node --test tests/ad-blocker.test.mjs
+
+      - name: Build feed
+        run: node filter-bot/bot.mjs --out feed --update-extension
+
+      # Load the freshly compiled rulesets into real Chromium and check that ads
+      # are still blocked before anything is published.
+      - name: Install Chromium
+        run: npx --yes playwright@1 install --with-deps chromium
+
+      - name: Verify in Chromium
+        run: node --test tests/ad-blocker.e2e.mjs
+
+      - name: Publish feed
+        run: |
+          cd feed
+          touch .nojekyll
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Tidak ada perubahan."
+            exit 0
+          fi
+          VERSION=$(node -p "require('./index.json').version")
+          git commit -q -m "Feed ${VERSION}"
+          git push origin gh-pages
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f feed/index.json ]; then
+            node -e "
+              const i = require('./feed/index.json'), c = require('./feed/changes.json');
+              const lines = ['## Feed ' + i.version, '', '| Kategori | Aturan | Ditambah | Dihapus |', '|---|---|---|---|'];
+              for (const k of i.categories) { const d = c.categories[k.id]; lines.push('| ' + k.title + ' | ' + k.ruleCount + ' | ' + d.rulesAdded + ' | ' + d.rulesRemoved + ' |'); }
+              if (i.problems.length) lines.push('', '**Masalah:** ' + i.problems.join('; '));
+              require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+            "
+          fi

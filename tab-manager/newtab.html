@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tab Manager</title>
+  <link rel="icon" href="icons/icon32.png">
+  <link rel="stylesheet" href="newtab.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="icons/icon32.png" alt="" width="22" height="22"> Tab Manager</div>
+    <input id="search" type="search" placeholder="Cari koleksi dan tab…  ( / )" autocomplete="off">
+    <div class="top-actions">
+      <button class="icon-btn" id="theme-btn" title="Tema"></button>
+      <button class="icon-btn" id="menu-btn" title="Menu" aria-haspopup="menu">⋯</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" aria-label="Ruang">
+      <h3>Ruang</h3>
+      <ul id="space-list" class="nav-list"></ul>
+      <button class="ghost-btn" id="add-space">+ Ruang baru</button>
+      <h3>Berbintang</h3>
+      <ul id="starred-list" class="nav-list"></ul>
+    </aside>
+
+    <main id="main">
+      <div class="main-head">
+        <h1 id="main-title"></h1>
+        <div class="main-actions" id="main-actions">
+          <button class="ghost-btn" id="toggle-collapse"></button>
+          <button class="primary-btn" id="add-collection">+ Koleksi baru</button>
+          <button class="icon-btn" id="space-menu" title="Opsi ruang">⋯</button>
+        </div>
+      </div>
+      <div id="collections"></div>
+    </main>
+
+    <aside class="open-tabs" aria-label="Tab terbuka">
+      <div class="panel-head">
+        <h3>Tab terbuka <span id="open-count" class="count"></span></h3>
+        <button class="ghost-btn small" id="dedupe" title="Tutup tab yang URL-nya sama">Hapus duplikat</button>
+      </div>
+      <div class="save-box">
+        <button class="primary-btn" id="save-session">Simpan sesi</button>
+        <label class="check"><input type="checkbox" id="close-after"> Tutup tab setelah disimpan</label>
+      </div>
+      <div id="window-list"></div>
+    </aside>
+  </div>
+
+  <dialog id="dialog"><form method="dialog" id="dialog-form"></form></dialog>
+  <input type="file" id="import-file" accept="application/json,.json" hidden>
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="newtab.js"></script>
+</body>
+</html>

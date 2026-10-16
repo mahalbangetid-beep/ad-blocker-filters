@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>Tab Manager</title>
+  <link rel="stylesheet" href="newtab.css">
+  <style>
+    body { width: 340px; display: block; }
+    .popup { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .popup h1 { font-size: 15px; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .current { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); min-width: 0; }
+    .current img { width: 16px; height: 16px; flex: none; }
+    .current span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    select { width: 100%; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+    hr { border: 0; border-top: 1px solid var(--border); margin: 2px 0; width: 100%; }
+    .status { min-height: 1.3em; margin: 0; font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="popup">
+    <h1><img src="icons/icon32.png" alt="" width="20" height="20"> Tab Manager</h1>
+
+    <div class="current" id="current"></div>
+    <label class="check" for="target">Simpan tab ini ke:</label>
+    <select id="target"></select>
+    <input type="text" id="new-name" placeholder="Nama koleksi baru" hidden style="padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+    <button class="primary-btn" id="save-tab">Simpan tab ini</button>
+
+    <hr>
+    <button class="ghost-btn" id="save-session">Simpan semua tab di jendela ini</button>
+    <label class="check"><input type="checkbox" id="close-after"> Tutup tab setelah disimpan</label>
+
+    <hr>
+    <button class="ghost-btn" id="open-dashboard">Buka Tab Manager</button>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Browser Terkunci</title>
+  <link rel="icon" href="icons/lock32.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page">
+    <form class="card" id="form">
+      <img class="icon" src="icons/lock128.png" alt="">
+      <h1>Browser Terkunci</h1>
+      <p class="sub">Masukkan password untuk membuka browser.</p>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="current-password" autofocus required>
+
+      <button type="submit" id="unlock">Buka Kunci</button>
+      <p class="msg" id="msg" role="alert"></p>
+    </form>
+  </main>
+  <script type="module" src="lock.js"></script>
+</body>
+</html>

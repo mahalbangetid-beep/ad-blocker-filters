@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>Ad Blocker</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body { width: 320px; }
+    header { display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
+    header h1 { font-size: 15px; margin: 0; flex: 1; }
+    header .link { border: 0; background: none; color: var(--muted); padding: 4px; border-radius: 6px; font-size: 16px; }
+    main { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+    .site { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+    .site .text { flex: 1; min-width: 0; }
+    .site .host { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .site .state { font-size: 12px; color: var(--muted); }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+    .stat strong { display: block; font-size: 22px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    .stat span { font-size: 12px; color: var(--muted); }
+    .notice { font-size: 12px; color: var(--muted); margin: 0; }
+    .actions { display: flex; flex-direction: column; gap: 8px; }
+    .reload { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="icons/icon32.png" alt="" width="20" height="20">
+    <h1>Ad Blocker</h1>
+    <button class="link" id="options" title="Pengaturan">⚙</button>
+  </header>
+  <main>
+    <div class="site" id="site-box">
+      <div class="text">
+        <div class="host" id="host"></div>
+        <div class="state" id="state"></div>
+      </div>
+      <label class="switch" title="Blokir iklan di situs ini">
+        <input type="checkbox" id="site-toggle" aria-label="Blokir iklan di situs ini"><span></span>
+      </label>
+    </div>
+    <p class="notice" id="unsupported" hidden>Pemblokiran tidak berlaku di halaman ini.</p>
+
+    <div class="stats">
+      <div class="stat"><strong id="page-count">0</strong><span>diblokir di halaman ini</span></div>
+      <div class="stat"><strong id="total-count">0</strong><span>diblokir sejak dipasang</span></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="pick">Blokir elemen di halaman ini</button>
+      <button class="btn" id="pause"></button>
+    </div>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

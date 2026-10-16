@@ -1,0 +1,179 @@
+{
+  "builtAt": "2026-10-16T08:48:56.138Z",
+  "feedVersion": "202610160848",
+  "lists": [
+    {
+      "id": "ads",
+      "title": "Iklan",
+      "description": "Iklan di seluruh web (gabungan EasyList, uBlock Origin, AdGuard, dan daftar Adblock Plus/AdBlock)",
+      "defaultEnabled": true,
+      "language": null,
+      "version": "202610160848",
+      "ruleCount": 16875,
+      "networkFilters": 85335,
+      "cosmeticFilters": 55716,
+      "sources": [
+        {
+          "title": "EasyList",
+          "homepage": "https://easylist.to/",
+          "license": "GPLv3 / CC BY-SA 3.0",
+          "version": "202610160836"
+        },
+        {
+          "title": "ABP Anti-Circumvention",
+          "homepage": "https://github.com/abp-filters/abp-filters-anti-cv",
+          "license": "CC BY-SA 3.0",
+          "version": "202610160842"
+        },
+        {
+          "title": "Adblock Warning Removal List",
+          "homepage": "https://easylist.to/",
+          "license": "GPLv3 / CC BY-SA 3.0",
+          "version": "202610160842"
+        },
+        {
+          "title": "uBlock filters",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "version": "Tue, 13 Oct 2026 17:49:24 +0000"
+        },
+        {
+          "title": "uBlock filters – Quick fixes",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "version": "Thu, 15 Oct 2026 18:42:02 +0000"
+        },
+        {
+          "title": "uBlock filters – Unbreak",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "version": "Tue, 13 Oct 2026 08:48:49 +0000"
+        },
+        {
+          "title": "AdGuard Base (tanpa EasyList)",
+          "homepage": "https://github.com/AdguardTeam/AdguardFilters",
+          "license": "GPLv3",
+          "version": "2.4.97.67"
+        }
+      ]
+    },
+    {
+      "id": "indonesia",
+      "title": "Indonesia",
+      "description": "Iklan di situs berbahasa Indonesia (ABPindo + AdBlockID)",
+      "defaultEnabled": false,
+      "language": "id",
+      "version": "202610160848",
+      "ruleCount": 2800,
+      "networkFilters": 5059,
+      "cosmeticFilters": 10794,
+      "sources": [
+        {
+          "title": "ABPindo",
+          "homepage": "https://github.com/ABPindo/indonesianadblockrules",
+          "license": "GPLv3",
+          "version": "202610141429"
+        },
+        {
+          "title": "AdBlockID",
+          "homepage": "https://github.com/realodix/AdBlockID",
+          "license": "GPLv3",
+          "version": "Wed, 14 Oct 2026 18:53:27 GMT"
+        }
+      ]
+    },
+    {
+      "id": "security",
+      "title": "Keamanan",
+      "description": "Situs berbahaya, penipuan, dan penambang kripto",
+      "defaultEnabled": true,
+      "language": null,
+      "version": "202610160848",
+      "ruleCount": 1186,
+      "networkFilters": 4365,
+      "cosmeticFilters": 99,
+      "sources": [
+        {
+          "title": "uBlock filters – Badware risks",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "version": "Tue, 13 Oct 2026 12:37:28 +0000"
+        },
+        {
+          "title": "uBlock filters – Resource abuse",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "version": "Fri, 02 Oct 2026 05:29:20 +0000"
+        },
+        {
+          "title": "NoCoin Filter List",
+          "homepage": "https://github.com/hoshsadiq/adblock-nocoin-list",
+          "license": "MIT",
+          "version": "228"
+        }
+      ]
+    },
+    {
+      "id": "privacy",
+      "title": "Privasi",
+      "description": "Pelacak dan analitik (EasyPrivacy, uBlock Privacy, AdGuard Tracking Protection)",
+      "defaultEnabled": false,
+      "language": null,
+      "version": "202610160848",
+      "ruleCount": 9881,
+      "networkFilters": 57145,
+      "cosmeticFilters": 7,
+      "sources": [
+        {
+          "title": "EasyPrivacy",
+          "homepage": "https://easylist.to/",
+          "license": "GPLv3 / CC BY-SA 3.0",
+          "version": "202610160836"
+        },
+        {
+          "title": "uBlock filters – Privacy",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "version": "Mon, 12 Oct 2026 20:02:16 +0000"
+        }
+      ]
+    },
+    {
+      "id": "annoyances",
+      "title": "Gangguan",
+      "description": "Pop-up cookie, widget media sosial, notifikasi, dan gangguan lain",
+      "defaultEnabled": false,
+      "language": null,
+      "version": "202610160848",
+      "ruleCount": 8849,
+      "networkFilters": 10860,
+      "cosmeticFilters": 87353,
+      "sources": [
+        {
+          "title": "Fanboy's Annoyance List",
+          "homepage": "https://easylist.to/",
+          "license": "CC BY 3.0",
+          "version": "202610160650"
+        },
+        {
+          "title": "uBlock filters – Other Annoyances",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "version": "Thu, 15 Oct 2026 16:18:19 +0000"
+        },
+        {
+          "title": "uBlock filters – Cookie Notices",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "version": "Fri, 16 Oct 2026 06:10:36 +0000"
+        },
+        {
+          "title": "AdGuard Annoyances",
+          "homepage": "https://github.com/AdguardTeam/AdguardFilters",
+          "license": "GPLv3",
+          "version": "2.2.83.1"
+        }
+      ]
+    }
+  ]
+}

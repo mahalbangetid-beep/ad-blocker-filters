@@ -1,0 +1,6 @@
+# Feed is published to the gh-pages branch by the filter bot, not kept on main.
+/feed/
+node_modules/
+*.log
+# Indexed rulesets Chrome writes next to an unpacked extension.
+_metadata/

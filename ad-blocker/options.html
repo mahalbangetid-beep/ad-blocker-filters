@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pengaturan - Ad Blocker</title>
+  <link rel="icon" href="icons/icon32.png">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 60px; }
+    .top { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .top h1 { font-size: 22px; margin: 0; flex: 1; }
+    .total { font-size: 13px; color: var(--muted); }
+    nav { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
+    nav button { border: 0; background: none; color: var(--muted); padding: 10px 12px; border-bottom: 2px solid transparent; font-weight: 600; white-space: nowrap; }
+    nav button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+    section h2 { font-size: 16px; margin: 0 0 4px; }
+    section > p { margin: 0 0 16px; color: var(--muted); }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+    .item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+    .item + .item { border-top: 1px solid var(--border); }
+    .item .text { flex: 1; min-width: 0; }
+    .item .title { font-weight: 650; }
+    .item .desc { font-size: 13px; color: var(--muted); }
+    .item a { color: inherit; }
+    .add-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    input[type="text"], textarea {
+      width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); color: var(--text); font: inherit;
+    }
+    textarea { min-height: 280px; font: 13px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; resize: vertical; }
+    .empty { padding: 18px 16px; color: var(--muted); text-align: center; }
+    .msg { min-height: 1.5em; margin: 10px 0 0; font-size: 13px; }
+    .msg.ok { color: var(--ok); }
+    .msg.error { color: var(--accent); }
+    .remove { border: 1px solid var(--border); background: none; color: var(--muted); border-radius: 7px; padding: 4px 10px; }
+    .help { font-size: 13px; color: var(--muted); }
+    .help code { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 0 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <img src="icons/icon48.png" alt="" width="36" height="36">
+      <h1>Ad Blocker</h1>
+      <span class="total" id="total"></span>
+    </div>
+
+    <nav role="tablist">
+      <button role="tab" data-tab="lists" aria-selected="true">Daftar filter</button>
+      <button role="tab" data-tab="allowlist" aria-selected="false">Situs diizinkan</button>
+      <button role="tab" data-tab="custom" aria-selected="false">Filter saya</button>
+      <button role="tab" data-tab="general" aria-selected="false">Umum</button>
+      <button role="tab" data-tab="about" aria-selected="false">Tentang</button>
+    </nav>
+
+    <section id="tab-lists">
+      <h2>Daftar filter</h2>
+      <p>Pilih daftar yang dipakai untuk memblokir iklan dan elemen. Perubahan berlaku seketika.</p>
+      <div class="card" id="lists"></div>
+    </section>
+
+    <section id="tab-allowlist" hidden>
+      <h2>Situs diizinkan</h2>
+      <p>Iklan tidak diblokir di situs-situs ini (termasuk subdomainnya).</p>
+      <form class="add-row" id="allow-form">
+        <input type="text" id="allow-input" placeholder="contoh: detik.com" autocomplete="off">
+        <button class="btn primary" type="submit">Tambah</button>
+      </form>
+      <p class="msg" id="allow-msg" role="status"></p>
+      <div class="card" id="allowlist"></div>
+    </section>
+
+    <section id="tab-custom" hidden>
+      <h2>Filter saya</h2>
+      <p>Tulis filter sendiri dengan sintaks Adblock Plus, satu per baris. Filter dari "Blokir elemen" juga tersimpan di sini.</p>
+      <textarea id="custom" spellcheck="false" placeholder="||iklan.contoh.com^&#10;contoh.com##.banner-iklan&#10;@@||situs-baik.com^$document"></textarea>
+      <div class="add-row" style="margin-top:10px">
+        <button class="btn primary" id="save-custom">Simpan filter</button>
+      </div>
+      <p class="msg" id="custom-msg" role="status"></p>
+      <div class="help">
+        <p><code>||domain.com^</code> blokir semua permintaan ke domain itu ·
+          <code>/iklan/*.gif</code> blokir URL yang cocok ·
+          <code>||cdn.com^$script,third-party</code> hanya skrip pihak ketiga ·
+          <code>situs.com##.kelas</code> sembunyikan elemen di situs itu ·
+          <code>##.kelas</code> sembunyikan di semua situs ·
+          <code>@@||situs.com^$document</code> izinkan seluruh situs.</p>
+      </div>
+    </section>
+
+    <section id="tab-general" hidden>
+      <h2>Umum</h2>
+      <p>Tampilan dan perilaku extension.</p>
+      <div class="card">
+        <label class="item">
+          <span class="text"><span class="title">Tampilkan jumlah iklan diblokir di ikon</span>
+            <span class="desc">Angka kecil di ikon toolbar untuk tab yang aktif.</span></span>
+          <span class="switch"><input type="checkbox" id="opt-badge"><span></span></span>
+        </label>
+        <label class="item">
+          <span class="text"><span class="title">Blokir iklan video YouTube</span>
+            <span class="desc">Membuang jadwal iklan dari data pemutar YouTube, dan melewati iklan yang tetap muncul.</span></span>
+          <span class="switch"><input type="checkbox" id="opt-youtube"><span></span></span>
+        </label>
+        <label class="item">
+          <span class="text"><span class="title">Menu klik kanan "Blokir elemen…"</span>
+            <span class="desc">Sembunyikan elemen di halaman lewat klik kanan.</span></span>
+          <span class="switch"><input type="checkbox" id="opt-menu"><span></span></span>
+        </label>
+      </div>
+    </section>
+
+    <section id="tab-about" hidden>
+      <h2>Tentang</h2>
+      <p>Pemblokir iklan lokal yang meniru cara kerja Adblock Plus: filter list dikompilasi menjadi aturan
+        <em>declarativeNetRequest</em> Chrome, dan penyembunyian elemen memakai CSS. Tidak ada "iklan yang diizinkan",
+        tidak ada akun, dan tidak ada data yang dikirim ke mana pun.</p>
+      <div class="card" id="credits"></div>
+      <p class="help" id="built" style="margin-top:12px"></p>
+    </section>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

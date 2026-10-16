@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atur Password - Browser Lock</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page">
+    <form class="card" id="form">
+      <img class="icon" src="icons/lock128.png" alt="">
+      <h1>Atur Password Browser</h1>
+      <p class="sub">Password ini akan diminta setiap kali browser dibuka.</p>
+
+      <label for="password">Password baru</label>
+      <input type="password" id="password" autocomplete="new-password" autofocus required>
+
+      <label for="confirm">Ulangi password</label>
+      <input type="password" id="confirm" autocomplete="new-password" required>
+
+      <button type="submit" id="save">Simpan Password</button>
+      <p class="msg" id="msg" role="alert"></p>
+
+      <p class="note">Tidak ada cara memulihkan password yang lupa. Jika lupa, hapus extension ini lewat
+        chrome://extensions (saat browser tidak terkunci) lalu pasang ulang.</p>
+    </form>
+  </main>
+  <script type="module" src="setup.js"></script>
+</body>
+</html>
