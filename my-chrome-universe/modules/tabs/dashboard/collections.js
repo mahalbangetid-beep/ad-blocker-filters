@@ -1,10 +1,10 @@
 // Zone 2: the active space's head and its grid of collections (rows, menus, drag and drop).
 // Every data write goes through runOp / tm:* messages; the page re-renders from storage changes.
-import { isSavableUrl } from '../store.js';
 import { send, runOp, faviconUrl, h } from '../common.js';
 import { icon } from '../../../ui/icons.js';
 import { animate, motionLevel, toast, wait } from '../../../ui/motion.js';
 import { act, askText, confirmDanger, openDialog, showMenu } from './dialogs.js';
+import { startDrag, currentDrag, clearDropMarks, droppedTabs, closeDroppedTabs } from './drag.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -95,53 +95,10 @@ export function favicon(url) {
   return h('span', { class: 'fav', style: `--h:${hue(name)}` }, img);
 }
 
-// ---------- Drag and drop ----------
-
-let dragging = null; // { kind: 'tab' | 'card' | 'collection', ... } for drags started on this page
-let afterDrag = null;
-
-export const isDragging = () => dragging !== null;
-export function onDragEnd(callback) { afterDrag = callback; }
-
-export function startDrag(event, payload, el) {
-  dragging = payload;
-  el.classList.add('dragging');
-  event.dataTransfer.effectAllowed = 'copyMove';
-  if (payload.url) event.dataTransfer.setData('text/uri-list', payload.url);
-  event.dataTransfer.setData('text/plain', payload.url || payload.kind);
-  el.addEventListener('dragend', endDrag, { once: true });
-}
-
-function endDrag() {
-  dragging = null;
-  document.querySelectorAll('.dragging').forEach((n) => n.classList.remove('dragging'));
-  clearDropMarks();
-  afterDrag?.();
-}
-
-export function clearDropMarks() {
-  document.querySelectorAll('.drop-over, .drop-before, .drop-above, .drop-below')
-    .forEach((n) => n.classList.remove('drop-over', 'drop-before', 'drop-above', 'drop-below'));
-}
-
-// Internal drags carry a payload; links dragged in from elsewhere become { kind: 'url' }.
-export function currentDrag(event) {
-  if (dragging) return dragging;
-  const types = Array.from(event.dataTransfer?.types || []);
-  return types.includes('text/uri-list') ? { kind: 'url' } : null;
-}
-
-function droppedTabs(drag, event) {
-  if (drag.kind === 'tab') return drag.tabs;
-  if (drag.kind !== 'url') return [];
-  const text = event.dataTransfer.getData('text/uri-list') || event.dataTransfer.getData('text/plain');
-  return text.split(/\r?\n/).map((s) => s.trim()).filter((s) => s && !s.startsWith('#') && isSavableUrl(s)).map((url) => ({ url, title: url }));
-}
+// ---------- Drops ----------
 
 async function afterTabsSaved(drag) {
-  if (drag.kind === 'tab' && ctx.getData().settings.closeAfterSave) {
-    await chrome.tabs.remove(drag.tabs.map((t) => t.id).filter((id) => id !== ctx.thisTab?.id)).catch(() => {});
-  }
+  await closeDroppedTabs(drag, { close: ctx.getData().settings.closeAfterSave, keepTabId: ctx.thisTab?.id });
 }
 
 async function dropIntoCollection(drag, event, collectionId, index) {
@@ -158,12 +115,6 @@ async function dropIntoCollection(drag, event, collectionId, index) {
     await afterTabsSaved(drag);
   }
 }
-
-document.addEventListener('dragover', (e) => {
-  // Clear highlights when the pointer is over something that is not a drop target.
-  if (!e.defaultPrevented) clearDropMarks();
-});
-document.addEventListener('drop', () => setTimeout(endDrag));
 
 // ---------- Space head ----------
 
@@ -357,6 +308,7 @@ export function renderCollections(space, { enter = false, flashId = null } = {})
       rendered.set(col.id, entry);
       if ((enter || (same && isNew)) && entering < STAGGER_MAX) {
         entry.el.classList.add('enter');
+        entry.el.dataset.entered = ''; // stays after the animation (the class is dropped on animationend)
         entry.el.style.setProperty('--i', String(enter ? i : 0));
         entering++;
       }
@@ -409,12 +361,15 @@ export async function showSpace(space, { dir = 1 } = {}) {
   $('tm-main').scrollTop = 0;
 }
 
-export function revealCollection(collectionId) {
+// Scrolls to a collection and flashes it; cardId also highlights that row.
+export function revealCollection(collectionId, { cardId = null } = {}) {
   const el = colEl(collectionId);
   if (!el) return;
-  el.scrollIntoView({ behavior: fast() ? 'auto' : 'smooth', block: 'center' });
+  const row = cardId && el.querySelector(`.row[data-id="${cardId}"]`);
+  (row && !el.classList.contains('collapsed') ? row : el).scrollIntoView({ behavior: fast() ? 'auto' : 'smooth', block: 'center' });
   el.classList.remove('enter');
   pulse(el, 'flash');
+  if (row) pulse(row, 'opening');
 }
 
 // ---------- Collection actions ----------
@@ -449,8 +404,10 @@ export function foldAll() {
 function toggleStar(collectionId, button) {
   const found = findCollection(collectionId);
   if (!found) return;
-  const starred = !found.collection.starred;
+  // From the DOM, like toggleFold: a fast double click must not read the not-yet-stored value.
+  const starred = !button.classList.contains('on');
   button.classList.toggle('on', starred);
+  button.setAttribute('aria-pressed', String(starred));
   if (starred) {
     ctx.sky?.burstAt(button, 26, STAR_SPARKS);
     toast(`“${clip(found.collection.name, 40)}” dibintangi`, { icon: 'star' });
@@ -477,6 +434,10 @@ export function startRename(collectionId) {
   const found = findCollection(collectionId);
   if (!name || !found || name.isContentEditable) return;
   const original = found.collection.name;
+  // The head is draggable; while editing, a text selection drag must not move the collection.
+  const head = name.closest('.col-head');
+  const wasDraggable = head.draggable;
+  head.draggable = false;
   name.contentEditable = 'true';
   name.focus();
   const range = document.createRange();
@@ -488,11 +449,12 @@ export function startRename(collectionId) {
     name.removeEventListener('blur', onBlur);
     const next = name.textContent.replace(/\s+/g, ' ').trim();
     name.contentEditable = 'false';
+    head.draggable = wasDraggable;
     name.textContent = original;
     if (save && next && next !== original) act(runOp({ type: 'collection/rename', collectionId, name: next }));
   };
   const onKey = (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); done(true); }
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); done(true); }
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(false); }
   };
   const onBlur = () => done(true);

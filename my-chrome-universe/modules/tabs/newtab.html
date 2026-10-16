@@ -19,12 +19,16 @@
   <div class="tm" id="tm">
     <header class="tm-top">
       <div class="brand"><svg class="logo" viewBox="0 0 40 40" data-logo></svg><span class="brand-name"><b>My Chrome Universe</b><small>Tab Manager</small></span></div>
-      <label class="cmd search-box"><i data-ic="search"></i><input id="search" type="search" placeholder="Cari koleksi dan tab…" autocomplete="off" aria-label="Cari koleksi dan tab"><kbd>/</kbd></label>
+      <button class="cmd" id="open-palette" type="button" aria-haspopup="dialog" aria-label="Cari tab, koleksi, atau perintah"><i data-ic="search"></i><span>Cari tab, koleksi, atau ketik perintah…</span><kbd id="palette-kbd">Ctrl K</kbd></button>
       <div class="top-right">
+        <a class="chip chip-ab rp" id="chip-ab" href="../../options.html#adblock" title="Ad Blocker: total iklan diblokir" hidden><i data-ic="shield"></i><b id="ab-count">0</b><span>iklan diblokir</span></a>
+        <button class="chip chip-lock rp" type="button" id="tm-lock" title="Kunci browser (Alt+Shift+L)" hidden><i data-ic="lock"></i><span>Kunci</span></button>
         <button class="icon-btn rp" type="button" id="theme-btn" aria-label="Ganti tema" title="Ganti tema"><i data-ic="moon"></i></button>
-        <button class="icon-btn rp" type="button" id="menu-btn" aria-label="Menu" title="Menu" aria-haspopup="menu"><i data-ic="more"></i></button>
+        <button class="icon-btn rp" type="button" id="guide-btn" aria-label="Lihat kerangka Tab Manager" title="Kerangka" aria-expanded="false" aria-controls="guide-card"><i data-ic="help"></i></button>
+        <a class="icon-btn rp spin-hover" id="settings-btn" href="../../options.html#tabs" aria-label="Pengaturan" title="Pengaturan"><i data-ic="settings"></i></a>
         <button class="icon-btn rp only-narrow" type="button" id="open-drawer" aria-label="Tab terbuka" title="Tab terbuka"><i data-ic="window"></i></button>
       </div>
+      <span class="zone-tag" data-n="4" style="--i:3">Cari &amp; perintah</span>
     </header>
 
     <aside class="tm-rail" aria-label="Ruang">
@@ -33,6 +37,7 @@
       <div class="space-list" id="space-list"><span class="space-ind" id="space-ind" hidden></span></div>
       <h3 class="sec starred-head">Berbintang</h3>
       <ul class="starred" id="starred"></ul>
+      <span class="zone-tag" data-n="1" style="--i:0">Ruang</span>
     </aside>
 
     <main class="tm-main" id="tm-main">
@@ -44,25 +49,51 @@
             <button class="btn primary sm rp" type="button" id="add-col"><i data-ic="plus"></i>Koleksi baru</button>
             <button class="icon-btn sm rp" type="button" id="space-menu" aria-label="Opsi ruang" title="Opsi ruang" aria-haspopup="menu"><i data-ic="more"></i></button>
           </div>
+          <div class="main-actions" id="search-actions" hidden>
+            <button class="btn ghost sm rp" type="button" id="clear-search"><i data-ic="x"></i>Tutup pencarian</button>
+          </div>
         </div>
         <div class="cols" id="cols"></div>
       </div>
+      <span class="zone-tag" data-n="2" style="--i:1">Koleksi</span>
     </main>
 
     <aside class="tm-open" id="tm-open" aria-label="Tab terbuka">
       <div class="open-head">
         <h3>Tab terbuka <span class="pill" id="open-count">0</span></h3>
-        <button class="btn ghost sm rp" type="button" id="dedupe" title="Tutup tab yang URL-nya sama"><i data-ic="copy"></i>Hapus duplikat</button>
+        <button class="btn ghost sm rp" type="button" id="dedupe" title="Tutup tab yang URL-nya sama"><i data-ic="copy"></i>Hapus duplikat <span class="dot-badge" id="dup-count" hidden>0</span></button>
       </div>
       <div class="save-box">
         <button class="btn primary block rp" type="button" id="save-session"><i data-ic="download"></i>Simpan sesi</button>
         <label class="check"><input type="checkbox" id="close-after"><span class="box"></span>Tutup tab setelah disimpan</label>
       </div>
       <div id="windows"></div>
-      <p class="drag-hint"><i data-ic="hand"></i>Tarik tab ke koleksi untuk menyimpannya.</p>
+      <p class="drag-hint"><i data-ic="hand"></i>Tarik tab ke koleksi atau ruang untuk menyimpannya.</p>
+      <span class="zone-tag" data-n="3" style="--i:2">Tab terbuka</span>
     </aside>
     <div class="drawer-scrim" id="drawer-scrim"></div>
   </div>
+
+  <div class="guide-card" id="guide-card" hidden role="dialog" aria-labelledby="guide-title">
+    <h2 id="guide-title">Kerangka Tab Manager</h2>
+    <ol class="guide-steps">
+      <li><b data-n="1">Ruang</b><span>Kelompok besar seperti Kerja, Kuliah, Hiburan. Satu ruang aktif dalam satu waktu.</span></li>
+      <li><b data-n="2">Koleksi</b><span>Kumpulan tab tersimpan di dalam ruang. Bisa dibintangi, dilipat, dan dibuka sekaligus.</span></li>
+      <li><b data-n="3">Tab terbuka</b><span>Tab yang sedang terbuka di browser. Tarik ke koleksi, atau simpan semuanya sebagai sesi.</span></li>
+      <li><b data-n="4">Cari &amp; perintah</b><span>Tekan <span class="kbd-name">Ctrl K</span> atau / untuk mencari tab tersimpan atau menjalankan perintah.</span></li>
+    </ol>
+    <div class="guide-foot"><span>Alurnya: buka tab → simpan ke koleksi → buka lagi kapan saja.</span><button class="btn primary sm rp" type="button" id="guide-close">Mengerti</button></div>
+  </div>
+
+  <div class="palette" id="palette" hidden>
+    <div class="pal-box" role="dialog" aria-modal="true" aria-label="Cari dan perintah">
+      <div class="pal-input"><i data-ic="search"></i><input id="pal-q" placeholder="Cari tab tersimpan atau ketik perintah…" autocomplete="off" spellcheck="false" aria-label="Cari tab tersimpan atau perintah" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list"><kbd>Esc</kbd></div>
+      <div class="pal-list" id="pal-list" role="listbox" aria-label="Hasil"></div>
+      <div class="pal-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> pilih</span><span><kbd>Enter</kbd> jalankan</span><span><kbd class="kbd-mod">Ctrl</kbd> <kbd>Enter</kbd> buka tab</span><span><kbd>Esc</kbd> tutup</span></div>
+    </div>
+  </div>
+
+  <div class="scene" id="welcome" hidden></div>
 
   <dialog class="dialog" id="dialog"><form method="dialog" id="dialog-form"></form></dialog>
   <input type="file" id="import-file" accept="application/json,.json" hidden>

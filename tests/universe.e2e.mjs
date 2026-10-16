@@ -847,7 +847,8 @@ test('big spaces stay fast and narrow screens do not scroll sideways', async (t)
         mainOverflow: main.scrollWidth - main.clientWidth,
         cols: document.querySelectorAll('#cols .col').length,
         rows: document.querySelectorAll('#cols .row').length,
-        entering: document.querySelectorAll('.col.enter').length,
+        // A marker that stays after the animation ends (stable on slow machines and in minimal motion).
+        entering: document.querySelectorAll('.col[data-entered]').length,
       };
     })()`);
   };
@@ -876,6 +877,155 @@ test('big spaces stay fast and narrow screens do not scroll sideways', async (t)
   } finally {
     await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
     await removeSpaces([big.id], prevActive);
+  }
+});
+
+// Real key presses through DevTools (Ctrl+K, /, Enter, Escape).
+const KEYS = {
+  k: { code: 'KeyK', keyCode: 75, text: 'k' },
+  '/': { code: 'Slash', keyCode: 191, text: '/' },
+  Enter: { code: 'Enter', keyCode: 13, text: '\r' },
+  Escape: { code: 'Escape', keyCode: 27 },
+};
+async function press(sessionId, key, { ctrl = false } = {}) {
+  const k = KEYS[key];
+  const base = { key, code: k.code, windowsVirtualKeyCode: k.keyCode, modifiers: ctrl ? 2 : 0 };
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', ...base, ...(k.text && !ctrl && { text: k.text }) }, sessionId);
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base }, sessionId);
+}
+const dashReady = "document.getElementById('tm')?.classList.contains('ready')";
+const swSession_ = (expr) => evaluate(swSession, expr);
+const sessionValue = (key) => swSession_(`chrome.storage.session.get(${JSON.stringify(key)}).then((g) => g[${JSON.stringify(key)}] ?? null)`);
+const localValue = (key) => swSession_(`chrome.storage.local.get(${JSON.stringify(key)}).then((g) => g[${JSON.stringify(key)}] ?? null)`);
+
+test('palette finds saved tabs and runs commands', async () => {
+  const { activeSpaceId: prevActive } = await tmData();
+  const [space] = await addSpaces([{
+    name: 'Uji Palet',
+    collections: [
+      { name: 'Lain', cards: [{ url: 'https://lain.test/', title: 'Lain' }] },
+      { name: 'Bacaan', cards: [{ url: 'https://palet.test/komet', title: 'Panduan Komet Halley' }] },
+    ],
+  }]);
+  const colId = space.collections[1].id;
+  const { sessionId: s, targetId, errors } = await openWatched(dashboardUrl());
+  try {
+    await waitFor(s, dashReady);
+    const items = "[...document.querySelectorAll('#pal-list .pal-item')].map((b) => b.textContent)";
+
+    await press(s, 'k', { ctrl: true });
+    await waitFor(s, "!document.getElementById('palette').hidden && document.activeElement?.id === 'pal-q'");
+    await cdp.send('Input.insertText', { text: 'komet halley' }, s);
+    await waitFor(s, `${items}[0]?.includes('Panduan Komet Halley')`);
+    if (process.env.SHOT_DIR) await sleep(500); // let the palette fade in
+    await screenshot(s, 'dashboard-palette');
+    // The collection is revealed in its own space and flashes (recorded, the class is removed after the animation).
+    await evaluate(s, `(() => {
+      window.flashed = new Set();
+      new MutationObserver((list) => {
+        for (const m of list) if (m.target.classList?.contains('flash')) window.flashed.add(m.target.dataset.id);
+      }).observe(document.getElementById('cols'), { subtree: true, attributes: true, attributeFilter: ['class'] });
+    })()`);
+    await press(s, 'Enter');
+    await waitFor(s, `window.flashed.has(${JSON.stringify(colId)})`);
+    await waitFor(s, "document.getElementById('palette').hidden");
+    assert.equal(await evaluate(s, "document.querySelector('#space-list .space.on')?.dataset.id"), space.id);
+
+    // "/" opens it too; commands are found by name (not run here: it would lock the browser).
+    await press(s, '/');
+    await waitFor(s, "!document.getElementById('palette').hidden && document.activeElement?.id === 'pal-q'");
+    assert.equal(await evaluate(s, "document.getElementById('pal-q').value"), '');
+    await cdp.send('Input.insertText', { text: 'kunci' }, s);
+    await waitFor(s, `${items}.some((t) => t.includes('Kunci browser sekarang'))`);
+    await press(s, 'Escape');
+    await waitFor(s, "document.getElementById('palette').hidden");
+    assert.deepEqual(errors, [], 'dashboard logged errors');
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+    await removeSpaces([space.id], prevActive);
+  }
+});
+
+test('theme button switches every open page', async () => {
+  const before = await localValue('core:appearance');
+  await swSession_(`chrome.storage.local.set({ 'core:appearance': { ...${JSON.stringify(before || {})}, theme: 'light' } })`);
+  const a = await openWatched(dashboardUrl());
+  const b = await openWatched(dashboardUrl());
+  try {
+    for (const p of [a, b]) await waitFor(p.sessionId, `${dashReady} && document.documentElement.dataset.ui === 'light'`);
+    await evaluate(b.sessionId, 'window.notReloaded = true');
+    await evaluate(a.sessionId, "document.getElementById('theme-btn').click()");
+    for (const p of [a, b]) await waitFor(p.sessionId, "document.documentElement.dataset.ui === 'dark'");
+    assert.equal(await evaluate(b.sessionId, 'window.notReloaded'), true, 'the other page changed without a reload');
+    assert.equal((await localValue('core:appearance')).theme, 'dark');
+    assert.deepEqual([...a.errors, ...b.errors], []);
+  } finally {
+    for (const p of [a, b]) await cdp.send('Target.closeTarget', { targetId: p.targetId }).catch(() => {});
+    await swSession_(before
+      ? `chrome.storage.local.set({ 'core:appearance': ${JSON.stringify(before)} })`
+      : "chrome.storage.local.remove('core:appearance')");
+  }
+});
+
+test('arrival plays only after unlock', async () => {
+  // Set by the service worker when the lock tab becomes the dashboard; consumed once.
+  await swSession_("chrome.storage.session.set({ 'tm:arrive': true })");
+  const first = await openWatched(dashboardUrl());
+  const second = { targetId: null };
+  try {
+    await waitFor(first.sessionId, `${dashReady} && document.getElementById('tm').classList.contains('arrive')`);
+    assert.equal(await sessionValue('tm:arrive'), null, 'arrival flag removed after reading');
+    Object.assign(second, await openWatched(dashboardUrl()));
+    await waitFor(second.sessionId, dashReady);
+    assert.equal(await evaluate(second.sessionId, "document.getElementById('tm').classList.contains('arrive')"), false, 'a plain new tab does not arrive');
+    assert.deepEqual(first.errors, []);
+  } finally {
+    for (const id of [first.targetId, second.targetId]) if (id) await cdp.send('Target.closeTarget', { targetId: id }).catch(() => {});
+  }
+});
+
+test('welcome plays on the dashboard when Browser Lock is off', async () => {
+  assert.equal((await bg({ type: 'lock:setEnabled', enabled: false, current: PASSWORD })).ok, true);
+  let page;
+  try {
+    await swSession_("chrome.storage.session.set({ 'core:welcome': true })");
+    page = await openWatched(dashboardUrl());
+    const s = page.sessionId;
+    await waitFor(s, "!!document.querySelector('#welcome.welcome:not([hidden])')");
+    assert.equal(await sessionValue('core:welcome'), null, 'welcome flag consumed');
+    assert.equal(await evaluate(s, dashReady), false, 'the dashboard waits for the welcome');
+    await evaluate(s, "document.querySelector('.w-skip').click()");
+    await waitFor(s, `${dashReady} && document.querySelectorAll('#space-list .space').length > 0`);
+    assert.deepEqual(page.errors, []);
+  } finally {
+    if (page) await cdp.send('Target.closeTarget', { targetId: page.targetId }).catch(() => {});
+    assert.equal((await bg({ type: 'lock:setEnabled', enabled: true })).ok, true);
+  }
+});
+
+test('guide shows once', async () => {
+  await swSession_("chrome.storage.local.remove('tm:guideSeen')");
+  const { sessionId: s, targetId, errors } = await openWatched(dashboardUrl());
+  const shown = "(() => { const g = document.getElementById('guide-card'); return !!g && g.checkVisibility(); })()";
+  try {
+    await waitFor(s, shown, 6000);
+    if (process.env.SHOT_DIR) await sleep(800);
+    await screenshot(s, 'dashboard-guide');
+    assert.equal(await evaluate(s, "document.getElementById('tm').classList.contains('guiding')"), true);
+    await evaluate(s, "document.getElementById('guide-close').click()");
+    await waitFor(s, `!${shown}`);
+    assert.equal(await localValue('tm:guideSeen'), true);
+
+    await cdp.send('Page.reload', {}, s);
+    await waitFor(s, dashReady, 8000);
+    await sleep(2500); // longer than the automatic delay
+    assert.equal(await evaluate(s, shown), false, 'guide shown again after reload');
+    // Still available from the (?) button.
+    await evaluate(s, "document.getElementById('guide-btn').click()");
+    await waitFor(s, shown);
+    assert.deepEqual(errors, []);
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
   }
 });
 
@@ -1077,6 +1227,9 @@ test('unlocking from the form turns the lock tab into the dashboard', async () =
   await cdp.send('Runtime.enable', {}, sessionId);
   await waitFor(sessionId, "document.querySelectorAll('#space-list .space').length > 0");
   assert.equal((await bg({ type: 'lock:getState' })).locked, false);
+  // The dashboard arrives (warp + depth) and consumes the flag the service worker raised.
+  await waitFor(sessionId, "document.getElementById('tm').classList.contains('arrive')");
+  assert.equal(await evaluate(swSession, "chrome.storage.session.get('tm:arrive').then((g) => g['tm:arrive'] ?? null)"), null);
 });
 
 test('manual lock shows no welcome', async () => {
@@ -1090,6 +1243,38 @@ test('manual lock shows no welcome', async () => {
   assert.equal(await evaluate(session, "!!document.querySelector('.login-card').closest('[inert]')"), false);
   // Leave the browser open for the next test.
   assert.equal((await fromLock(session, { type: 'lock:unlock', password: PASSWORD })).ok, true);
+  await waitUnlocked();
+});
+
+test('the Kunci button collapses the dashboard, then locks', async () => {
+  const dash = await openWatched(dashboardUrl());
+  const s = dash.sessionId;
+  await waitFor(s, `${dashReady} && !document.getElementById('tm-lock').hidden`);
+  forgetBgPage();
+  // Record when lock:lock leaves the page, relative to the click (the page is closed by the sweep).
+  const collapsing = await evaluate(s, `(() => {
+    const orig = chrome.runtime.sendMessage.bind(chrome.runtime);
+    chrome.runtime.sendMessage = async (m, ...rest) => {
+      if (m?.type === 'lock:lock') await chrome.storage.session.set({ 'test:lockAfter': performance.now() - window.clickedAt });
+      return orig(m, ...rest);
+    };
+    window.clickedAt = performance.now();
+    document.getElementById('tm-lock').click();
+    return document.getElementById('tm').classList.contains('collapsing');
+  })()`);
+  assert.equal(collapsing, true, 'the collapse starts on click');
+  await until(async () => {
+    const pages = await pageTargets();
+    return pages.length === 1 && pages[0].url.startsWith(LOCK_PAGE());
+  }, 'locked: only the lock screen is open');
+  const after = await sessionValue('test:lockAfter');
+  assert.ok(after >= 300 && after <= 600, `lock:lock sent ${Math.round(after)} ms after the click`);
+  await swSession_("chrome.storage.session.remove('test:lockAfter')");
+  const [lockTarget] = await pageTargets();
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: lockTarget.targetId, flatten: true });
+  await cdp.send('Runtime.enable', {}, sessionId);
+  await waitFor(sessionId, "document.readyState === 'complete'");
+  assert.equal((await fromLock(sessionId, { type: 'lock:unlock', password: PASSWORD })).ok, true);
   await waitUnlocked();
 });
 

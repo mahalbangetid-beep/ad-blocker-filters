@@ -2,7 +2,8 @@
 import { runOp, h } from '../common.js';
 import { icon } from '../../../ui/icons.js';
 import { act } from './dialogs.js';
-import { clearDropMarks, currentDrag, planetColor } from './collections.js';
+import { planetColor } from './collections.js';
+import { clearDropMarks, currentDrag } from './drag.js';
 
 const $ = (id) => document.getElementById(id);
 const pad = (n) => String(n).padStart(2, '0');
@@ -11,9 +12,10 @@ const tabCount = (space) => space.collections.reduce((n, c) => n + c.cards.lengt
 let lastData = null;
 let knownStarred = null;
 
-// onActivate(spaceId), onReveal(spaceId, collectionId), onSpaceMenu(anchor, spaceId).
+// onActivate(spaceId), onReveal(spaceId, collectionId), onSpaceMenu(anchor, spaceId),
+// onDropTabs(spaceId, drag, event, button) for open tabs or links dropped on a space.
 // searching: no space is marked active while search results are shown.
-export function renderRail(data, { onActivate, onReveal, onSpaceMenu, searching = false }) {
+export function renderRail(data, { onActivate, onReveal, onSpaceMenu, onDropTabs, searching = false }) {
   lastData = data;
   const list = $('space-list');
   list.querySelectorAll('.space').forEach((el) => el.remove());
@@ -33,18 +35,24 @@ export function renderRail(data, { onActivate, onReveal, onSpaceMenu, searching 
       },
     }, h('span', { class: 'planet' }), h('span', { class: 'space-name' }, space.name), h('span', { class: 'space-n' }, tabCount(space)));
 
-    // Drop a collection on a space to move it there.
+    // Drop a collection on a space to move it there; open tabs and links are saved into it.
+    const accepts = (drag) => drag && (drag.kind === 'collection' || ((drag.kind === 'tab' || drag.kind === 'url') && onDropTabs));
     button.addEventListener('dragover', (e) => {
-      if (currentDrag(e)?.kind !== 'collection') return;
+      if (!accepts(currentDrag(e))) return;
       e.preventDefault();
       clearDropMarks();
       button.classList.add('drop-over');
     });
     button.addEventListener('drop', (e) => {
       const drag = currentDrag(e);
-      if (drag?.kind !== 'collection') return;
+      if (!accepts(drag)) return;
       e.preventDefault();
-      act(runOp({ type: 'collection/move', collectionId: drag.collectionId, toSpaceId: space.id, index: 0 }), `Dipindah ke ${space.name}`);
+      clearDropMarks();
+      if (drag.kind === 'collection') {
+        act(runOp({ type: 'collection/move', collectionId: drag.collectionId, toSpaceId: space.id, index: 0 }), `Dipindah ke ${space.name}`);
+      } else {
+        onDropTabs(space.id, drag, e, button);
+      }
     });
     list.append(button);
   });

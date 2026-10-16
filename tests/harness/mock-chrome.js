@@ -35,13 +35,31 @@
 
   // Shared appearance (theme/motion/accent) is written by core/background.js, which the harness
   // does not load; this stands in for its core:setAppearance handler. ?theme=light|dark presets it.
-  const preset = new URLSearchParams(location.search).get('theme');
-  if (preset) local['core:appearance'] = { theme: preset };
+  // ?guide shows the first-visit guide, ?arrive plays the unlock arrival, ?welcome the welcome
+  // (with Browser Lock off), ?motion=minimal|balanced presets the motion level.
+  const params = new URLSearchParams(location.search);
+  const preset = params.get('theme');
+  if (preset || params.get('motion')) local['core:appearance'] = { theme: preset || 'auto', motion: params.get('motion') || 'full' };
+  if (!params.has('guide')) local['tm:guideSeen'] = true;
+  if (params.has('arrive')) session['tm:arrive'] = true;
+  if (params.has('welcome')) {
+    session['core:welcome'] = true;
+    local['core:modules'] = { lock: false };
+  }
+  local['ab:total'] = 1284;
+  // Stand-ins for the core, lock and adblock handlers the harness does not load.
   const coreHandlers = {
     async 'core:setAppearance'({ patch }) {
       const next = { ...(local['core:appearance'] || {}), ...patch };
       await chrome.storage.local.set({ 'core:appearance': next });
       return { ok: true, appearance: next };
+    },
+    async 'ab:getOptions'() {
+      return { ok: true, totalBlocked: local['ab:total'] };
+    },
+    async 'lock:lock'() {
+      setTimeout(() => location.reload(), 600);
+      return { ok: true };
     },
   };
 

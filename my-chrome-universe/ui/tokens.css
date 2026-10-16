@@ -7,7 +7,7 @@
   --void: #06080F; --deep: #0C1020; --panel: rgb(var(--glass) / .74); --panel-solid: #11162A; --raise: rgb(var(--tint) / .04);
   --line: rgb(var(--line-rgb) / .13); --line-strong: rgb(var(--line-rgb) / .26);
   --star: #EEF1FF; --dust: #A3ABCB; --faint: #787FA3;
-  --solar: #FFB547; --ion: #5EEAD4; --nova: #FF8FA8; --danger: #FF6B6B; --ok: #5EEAD4;
+  --solar: #FFB547; --ion: #5EEAD4; --nova: #FF8FA8; --danger: #FF6B6B; --ok: #5EEAD4; --nova-ink: #2A0710;
   --accent: var(--solar); --accent-ink: #1B1204;
   --f-display: "Unbounded", "Segoe UI", system-ui, sans-serif;
   --f-body: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
