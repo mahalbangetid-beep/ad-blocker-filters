@@ -3,6 +3,8 @@ import { send, showMessage } from './common.js';
 const form = document.getElementById('form');
 const msg = document.getElementById('msg');
 const saveButton = document.getElementById('save');
+const recovery = document.getElementById('recovery');
+const code = document.getElementById('code');
 
 const state = await send('lock:getState');
 if (state.hasPassword) {
@@ -20,14 +22,19 @@ form.addEventListener('submit', async (event) => {
   });
 
   if (result.ok) {
+    // The recovery code exists only in this reply; show it once.
     form.reset();
-    showMessage(msg, 'Password tersimpan. Browser akan terkunci setiap kali dibuka. Tab ini bisa ditutup.', 'ok');
-    saveButton.textContent = 'Buka Pengaturan';
-    saveButton.disabled = false;
-    saveButton.type = 'button';
-    saveButton.onclick = () => location.replace('options.html');
+    form.hidden = true;
+    code.textContent = result.recoveryCode;
+    recovery.hidden = false;
+    document.getElementById('noted').focus();
   } else {
     showMessage(msg, result.error);
     saveButton.disabled = false;
   }
+});
+
+document.getElementById('noted').addEventListener('click', () => {
+  code.textContent = '';
+  location.replace('options.html');
 });

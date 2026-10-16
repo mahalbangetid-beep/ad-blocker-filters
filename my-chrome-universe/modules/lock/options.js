@@ -24,7 +24,7 @@ async function saveSettings() {
   const result = await send('lock:saveSettings', {
     settings: { idleMinutes: Number($('idle').value), lockOnScreenLock: $('screen-lock').checked },
   });
-  showMessage($('settings-msg'), result.ok ? 'Pengaturan tersimpan.' : result.error, result.ok ? 'ok' : 'error');
+  showMessage($('settings-msg'), result.ok ? 'Pengaturan tersimpan.' : errorText(result), result.ok ? 'ok' : 'error');
 }
 
 $('go-setup').addEventListener('click', () => location.assign('setup.html'));
@@ -40,7 +40,30 @@ $('change-form').addEventListener('submit', async (event) => {
     confirm: $('confirm').value,
   });
   if (result.ok) event.target.reset();
-  showMessage($('change-msg'), result.ok ? 'Password berhasil diganti.' : result.error, result.ok ? 'ok' : 'error');
+  showMessage($('change-msg'), result.ok ? 'Password berhasil diganti.' : errorText(result), result.ok ? 'ok' : 'error');
+});
+
+// A new recovery code is shown once, then removed from the page.
+$('recovery-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const result = await send('lock:newRecoveryCode', { current: $('recovery-current').value });
+  event.target.reset();
+  if (!result.ok) {
+    showMessage($('recovery-msg'), errorText(result));
+    return;
+  }
+  showMessage($('recovery-msg'), '');
+  $('recovery-form').hidden = true;
+  $('recovery-code').textContent = result.recoveryCode;
+  $('recovery-result').hidden = false;
+  $('recovery-noted').focus();
+});
+
+$('recovery-noted').addEventListener('click', () => {
+  $('recovery-code').textContent = '';
+  $('recovery-result').hidden = true;
+  $('recovery-form').hidden = false;
+  showMessage($('recovery-msg'), 'Kode pemulihan baru tersimpan. Kode yang lama tidak berlaku lagi.', 'ok');
 });
 
 // Turning on needs nothing; turning off asks for the current password first.

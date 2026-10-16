@@ -62,7 +62,7 @@ section + section { margin-top: 24px; padding-top: 20px; border-top: 1px solid v
 
 label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
 
-input[type="password"], select {
+input[type="password"], input[type="text"], select {
   width: 100%;
   padding: 10px 12px;
   font: inherit;
@@ -90,11 +90,36 @@ button {
 }
 
 button.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+button.link {
+  width: auto;
+  margin-top: 12px;
+  padding: 0;
+  font-weight: 400;
+  font-size: 14px;
+  background: transparent;
+  color: var(--accent);
+  text-decoration: underline;
+}
 button.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
 button:disabled { opacity: .55; cursor: not-allowed; }
 
 .msg { min-height: 1.5em; margin: 12px 0 0; font-size: 14px; }
 .msg.error { color: var(--danger); }
 .msg.ok { color: var(--ok); }
+
+/* Recovery code, shown once. */
+.code {
+  margin: 16px 0 0;
+  padding: 12px;
+  font: 600 18px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  letter-spacing: .04em;
+  text-align: center;
+  overflow-wrap: anywhere;
+  user-select: all;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+input.code-input { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; text-transform: uppercase; }
 
 .note { font-size: 13px; color: var(--muted); margin: 16px 0 0; }

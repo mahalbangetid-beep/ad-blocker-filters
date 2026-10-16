@@ -22,9 +22,18 @@
       <button type="submit" id="save">Simpan Password</button>
       <p class="msg" id="msg" role="alert"></p>
 
-      <p class="note">Tidak ada cara memulihkan password yang lupa. Jika lupa, hapus extension ini lewat
-        chrome://extensions (saat browser tidak terkunci) lalu pasang ulang.</p>
+      <p class="note">Setelah password disimpan, kamu mendapat kode pemulihan untuk berjaga-jaga bila lupa password.</p>
     </form>
+
+    <div class="card" id="recovery" hidden>
+      <img class="icon" src="icons/lock128.png" alt="">
+      <h1>Kode Pemulihan</h1>
+      <p class="sub">Password tersimpan.</p>
+      <p class="code" id="code"></p>
+      <p class="note">Simpan kode pemulihan ini di tempat aman. Kode ini hanya ditampilkan sekali dan bisa membuka
+        browser bila kamu lupa password.</p>
+      <button type="button" id="noted">Saya sudah mencatatnya</button>
+    </div>
   </main>
   <script type="module" src="setup.js"></script>
 </body>

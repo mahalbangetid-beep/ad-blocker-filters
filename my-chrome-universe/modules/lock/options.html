@@ -62,6 +62,24 @@
             <p class="msg" id="change-msg" role="alert"></p>
           </form>
         </section>
+
+        <section>
+          <h2>Kode pemulihan</h2>
+          <p class="note">Kode pemulihan bisa membuka browser bila kamu lupa password. Membuat kode baru membuat kode
+            yang lama tidak berlaku.</p>
+          <form id="recovery-form">
+            <label for="recovery-current">Password saat ini</label>
+            <input type="password" id="recovery-current" autocomplete="current-password" required>
+            <button type="submit" class="secondary">Buat kode pemulihan baru</button>
+            <p class="msg" id="recovery-msg" role="alert"></p>
+          </form>
+          <div id="recovery-result" hidden>
+            <p class="code" id="recovery-code"></p>
+            <p class="note">Simpan kode pemulihan ini di tempat aman. Kode ini hanya ditampilkan sekali dan bisa membuka
+              browser bila kamu lupa password.</p>
+            <button type="button" id="recovery-noted">Saya sudah mencatatnya</button>
+          </div>
+        </section>
       </div>
 
       <p class="note">Catatan: kunci ini mencegah orang lain memakai browser secara langsung, tapi bukan

@@ -1,4 +1,4 @@
-import { createPasswordRecord, verifyPassword } from './crypto.js';
+import { createPasswordRecord, verifyPassword, generateRecoveryCode, normalizeRecoveryCode } from './crypto.js';
 import { lockStatus, messageAllowed, LOCK_PATH, SETUP_PATH } from '../../core/gate.js';
 import { isModuleEnabled, setModuleState } from '../../core/modules.js';
 
@@ -14,7 +14,8 @@ const MAX_LOCKOUT_MS = 15 * 60 * 1000;
 const DEFAULT_SETTINGS = { idleMinutes: 0, lockOnScreenLock: true };
 
 // Storage layout (all keys prefixed "lock:"):
-//   local:   lock:auth (password record), lock:settings, lock:failures, lock:lockoutUntil
+//   local:   lock:auth (password record), lock:recovery (recovery code record),
+//            lock:settings, lock:failures, lock:lockoutUntil
 //   session: lock:unlocked (cleared when the browser closes, so every startup is locked), lock:savedTabs
 // The on/off switch lives in core:modules (core/modules.js); core/gate.js derives the status.
 // Lock state lives in storage rather than in service-worker variables because
@@ -153,16 +154,17 @@ async function getThrottle() {
   return { failures: stored['lock:failures'] || 0, lockoutUntil: stored['lock:lockoutUntil'] || 0 };
 }
 
-// Checks the password with brute-force throttling: after FREE_ATTEMPTS wrong
-// tries, each further failure doubles the wait (30s, 60s, ... max 15 min).
-// The counter is in local storage so restarting the browser does not reset it.
-async function checkPassword(password) {
+// Checks a secret (password or recovery code, stored as a record under `key`) with
+// brute-force throttling: after FREE_ATTEMPTS wrong tries, each further failure doubles
+// the wait (30s, 60s, ... max 15 min). Both secrets share one counter, kept in local
+// storage so restarting the browser does not reset it.
+async function verifyThrottled(secret, key) {
   const { failures, lockoutUntil } = await getThrottle();
   const now = Date.now();
   if (lockoutUntil > now) return { ok: false, error: 'lockout', retryAt: lockoutUntil };
 
-  const auth = await getAuth();
-  if (auth && (await verifyPassword(password, auth))) {
+  const { [key]: record } = await chrome.storage.local.get(key);
+  if (record && (await verifyPassword(secret, record))) {
     await chrome.storage.local.set({ 'lock:failures': 0, 'lock:lockoutUntil': 0 });
     return { ok: true };
   }
@@ -180,6 +182,33 @@ async function checkPassword(password) {
     retryAt,
     attemptsLeft: Math.max(FREE_ATTEMPTS - nextFailures, 0),
   };
+}
+
+// Checks run one at a time so concurrent guesses are each counted (and see each other's
+// lockout). `onSuccess` runs inside the same turn, so a recovery code is replaced before
+// any other check can use it again; its result is merged into the reply.
+let checkQueue = Promise.resolve();
+function checkSecret(secret, key, onSuccess) {
+  const run = checkQueue.then(async () => {
+    const result = await verifyThrottled(secret, key);
+    if (result.ok && onSuccess) Object.assign(result, await onSuccess());
+    return result;
+  });
+  checkQueue = run.catch(() => {});
+  return run;
+}
+
+const checkPassword = (password) => checkSecret(password, 'lock:auth');
+
+// Stores a fresh recovery code (hash only, written together with `extra`) and returns
+// the plain code, to be shown once.
+async function rotateRecoveryCode(extra = {}) {
+  const recoveryCode = generateRecoveryCode();
+  await chrome.storage.local.set({
+    ...extra,
+    'lock:recovery': await createPasswordRecord(normalizeRecoveryCode(recoveryCode)),
+  });
+  return { recoveryCode };
 }
 
 // Settings pages show these instead of the raw checkPassword codes.
@@ -225,13 +254,13 @@ const handlers = {
     if (await getAuth()) return { ok: false, error: 'Password sudah diatur. Ganti lewat halaman Pengaturan.' };
     const invalid = validateNewPassword(password, confirm);
     if (invalid) return { ok: false, error: invalid };
-    await chrome.storage.local.set({
+    const { recoveryCode } = await rotateRecoveryCode({
       'lock:auth': await createPasswordRecord(password),
       'lock:failures': 0,
       'lock:lockoutUntil': 0,
     });
     await chrome.storage.session.set({ 'lock:unlocked': true });
-    return { ok: true };
+    return { ok: true, recoveryCode };
   },
 
   async 'lock:unlock'({ password }) {
@@ -242,6 +271,25 @@ const handlers = {
       restoreTabs();
     }
     return result;
+  },
+
+  // Forgotten password: a valid recovery code sets a new password and a new code (the
+  // used one is spent). It never unlocks by itself; the lock screen then unlocks with
+  // the new password. Works whenever a password exists, locked or not.
+  async 'lock:recover'({ code, password, confirm }) {
+    if (!(await getAuth())) return { ok: false, error: 'Belum ada password.' };
+    // Validate the new password first so a typo does not cost an attempt.
+    const invalid = validateNewPassword(password, confirm);
+    if (invalid) return { ok: false, error: invalid };
+    // One write, so the used code can never outlive the password change.
+    return checkSecret(normalizeRecoveryCode(code), 'lock:recovery', async () =>
+      rotateRecoveryCode({ 'lock:auth': await createPasswordRecord(password) }));
+  },
+
+  async 'lock:newRecoveryCode'({ current }) {
+    if ((await lockStatus()) !== 'open') return { ok: false, error: 'Browser sedang terkunci.' };
+    const check = await checkSecret(current, 'lock:auth', () => rotateRecoveryCode());
+    return check.ok ? check : currentPasswordError(check);
   },
 
   async 'lock:changePassword'({ current, password, confirm }) {

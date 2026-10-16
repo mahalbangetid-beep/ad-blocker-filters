@@ -84,6 +84,8 @@ globalThis.chrome = chrome;
 const settle = () => new Promise((r) => setTimeout(r, 50));
 const LOCK = BASE + 'modules/lock/lock.html';
 const NEWTAB = 'chrome://newtab/';
+const CODE_FORMAT = /^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){4}$/;
+let recoveryCode = null; // the latest code handed out, as the user would have noted it
 
 function send(message) {
   return new Promise((resolve) => {
@@ -93,6 +95,7 @@ function send(message) {
 
 const { setModuleState, isModuleEnabled } = await import('../my-chrome-universe/core/modules.js');
 const { lockStatus } = await import('../my-chrome-universe/core/gate.js');
+const { generateRecoveryCode, normalizeRecoveryCode } = await import('../my-chrome-universe/modules/lock/crypto.js');
 await import('../my-chrome-universe/modules/lock/background.js');
 await settle();
 
@@ -108,6 +111,7 @@ test('lock cannot be disabled before a password exists', async () => {
   assert.equal((await send({ type: 'lock:setEnabled', enabled: false, current: '' })).ok, false);
   assert.equal(await isModuleEnabled('lock'), true);
   assert.equal((await send({ type: 'lock:lock' })).ok, false);
+  assert.equal((await send({ type: 'lock:recover', code: 'AAAA', password: 'baru1234', confirm: 'baru1234' })).ok, false);
 });
 
 test('setup validates and stores only a hash', async () => {
@@ -115,12 +119,22 @@ test('setup validates and stores only a hash', async () => {
   assert.equal((await send({ type: 'lock:setup', password: 'rahasia1', confirm: 'rahasia2' })).ok, false);
   const ok = await send({ type: 'lock:setup', password: 'rahasia1', confirm: 'rahasia1' });
   assert.equal(ok.ok, true);
+  recoveryCode = ok.recoveryCode;
   const local = chrome.storage.local.dump();
   assert.ok(local['lock:auth'], 'password record is stored under lock:auth');
   assert.ok(!JSON.stringify(local).includes('rahasia1'), 'plain password must not be stored');
   assert.equal((await send({ type: 'lock:getState' })).status, 'open');
   // Re-running setup must not overwrite the existing password.
   assert.equal((await send({ type: 'lock:setup', password: 'hacked12', confirm: 'hacked12' })).ok, false);
+});
+
+test('setup returns a recovery code that is stored only as a hash', async () => {
+  assert.match(recoveryCode, CODE_FORMAT);
+  const local = chrome.storage.local.dump();
+  assert.ok(local['lock:recovery']?.hash, 'recovery code record is stored under lock:recovery');
+  const dump = JSON.stringify([local, chrome.storage.session.dump()]);
+  assert.ok(!dump.includes(recoveryCode), 'plain code must not be stored');
+  assert.ok(!dump.includes(recoveryCode.replaceAll('-', '')), 'plain code must not be stored without dashes either');
 });
 
 test('browser restart locks and hides existing tabs', async () => {
@@ -309,4 +323,99 @@ test('unknown and old unprefixed messages are ignored', () => {
     }
     assert.equal(answered, false, type);
   }
+});
+
+test('recovery codes look right and normalize', () => {
+  const a = generateRecoveryCode();
+  const b = generateRecoveryCode();
+  assert.match(a, CODE_FORMAT);
+  assert.match(b, CODE_FORMAT);
+  assert.notEqual(a, b);
+  assert.equal(normalizeRecoveryCode(' abcd-efgh ijkl-mnop-qrst '), 'ABCDEFGH1JK1MN0PQRST');
+});
+
+const failures = async () => (await chrome.storage.local.get('lock:failures'))['lock:failures'] ?? 0;
+
+test('recovery code resets the password but does not unlock by itself', async () => {
+  assert.equal((await send({ type: 'lock:lock' })).ok, true);
+  await settle();
+  assert.equal(await lockStatus(), 'locked');
+  const typed = recoveryCode.toLowerCase().replaceAll('-', '');
+
+  // An invalid new password is rejected before the code is checked, and is not counted.
+  const before = await failures();
+  const mismatch = await send({ type: 'lock:recover', code: typed, password: 'pulih123', confirm: 'pulih124' });
+  assert.equal(mismatch.ok, false);
+  assert.equal(await failures(), before);
+
+  const r = await send({ type: 'lock:recover', code: typed, password: 'pulih123', confirm: 'pulih123' });
+  assert.equal(r.ok, true);
+  assert.match(r.recoveryCode, CODE_FORMAT);
+  assert.notEqual(r.recoveryCode, recoveryCode);
+  assert.equal(await lockStatus(), 'locked');
+  assert.equal(await failures(), 0);
+
+  assert.equal((await send({ type: 'lock:unlock', password: 'pulih123' })).ok, true);
+  await settle();
+  assert.equal(await lockStatus(), 'open');
+
+  // The used code is spent.
+  const old = await send({ type: 'lock:recover', code: recoveryCode, password: 'lagi1234', confirm: 'lagi1234' });
+  assert.equal(old.ok, false);
+  assert.equal(old.error, 'wrong');
+  recoveryCode = r.recoveryCode;
+  assert.equal((await send({ type: 'lock:setEnabled', enabled: false, current: 'pulih123' })).ok, true);
+  assert.equal((await send({ type: 'lock:setEnabled', enabled: true })).ok, true);
+});
+
+test('wrong recovery codes are throttled like passwords', async () => {
+  await chrome.storage.local.set({ 'lock:failures': 0, 'lock:lockoutUntil': 0 });
+  for (let i = 0; i < 4; i++) {
+    const r = await send({ type: 'lock:recover', code: 'AAAA-AAAA-AAAA-AAAA-AAAA', password: 'lagi1234', confirm: 'lagi1234' });
+    assert.equal(r.error, 'wrong');
+  }
+  const fifth = await send({ type: 'lock:recover', code: 'AAAA-AAAA-AAAA-AAAA-AAAA', password: 'lagi1234', confirm: 'lagi1234' });
+  assert.equal(fifth.error, 'lockout');
+  assert.ok(fifth.retryAt > Date.now());
+  // The right code is refused during the lockout, and so is the password (shared counter).
+  const right = await send({ type: 'lock:recover', code: recoveryCode, password: 'lagi1234', confirm: 'lagi1234' });
+  assert.equal(right.error, 'lockout');
+  assert.equal((await send({ type: 'lock:setEnabled', enabled: false, current: 'pulih123' })).ok, false);
+  await chrome.storage.local.set({ 'lock:failures': 0, 'lock:lockoutUntil': 0 });
+});
+
+test('a new recovery code needs the current password', async () => {
+  const bad = await send({ type: 'lock:newRecoveryCode', current: 'salah' });
+  assert.equal(bad.ok, false);
+  assert.equal(bad.recoveryCode, undefined);
+  assert.equal(await failures(), 1);
+
+  const good = await send({ type: 'lock:newRecoveryCode', current: 'pulih123' });
+  assert.equal(good.ok, true);
+  assert.match(good.recoveryCode, CODE_FORMAT);
+  assert.notEqual(good.recoveryCode, recoveryCode);
+  assert.equal(await failures(), 0);
+  // The previous code no longer works; the new one does.
+  assert.equal((await send({ type: 'lock:recover', code: recoveryCode, password: 'lagi1234', confirm: 'lagi1234' })).ok, false);
+  const used = await send({ type: 'lock:recover', code: good.recoveryCode, password: 'lagi1234', confirm: 'lagi1234' });
+  assert.equal(used.ok, true);
+  recoveryCode = used.recoveryCode;
+
+  // Not available while locked.
+  await send({ type: 'lock:lock' });
+  await settle();
+  assert.deepEqual(await send({ type: 'lock:newRecoveryCode', current: 'lagi1234' }), { ok: false, error: 'locked' });
+  assert.equal((await send({ type: 'lock:unlock', password: 'lagi1234' })).ok, true);
+  await settle();
+});
+
+test('concurrent wrong guesses are each counted', async () => {
+  await chrome.storage.local.set({ 'lock:failures': 0, 'lock:lockoutUntil': 0 });
+  const results = await Promise.all(Array.from({ length: 6 }, () =>
+    send({ type: 'lock:recover', code: 'AAAA-AAAA-AAAA-AAAA-AAAA', password: 'lagi1234', confirm: 'lagi1234' })));
+  // Four wrong answers, the fifth starts the lockout, the sixth is refused by it (not counted).
+  assert.deepEqual(results.map((r) => r.error), ['wrong', 'wrong', 'wrong', 'wrong', 'lockout', 'lockout']);
+  assert.equal(await failures(), 5);
+  assert.ok((await chrome.storage.local.get('lock:lockoutUntil'))['lock:lockoutUntil'] > Date.now());
+  await chrome.storage.local.set({ 'lock:failures': 0, 'lock:lockoutUntil': 0 });
 });

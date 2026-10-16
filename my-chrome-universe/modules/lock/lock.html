@@ -19,7 +19,39 @@
 
       <button type="submit" id="unlock">Buka Kunci</button>
       <p class="msg" id="msg" role="alert"></p>
+      <button type="button" class="link" id="forgot">Lupa password?</button>
     </form>
+
+    <form class="card" id="recover-form" hidden>
+      <img class="icon" src="icons/lock128.png" alt="">
+      <h1>Lupa Password</h1>
+      <p class="sub">Masukkan kode pemulihan, lalu buat password baru.</p>
+
+      <label for="code">Kode pemulihan</label>
+      <input type="text" id="code" class="code-input" autocomplete="off" spellcheck="false"
+        autocapitalize="characters" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" required>
+
+      <label for="new-password">Password baru</label>
+      <input type="password" id="new-password" autocomplete="new-password" required>
+
+      <label for="confirm">Ulangi password baru</label>
+      <input type="password" id="confirm" autocomplete="new-password" required>
+
+      <button type="submit" id="recover">Atur Password Baru</button>
+      <button type="button" class="secondary" id="back">Kembali</button>
+      <p class="msg" id="recover-msg" role="alert"></p>
+    </form>
+
+    <div class="card" id="recovered" hidden>
+      <img class="icon" src="icons/lock128.png" alt="">
+      <h1>Password Baru Tersimpan</h1>
+      <p class="sub">Ini kode pemulihan barumu. Kode yang lama sudah tidak berlaku.</p>
+      <p class="code" id="new-code"></p>
+      <p class="note">Simpan kode pemulihan ini di tempat aman. Kode ini hanya ditampilkan sekali dan bisa membuka
+        browser bila kamu lupa password.</p>
+      <button type="button" id="open">Saya sudah mencatatnya, buka browser</button>
+      <p class="msg" id="open-msg" role="alert"></p>
+    </div>
   </main>
   <script type="module" src="lock.js"></script>
 </body>
