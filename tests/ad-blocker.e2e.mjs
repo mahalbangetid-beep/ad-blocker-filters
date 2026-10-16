@@ -6,8 +6,9 @@
 import { test, after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, existsSync, readdirSync } from 'node:fs';
+import { createServer as createTlsServer } from 'node:https';
+import { spawn, execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +16,9 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const extDir = join(root, 'ad-blocker');
 const PORT = 8766;
+// YouTube is HSTS-preloaded in newer Chromium builds, so its mock must be served over HTTPS.
+const TLS_PORT = 8767;
+const YOUTUBE = `https://www.youtube.com:${TLS_PORT}`;
 const CDP_PORT = 9333;
 const SITE = `http://site.test:${PORT}`;
 
@@ -63,13 +67,29 @@ const YT_PAGE = `<!doctype html><html><body>
   window.fetched = fetch('/youtubei/v1/player').then((r) => r.json());
 </script></body></html>`;
 
-const server = createServer((req, res) => {
+function handle(req, res) {
   hits.push(`${req.headers.host}${req.url}`);
   if (req.url.startsWith('/page')) return res.writeHead(200, { 'content-type': 'text/html' }).end(PAGE);
   if (req.url.startsWith('/watch')) return res.writeHead(200, { 'content-type': 'text/html' }).end(YT_PAGE);
   if (req.url.startsWith('/youtubei/v1/player')) return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(AD_DATA));
   res.writeHead(200, { 'content-type': 'text/javascript' }).end('/* ok */');
-});
+}
+const server = createServer(handle);
+let tlsServer;
+
+// Throwaway self-signed certificate (Chromium runs with --ignore-certificate-errors).
+function selfSignedCert(dir) {
+  const key = join(dir, 'key.pem');
+  const cert = join(dir, 'cert.pem');
+  const candidates = ['openssl', 'C:/Program Files/Git/usr/bin/openssl.exe'];
+  for (const exe of candidates) {
+    try {
+      execFileSync(exe, ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', key, '-out', cert, '-days', '2', '-subj', '/CN=www.youtube.com'], { stdio: 'ignore' });
+      return { key: readFileSync(key), cert: readFileSync(cert) };
+    } catch {}
+  }
+  throw new Error('openssl tidak ditemukan (dibutuhkan untuk halaman uji YouTube)');
+}
 
 // ---------- Minimal CDP client ----------
 
@@ -150,6 +170,8 @@ before(async () => {
   assert.ok(exe, 'Chromium (Playwright) tidak ditemukan');
   await new Promise((ok) => server.listen(PORT, ok));
   profile = mkdtempSync(join(tmpdir(), 'ab-e2e-'));
+  tlsServer = createTlsServer(selfSignedCert(profile), handle);
+  await new Promise((ok) => tlsServer.listen(TLS_PORT, ok));
   chrome = spawn(exe, [
     '--headless=new',
     `--remote-debugging-port=${CDP_PORT}`,
@@ -160,6 +182,7 @@ before(async () => {
     '--no-first-run',
     '--no-default-browser-check',
     '--lang=en-US',
+    '--ignore-certificate-errors',
     // GitHub's Linux runners do not allow Chromium's sandbox.
     ...(process.platform === 'linux' ? ['--no-sandbox'] : []),
     'about:blank',
@@ -199,6 +222,7 @@ after(async () => {
   } catch {}
   chrome?.kill();
   server.close();
+  tlsServer?.close();
   await sleep(500);
   try {
     rmSync(profile, { recursive: true, force: true });
@@ -311,8 +335,10 @@ test('block element picker hides the clicked element and saves a filter', async 
 });
 
 async function loadYoutube() {
-  const session = await openPage(`http://www.youtube.com:${PORT}/watch?v=abc`);
+  const session = await openPage(`${YOUTUBE}/watch?v=abc`);
   await sleep(300);
+  const href = await evaluate(session, 'location.href');
+  assert.ok(href.startsWith(YOUTUBE), `halaman uji YouTube tidak termuat (sekarang di ${href})`);
   return evaluate(session, `(async () => ({
     inline: Object.keys(window.ytInitialPlayerResponse || {}).sort(),
     parsed: Object.keys(window.parsed.playerResponse).sort(),
