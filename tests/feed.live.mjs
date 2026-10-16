@@ -10,7 +10,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findChrome, platformArgs } from './chromium.mjs';
 
-const extDir = join(resolve(dirname(fileURLToPath(import.meta.url)), '..'), 'ad-blocker');
+const extDir = join(resolve(dirname(fileURLToPath(import.meta.url)), '..'), 'my-chrome-universe/modules/adblock');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const exe = findChrome();
 if (!exe) throw new Error('Chromium (Playwright) tidak ditemukan');

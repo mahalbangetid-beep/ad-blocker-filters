@@ -22,7 +22,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   convertFilterList, preprocess, collectBadfilters, combineRules, combineCosmetic, assignIds,
-} from '../ad-blocker/filters.js';
+} from '../my-chrome-universe/modules/adblock/filters.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (name) => {
@@ -32,7 +32,7 @@ const arg = (name) => {
 const flag = (name) => process.argv.includes(name);
 
 const OUT = resolve(arg('--out') || join(root, 'feed'));
-const EXT_DIR = join(root, 'ad-blocker');
+const EXT_DIR = join(root, 'my-chrome-universe/modules/adblock');
 const OFFLINE = flag('--offline');
 const USER_AGENT = 'ad-blocker-filter-bot/1.0 (+https://github.com/)';
 

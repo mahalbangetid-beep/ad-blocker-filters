@@ -2,7 +2,7 @@
 // through a simulated chrome.* API. Run: node --test tests/tab-manager.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyData, normalize, applyOp, search, STORAGE_KEY } from '../tab-manager/store.js';
+import { emptyData, normalize, applyOp, search, STORAGE_KEY } from '../my-chrome-universe/modules/tabs/store.js';
 
 // ---------- store.js ----------
 
@@ -139,7 +139,7 @@ const settle = () => new Promise((r) => setTimeout(r, 20));
 const urls = () => tabs.map((t) => t.url);
 const collections = () => store[STORAGE_KEY].spaces[0].collections;
 
-await import('../tab-manager/background.js');
+await import('../my-chrome-universe/modules/tabs/background.js');
 
 test('save session keeps tabs open by default', async () => {
   tabs.push({ id: nextId++, url: 'https://one.com/', title: 'One', windowId: 1, pinned: false });

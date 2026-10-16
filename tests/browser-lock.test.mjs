@@ -90,7 +90,7 @@ function send(message) {
   });
 }
 
-await import('../browser-lock/background.js');
+await import('../my-chrome-universe/modules/lock/background.js');
 await settle();
 
 test('install opens setup page', async () => {

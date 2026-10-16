@@ -12,7 +12,7 @@
   };
   const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 
-  const base = `${location.origin}/tab-manager/`;
+  const base = `${location.origin}/my-chrome-universe/modules/tabs/`;
   const local = {};
   const onChanged = event();
 

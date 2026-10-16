@@ -2,8 +2,8 @@
 // Run: node --test tests/ad-blocker.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { convertFilterList, parseNetworkFilter, toDnrRule, preprocess, badfilterTarget, PRIORITY } from '../ad-blocker/filters.js';
-import { createEngine, domainSuffixes } from '../ad-blocker/cosmetic.js';
+import { convertFilterList, parseNetworkFilter, toDnrRule, preprocess, badfilterTarget, PRIORITY } from '../my-chrome-universe/modules/adblock/filters.js';
+import { createEngine, domainSuffixes } from '../my-chrome-universe/modules/adblock/cosmetic.js';
 
 const rule = (line) => toDnrRule(parseNetworkFilter(line).filter);
 
@@ -175,7 +175,7 @@ test('engine honours $specifichide', () => {
 // ---------- Feed validation (updater.js) ----------
 
 test('feed validation only lets block/allow rules and plain selectors through', async () => {
-  const { validateRules, validateCosmetic } = await import('../ad-blocker/updater.js');
+  const { validateRules, validateCosmetic } = await import('../my-chrome-universe/modules/adblock/updater.js');
   const ok = { id: 1, priority: 1, action: { type: 'block' }, condition: { requestDomains: ['a.com'] } };
   validateRules([ok]);
   const bad = [

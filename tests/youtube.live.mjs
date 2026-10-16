@@ -11,7 +11,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const extDir = join(root, 'ad-blocker');
+const extDir = join(root, 'my-chrome-universe/modules/adblock');
 const VIDEO = process.argv[2] || 'https://www.youtube.com/watch?v=kJQP7kiw5Fk';
 const CDP_PORT = 9334;
 const WATCH_MS = 25000;

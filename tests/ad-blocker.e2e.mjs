@@ -16,7 +16,7 @@ import { createHash } from 'node:crypto';
 import { findChrome, platformArgs } from './chromium.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const extDir = join(root, 'ad-blocker');
+const extDir = join(root, 'my-chrome-universe/modules/adblock');
 const PORT = 8766;
 // YouTube is HSTS-preloaded in newer Chromium builds, so its mock must be served over HTTPS.
 const TLS_PORT = 8767;
