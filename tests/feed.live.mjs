@@ -62,13 +62,13 @@ try {
     if (!extId) await sleep(200);
   }
   await sleep(3000); // let the install-time update finish
-  const { targetId } = await send('Target.createTarget', { url: `chrome-extension://${extId}/modules/adblock/popup.html` });
+  const { targetId } = await send('Target.createTarget', { url: `chrome-extension://${extId}/popup.html` });
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
   await sleep(800);
   // Module messages are refused until a password exists.
   await evaluate(sessionId, `chrome.runtime.sendMessage({ type: 'lock:setup', password: 'rahasia1', confirm: 'rahasia1' })`);
   const result = await evaluate(sessionId, `chrome.runtime.sendMessage({ type: 'ab:updateFilters' })`);
-  const bundle = await evaluate(sessionId, `fetch('lists.json').then(r => r.json()).then(b => b.feedVersion)`);
+  const bundle = await evaluate(sessionId, `fetch('modules/adblock/lists.json').then(r => r.json()).then(b => b.feedVersion)`);
   const dynamic = await evaluate(swSession, 'chrome.declarativeNetRequest.getDynamicRules().then(r => r.length)');
   const disabled = await evaluate(swSession, "chrome.declarativeNetRequest.getDisabledRuleIds({ rulesetId: 'ads' }).then(r => r.length)");
   const f = result.feed;

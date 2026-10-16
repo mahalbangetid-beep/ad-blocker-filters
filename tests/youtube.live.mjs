@@ -81,7 +81,7 @@ try {
     return { sessionId, targetId };
   }
 
-  const popup = await open(`chrome-extension://${extId}/modules/adblock/popup.html`);
+  const popup = await open(`chrome-extension://${extId}/popup.html`);
   await sleep(500);
   const bg = (msg) => evaluate(popup.sessionId, `chrome.runtime.sendMessage(${JSON.stringify(msg)})`);
   // Module messages are refused until a password exists.

@@ -1,5 +1,5 @@
-// Classic (non-module) script: a fake chrome.* API so the real newtab.html,
-// popup.html and background.js can run in an ordinary browser tab for UI testing.
+// Classic (non-module) script: a fake chrome.* API so the real newtab.html
+// and background.js can run in an ordinary browser tab for UI testing.
 (function () {
   const event = () => {
     const listeners = [];

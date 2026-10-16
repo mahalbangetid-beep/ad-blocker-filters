@@ -1,4 +1,4 @@
-// Helpers shared by the dashboard and popup.
+// Helpers shared by the dashboard and the popup panel.
 import { STORAGE_KEY, normalize, emptyData } from './store.js';
 
 export function send(type, payload = {}) {

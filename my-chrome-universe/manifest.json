@@ -31,7 +31,7 @@
   },
   "action": {
     "default_title": "My Chrome Universe",
-    "default_popup": "modules/adblock/popup.html",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",

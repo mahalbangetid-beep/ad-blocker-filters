@@ -95,8 +95,11 @@ class Cdp {
     this.ws = new WebSocket(url);
     this.id = 0;
     this.pending = new Map();
+    // Event listeners (messages without an id), e.g. Runtime.exceptionThrown.
+    this.listeners = new Set();
     this.ws.addEventListener('message', (ev) => {
       const msg = JSON.parse(ev.data);
+      if (msg.method) for (const fn of this.listeners) fn(msg);
       if (msg.id && this.pending.has(msg.id)) {
         const { resolve: ok, reject } = this.pending.get(msg.id);
         this.pending.delete(msg.id);
@@ -144,7 +147,7 @@ async function waitFor(sessionId, expression, timeoutMs = 5000) {
 
 // Sends a message to the extension's background, like the popup would.
 async function bg(message) {
-  const pageSession = await openPage(`chrome-extension://${extId}/modules/adblock/popup.html`, false);
+  const pageSession = await openPage(`chrome-extension://${extId}/popup.html`, false);
   const value = await evaluate(pageSession, `chrome.runtime.sendMessage(${JSON.stringify(message)})`);
   return value;
 }
@@ -384,9 +387,14 @@ async function click(sessionId, x, y) {
   }
 }
 
-async function screenshot(sessionId, name) {
+// With `selector`, only that element is captured (e.g. the 320 px popup body).
+async function screenshot(sessionId, name, selector) {
   if (!process.env.SHOT_DIR) return;
-  const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' }, sessionId);
+  const clip = selector && await evaluate(sessionId, `(() => {
+    const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
+    return { x: r.left, y: r.top, width: r.width, height: r.height, scale: 1 };
+  })()`);
+  const { data } = await cdp.send('Page.captureScreenshot', { format: 'png', ...(clip && { clip, captureBeyondViewport: true }) }, sessionId);
   const { writeFileSync } = await import('node:fs');
   writeFileSync(join(process.env.SHOT_DIR, `${name}.png`), Buffer.from(data, 'base64'));
 }
@@ -531,13 +539,138 @@ test('a feed older than the bundled rules clears downloaded updates', async () =
   await bg({ type: 'ab:setFeedUrl', url: null });
 });
 
+// Opens `url` in a new tab with exception and console-error reporting attached before
+// the page loads. `background` keeps the current tab active (as a real popup sees it).
+async function openWatched(url, { background = false } = {}) {
+  const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank', background });
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+  const errors = [];
+  cdp.listeners.add((msg) => {
+    if (msg.sessionId !== sessionId) return;
+    const p = msg.params;
+    if (msg.method === 'Runtime.exceptionThrown') errors.push(p.exceptionDetails.exception?.description || p.exceptionDetails.text);
+    if (msg.method === 'Runtime.consoleAPICalled' && p.type === 'error') errors.push(p.args.map((a) => a.value ?? a.description).join(' '));
+    if (msg.method === 'Log.entryAdded' && p.entry.level === 'error') errors.push(`${p.entry.text} ${p.entry.url || ''}`);
+  });
+  await cdp.send('Runtime.enable', {}, sessionId);
+  await cdp.send('Log.enable', {}, sessionId);
+  await cdp.send('Page.navigate', { url }, sessionId);
+  await waitFor(sessionId, `location.href === ${JSON.stringify(url)} && document.readyState === 'complete'`);
+  await sleep(300);
+  return { sessionId, targetId, errors };
+}
+
 test('extension pages render without errors', async () => {
-  for (const page of ['modules/adblock/options.html', 'modules/adblock/popup.html']) {
-    const s = await openPage(`chrome-extension://${extId}/${page}`);
+  for (const page of ['popup.html', 'modules/adblock/options.html']) {
+    const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/${page}`);
+    await sleep(500);
     const text = await evaluate(s, 'document.body.innerText');
     assert.ok(text.length > 50, `${page} looks empty`);
+    assert.deepEqual(errors, [], `${page} logged errors`);
     await screenshot(s, page.split('/').pop().replace('.html', ''));
+    await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
   }
+});
+
+// ---------- Toolbar popup ----------
+
+const tileNames = (s) => evaluate(s, "[...document.querySelectorAll('.mcu-tile .mcu-tile-name')].map((n) => n.textContent)");
+const tileStatus = (s, id) => evaluate(s, `document.querySelector('.mcu-tile[data-id="${id}"] .mcu-tile-status')?.textContent`);
+const openTile = (s, id) => evaluate(s, `document.querySelector('.mcu-tile[data-id="${id}"]').click()`);
+const bodyText = (s) => evaluate(s, 'document.body.innerText');
+const panelLinks = (s) => evaluate(s, "[...document.querySelectorAll('head link[rel=stylesheet]')].map((l) => l.getAttribute('href')).filter((h) => h.includes('modules/'))");
+
+test('popup shows the module grid and opens a panel', async () => {
+  const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/popup.html`);
+  await waitFor(s, "document.querySelectorAll('.mcu-tile').length === 3");
+  assert.deepEqual(await tileNames(s), ['Ad Blocker', 'Tab Manager', 'Browser Lock']);
+  await waitFor(s, `document.querySelector('.mcu-tile[data-id="tabs"] .mcu-tile-status')?.textContent.endsWith(' koleksi')`);
+  assert.equal(await tileStatus(s, 'lock'), 'aktif');
+  assert.equal(await evaluate(s, 'document.body.getBoundingClientRect().width'), 320);
+  await screenshot(s, 'popup-grid', 'body');
+
+  await openTile(s, 'adblock');
+  await waitFor(s, "document.body.innerText.includes('Blokir elemen di halaman ini')");
+  assert.match(await evaluate(s, "document.getElementById('mcu-title').textContent"), /Ad Blocker/);
+  assert.equal(await evaluate(s, "document.getElementById('mcu-grid').hidden"), true, 'grid hidden while a panel is open');
+  assert.ok((await panelLinks(s)).length > 0, 'the panel loads its module stylesheet');
+  await screenshot(s, 'popup-adblock', 'body');
+
+  await evaluate(s, "document.getElementById('mcu-back').click()");
+  await waitFor(s, "!document.getElementById('mcu-grid').hidden && document.querySelectorAll('.mcu-tile').length === 3");
+  assert.ok(!(await bodyText(s)).includes('Blokir elemen di halaman ini'), 'panel removed after ←');
+  assert.deepEqual(await panelLinks(s), [], 'module stylesheet removed after ←');
+
+  // Only one panel at a time: switching modules replaces the previous one.
+  await openTile(s, 'tabs');
+  await waitFor(s, "document.body.innerText.includes('Simpan tab ini')");
+  assert.equal(await evaluate(s, "document.querySelectorAll('.mcu-panel-root').length"), 1);
+  assert.deepEqual(errors, []);
+  await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+});
+
+test('popup works when the active tab is not a website', async () => {
+  const { targetId: blank } = await cdp.send('Target.createTarget', { url: 'about:blank' });
+  const popup = await openWatched(`chrome-extension://${extId}/popup.html`, { background: true });
+  const s = popup.sessionId;
+  const active = await evaluate(s, 'chrome.tabs.query({ active: true, currentWindow: true }).then(([t]) => t.url)');
+  assert.equal(active, 'about:blank', 'the popup sees about:blank as the active tab');
+
+  await waitFor(s, `document.querySelector('.mcu-tile[data-id="adblock"] .mcu-tile-status')?.textContent === 'aktif'`);
+  await openTile(s, 'adblock');
+  await waitFor(s, "document.body.innerText.includes('Pemblokiran tidak berlaku di halaman ini.')");
+  await sleep(1200); // one live refresh
+  assert.deepEqual(popup.errors, []);
+  for (const id of [popup.targetId, blank]) await cdp.send('Target.closeTarget', { targetId: id }).catch(() => {});
+});
+
+test('popup panel switches turn modules off and on', async () => {
+  const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/popup.html`);
+  await waitFor(s, "document.querySelectorAll('.mcu-tile').length === 3");
+  const sw = "document.querySelector('.mcu-module-switch input')";
+
+  // Tab Manager: off leaves only the switch and the notice.
+  await openTile(s, 'tabs');
+  await waitFor(s, "document.body.innerText.includes('Simpan tab ini')");
+  await screenshot(s, 'popup-tabs', 'body');
+  await evaluate(s, `${sw}.click()`);
+  await waitFor(s, "document.body.innerText.includes('Fitur ini sedang nonaktif.')");
+  assert.equal((await bg({ type: 'core:getModules' })).modules.tabs, false);
+  assert.ok(!(await bodyText(s)).includes('Simpan tab ini'), 'save controls hidden while off');
+  await evaluate(s, "document.getElementById('mcu-back').click()");
+  await waitFor(s, `document.querySelector('.mcu-tile[data-id="tabs"] .mcu-tile-status')?.textContent === 'nonaktif'`);
+  await openTile(s, 'tabs');
+  await waitFor(s, "document.body.innerText.includes('Fitur ini sedang nonaktif.')");
+  await evaluate(s, `${sw}.click()`);
+  await waitFor(s, "document.body.innerText.includes('Simpan tab ini')");
+  assert.equal((await bg({ type: 'core:getModules' })).modules.tabs, true);
+  await evaluate(s, "document.getElementById('mcu-back').click()");
+
+  // Browser Lock: turning off asks for the current password inline.
+  await openTile(s, 'lock');
+  await waitFor(s, "document.body.innerText.includes('Kunci sekarang')");
+  await evaluate(s, `${sw}.click()`);
+  await waitFor(s, "!!document.querySelector('.mcu-panel-root input[type=password]')");
+  assert.equal(await evaluate(s, `${sw}.checked`), true, 'stays on until the password is confirmed');
+  const confirmOff = (pw) => evaluate(s, `(() => {
+    const input = document.querySelector('.mcu-panel-root input[type=password]');
+    input.value = ${JSON.stringify(pw)};
+    input.form.requestSubmit();
+  })()`);
+  await confirmOff('salah-sekali');
+  await waitFor(s, "document.body.innerText.includes('Password saat ini salah.')");
+  await screenshot(s, 'popup-lock', 'body');
+  assert.equal((await bg({ type: 'lock:getState' })).enabled, true);
+  await confirmOff(PASSWORD);
+  await waitFor(s, "document.body.innerText.includes('Fitur ini sedang nonaktif.')");
+  assert.equal((await bg({ type: 'lock:getState' })).enabled, false);
+  await evaluate(s, `${sw}.click()`);
+  await waitFor(s, "document.body.innerText.includes('Kunci sekarang')");
+  const state = await bg({ type: 'lock:getState' });
+  assert.equal(state.enabled, true);
+  assert.equal(state.locked, false);
+  assert.deepEqual(errors, []);
+  await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
 });
 
 // ---------- Lock gate (keep these last: they lock the browser) ----------
@@ -559,14 +692,14 @@ async function until(check, what, timeoutMs = 10000) {
 
 // The lock sweep closes the page bg() talks through, so forget it; the next bg() opens a fresh one.
 function forgetBgPage() {
-  openSessions.delete(extUrl('modules/adblock/popup.html'));
+  openSessions.delete(extUrl('popup.html'));
 }
 
 // Locks and waits until the lock screen is the only page left; returns a session on it.
 async function lockBrowser() {
   // The page sending lock:lock is itself closed by the sweep and its reply never arrives
   // (CDP leaves the evaluation pending), so send it like bg() but without awaiting the reply.
-  const session = await openPage(extUrl('modules/adblock/popup.html'), false);
+  const session = await openPage(extUrl('popup.html'), false);
   forgetBgPage();
   await evaluate(session, "void chrome.runtime.sendMessage({ type: 'lock:lock' }).catch(() => {})");
   await until(async () => {
@@ -610,7 +743,7 @@ test('locking closes every extension page and refuses module messages', async ()
   assert.deepEqual(await fromLock(lockSession, { type: 'core:setModule', id: 'lock', enabled: false }), { ok: false, error: 'locked' });
 
   // An extension page opened while locked is closed again.
-  const { targetId } = await cdp.send('Target.createTarget', { url: extUrl('modules/adblock/popup.html') });
+  const { targetId } = await cdp.send('Target.createTarget', { url: extUrl('popup.html') });
   await until(async () => !(await pageTargets()).some((t) => t.targetId === targetId), 'popup opened while locked is closed');
   const pages = await pageTargets();
   assert.deepEqual(pages.map((t) => t.url.split('?')[0]), [LOCK_PAGE()], 'only the lock screen remains');

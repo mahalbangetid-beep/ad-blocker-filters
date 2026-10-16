@@ -1,0 +1,128 @@
+/* Toolbar popup frame (grid + panel header). A panel's module stylesheet is loaded on top
+   while it is open, so the frame's own controls reset what element selectors could leak in. */
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --text: #1c1d21;
+  --muted: #62666f;
+  --border: #dfe1e6;
+  --accent: #2f5bea;
+  --accent-text: #ffffff;
+  --danger: #c62828;
+  --track: #c9ccd3;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17181b;
+    --surface: #222327;
+    --text: #eceef2;
+    --muted: #a3a8b3;
+    --border: #383b42;
+    --accent: #6d8dff;
+    --accent-text: #0d1020;
+    --danger: #ff7b72;
+    --track: #4a4e57;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  width: 320px;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Header: "<logo> My Chrome Universe ⚙" on the grid, "← <icon> <name> ⚙" in a panel */
+.mcu-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 10px 12px 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.mcu-head img { flex: none; }
+.mcu-head-icon { font-size: 18px; line-height: 1; }
+.mcu-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.mcu-icon-btn {
+  all: unset;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--muted);
+  font: 16px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.mcu-icon-btn:hover { background: var(--bg); color: var(--text); }
+.mcu-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#mcu-back { margin-left: -6px; font-size: 18px; }
+
+/* Grid of module tiles */
+.mcu-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 14px;
+}
+
+.mcu-tile {
+  all: unset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+}
+.mcu-tile:hover { border-color: var(--accent); }
+.mcu-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mcu-tile-icon { font-size: 24px; line-height: 1.2; }
+.mcu-tile-name { font-size: 12px; font-weight: 600; line-height: 1.3; }
+.mcu-tile-status { min-height: 1.4em; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* "Aktif" switch row at the top of every panel */
+.mcu-module-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 14px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.mcu-switch-label { flex: 1; font-weight: 600; }
+
+.mcu-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex: none; }
+.mcu-switch input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.mcu-switch i { position: absolute; inset: 0; border-radius: 99px; background: var(--track); transition: background .15s; pointer-events: none; }
+.mcu-switch i::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; transition: transform .15s;
+}
+.mcu-switch input:checked + i { background: var(--accent); }
+.mcu-switch input:checked + i::after { transform: translateX(18px); }
+.mcu-switch input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mcu-switch input:disabled + i { opacity: .45; }
+
+.mcu-off { margin: 14px; color: var(--muted); font-size: 13px; text-align: center; }
+.mcu-msg { margin: 6px 14px 0; font-size: 13px; color: var(--danger); }
+.mcu-msg:empty { display: none; }

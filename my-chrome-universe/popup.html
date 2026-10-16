@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>My Chrome Universe</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="mcu-head">
+    <button type="button" class="mcu-icon-btn" id="mcu-back" title="Kembali" aria-label="Kembali" hidden>←</button>
+    <img id="mcu-logo" src="icons/icon32.png" alt="" width="20" height="20">
+    <span class="mcu-head-icon" id="mcu-icon" hidden></span>
+    <span class="mcu-title" id="mcu-title">My Chrome Universe</span>
+    <button type="button" class="mcu-icon-btn" id="mcu-options" title="Pengaturan" aria-label="Pengaturan">⚙</button>
+  </header>
+  <main class="mcu-grid" id="mcu-grid"></main>
+  <div class="mcu-panel" id="mcu-panel" hidden></div>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
