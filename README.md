@@ -47,6 +47,9 @@ node filter-bot/bot.mjs --offline            # bangun ulang dari salinan feed/ra
 Isi feed: `index.json` (versi, kategori, status tiap sumber), `rules/<kategori>.json`, `cosmetic/<kategori>.json`,
 `raw/` (salinan terakhir tiap sumber, dipakai bila sumber sedang mati) dan `changes.json` (perubahan dari versi sebelumnya).
 
+Feed publik: https://mahalbangetid-beep.github.io/ad-blocker-filters/index.json
+(repo: https://github.com/mahalbangetid-beep/ad-blocker-filters).
+
 GitHub Actions (`.github/workflows/filter-bot.yml`) menjalankannya setiap hari pukul 08.17 WIB: unit test → bangun feed →
 muat ruleset baru ke Chromium dan pastikan iklan masih terblokir → terbitkan ke branch `gh-pages`. Bila ada sumber yang
 tidak tersedia sama sekali, atau verifikasi gagal, feed tidak diterbitkan.
