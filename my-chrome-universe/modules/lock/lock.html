@@ -5,54 +5,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Browser Terkunci</title>
   <link rel="icon" href="icons/lock32.png">
-  <link rel="stylesheet" href="style.css">
+  <script src="/ui/boot.js"></script>
+  <link rel="stylesheet" href="/ui/tokens.css">
+  <link rel="stylesheet" href="/ui/components.css">
+  <link rel="stylesheet" href="screen.css">
 </head>
 <body>
-  <main class="page">
-    <form class="card" id="form">
-      <img class="icon" src="icons/lock128.png" alt="">
-      <h1>Browser Terkunci</h1>
-      <p class="sub">Masukkan password untuk membuka browser.</p>
+  <div class="nebula" aria-hidden="true"><i></i><i></i><i></i></div>
+  <canvas id="sky" aria-hidden="true"></canvas>
 
-      <label for="password">Password</label>
-      <input type="password" id="password" autocomplete="current-password" autofocus required>
+  <main class="scene login" id="login" aria-label="Layar kunci" inert>
+    <div class="orbit-clip" aria-hidden="true"><div class="orbits">
+      <div class="ring"><b></b></div>
+      <div class="ring"><b></b><b class="small"></b></div>
+      <div class="ring"><b></b></div>
+    </div></div>
 
-      <button type="submit" id="unlock">Buka Kunci</button>
-      <p class="msg" id="msg" role="alert"></p>
-      <button type="button" class="link" id="forgot">Lupa password?</button>
-    </form>
+    <div class="login-card">
+      <form class="face" id="form" novalidate>
+        <div class="lc-mark"><i data-ic="lock"></i></div>
+        <h1>Browser terkunci</h1>
+        <p class="sub">Masukkan password untuk masuk ke universe-mu.</p>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <input class="input" type="password" id="password" autocomplete="current-password">
+            <button type="button" class="icon-btn sm eye" id="eye" aria-label="Tampilkan password" aria-pressed="false"><i data-ic="eye"></i></button>
+          </div>
+        </div>
+        <button type="submit" class="btn primary block btn-unlock rp" id="unlock"><span class="lbl">Buka kunci</span><span class="spin"></span><span class="done"><i data-ic="check"></i></span></button>
+        <p class="msg" id="msg" role="alert"></p>
+        <button type="button" class="link" id="forgot">Lupa password? Pakai kode pemulihan</button>
+      </form>
 
-    <form class="card" id="recover-form" hidden>
-      <img class="icon" src="icons/lock128.png" alt="">
-      <h1>Lupa Password</h1>
-      <p class="sub">Masukkan kode pemulihan, lalu buat password baru.</p>
+      <form class="face" id="recover-form" hidden>
+        <div class="lc-mark"><i data-ic="key"></i></div>
+        <h1>Lupa password</h1>
+        <p class="sub">Masukkan kode pemulihan, lalu buat password baru.</p>
+        <div class="field">
+          <label for="code">Kode pemulihan</label>
+          <input class="input code-input" type="text" id="code" autocomplete="off" spellcheck="false"
+            autocapitalize="characters" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" required>
+        </div>
+        <div class="field">
+          <label for="new-password">Password baru</label>
+          <input class="input" type="password" id="new-password" autocomplete="new-password" required>
+        </div>
+        <div class="field">
+          <label for="confirm">Ulangi password baru</label>
+          <input class="input" type="password" id="confirm" autocomplete="new-password" required>
+        </div>
+        <button type="submit" class="btn primary block btn-unlock rp" id="recover"><span class="lbl">Atur password baru</span><span class="spin"></span><span class="done"><i data-ic="check"></i></span></button>
+        <p class="msg" id="recover-msg" role="alert"></p>
+        <button type="button" class="link" id="back">Kembali ke layar kunci</button>
+      </form>
 
-      <label for="code">Kode pemulihan</label>
-      <input type="text" id="code" class="code-input" autocomplete="off" spellcheck="false"
-        autocapitalize="characters" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" required>
-
-      <label for="new-password">Password baru</label>
-      <input type="password" id="new-password" autocomplete="new-password" required>
-
-      <label for="confirm">Ulangi password baru</label>
-      <input type="password" id="confirm" autocomplete="new-password" required>
-
-      <button type="submit" id="recover">Atur Password Baru</button>
-      <button type="button" class="secondary" id="back">Kembali</button>
-      <p class="msg" id="recover-msg" role="alert"></p>
-    </form>
-
-    <div class="card" id="recovered" hidden>
-      <img class="icon" src="icons/lock128.png" alt="">
-      <h1>Password Baru Tersimpan</h1>
-      <p class="sub">Ini kode pemulihan barumu. Kode yang lama sudah tidak berlaku.</p>
-      <p class="code" id="new-code"></p>
-      <p class="note">Simpan kode pemulihan ini di tempat aman. Kode ini hanya ditampilkan sekali dan bisa membuka
-        browser bila kamu lupa password.</p>
-      <button type="button" id="open">Saya sudah mencatatnya, buka browser</button>
-      <p class="msg" id="open-msg" role="alert"></p>
+      <div class="face" id="recovered" hidden>
+        <div class="lc-mark"><i data-ic="shieldCheck"></i></div>
+        <h1>Password baru tersimpan</h1>
+        <p class="sub">Ini kode pemulihan barumu. Kode yang lama sudah tidak berlaku.</p>
+        <p class="code" id="new-code"></p>
+        <p class="note">Simpan kode pemulihan ini di tempat aman. Kode ini hanya ditampilkan sekali dan bisa membuka
+          browser bila kamu lupa password.</p>
+        <button type="button" class="btn primary block btn-unlock rp" id="open"><span class="lbl">Saya sudah mencatatnya, buka browser</span><span class="spin"></span><span class="done"><i data-ic="check"></i></span></button>
+        <p class="msg" id="open-msg" role="alert"></p>
+      </div>
     </div>
+
+    <p class="login-foot" id="foot" hidden><i data-ic="clock"></i><span id="foot-text"></span></p>
   </main>
+
+  <section class="scene" id="welcome" aria-label="Sambutan" hidden></section>
+  <canvas id="fx" aria-hidden="true"></canvas>
   <script type="module" src="lock.js"></script>
 </body>
 </html>

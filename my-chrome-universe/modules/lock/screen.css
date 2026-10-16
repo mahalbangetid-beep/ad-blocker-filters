@@ -1,0 +1,70 @@
+/* Lock screen and setup: the prototype's login scene (orbits, glass card with a rotating border). */
+@property --ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+html, body { height: 100%; }
+body { overflow: hidden; }
+
+.login { display: grid; place-items: center; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 96px; overflow-y: auto; }
+.login:not(.is-active) { visibility: hidden; }
+
+.orbit-clip { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.orbits { position: absolute; left: 50%; top: 46%; width: 0; height: 0; transform: perspective(1000px) rotateX(66deg) rotateZ(-18deg); pointer-events: none; }
+.ring { position: absolute; width: var(--s); height: var(--s); left: calc(var(--s) / -2); top: calc(var(--s) / -2); border-radius: 50%; border: 1px solid rgb(var(--line-rgb) / .14); animation: spin var(--t) linear infinite; }
+.ring:nth-child(1) { --s: 560px; --t: 46s; --c: var(--solar); }
+.ring:nth-child(2) { --s: 820px; --t: 70s; --c: var(--ion); animation-direction: reverse; }
+.ring:nth-child(3) { --s: 1120px; --t: 96s; --c: var(--nova); }
+.ring b { position: absolute; top: -6px; left: calc(50% - 6px); width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 22px 4px var(--c); }
+.ring b.small { --c: var(--nova); width: 7px; height: 7px; top: auto; bottom: -3.5px; left: 30%; }
+.login.is-active .orbits { animation: orbits-in 1400ms var(--ease-out) backwards; }
+@keyframes orbits-in { from { opacity: 0; transform: perspective(1000px) rotateX(66deg) rotateZ(-90deg) scale(.4); } }
+
+.login-card { position: relative; width: min(476px, 100%); padding: 34px 32px 26px; border-radius: 26px; background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%); box-shadow: 0 40px 80px -30px rgb(var(--shade) / calc(.7 * var(--shade-k))); display: flex; flex-direction: column; gap: 16px; transform-style: preserve-3d; }
+.login-card::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1.2px; pointer-events: none; background: conic-gradient(from var(--ang), transparent 0 55%, var(--accent) 72%, var(--nova) 84%, transparent 100%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: ang 5s linear infinite; }
+@keyframes ang { to { --ang: 360deg; } }
+.login.is-active .login-card { animation: card-in 1000ms 250ms var(--ease-out) backwards; }
+@keyframes card-in { from { opacity: 0; transform: perspective(1000px) translateY(30px) scale(.9) rotateX(14deg); filter: blur(12px); } }
+
+.lc-mark { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 20px; margin-bottom: 4px; background: radial-gradient(circle at 30% 25%, rgba(255,181,71,.35), rgba(255,143,168,.12) 60%, transparent); border: 1px solid var(--line-strong); color: var(--accent-text); }
+.lc-mark .ic { width: 30px; height: 30px; stroke-width: 1.6; }
+.lc-mark .shackle { transition: transform 500ms var(--spring); transform-box: fill-box; transform-origin: 100% 100%; }
+.login-card.unlocked .lc-mark .shackle { transform: translateY(-3px) rotate(28deg); }
+.login-card.unlocked .lc-mark { animation: pop 600ms var(--spring); color: var(--ok-text); }
+.login-card h1 { font: 700 24px/1.2 var(--f-display); letter-spacing: -.01em; }
+.login-card .sub { color: var(--dust); font-size: 14px; margin-top: -8px; }
+
+.face[hidden] { display: none !important; }
+.face { display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 7px; }
+.field label { font-size: 13px; font-weight: 600; color: var(--dust); transition: color var(--d2); }
+.field:focus-within label { color: var(--accent-text); }
+.input-wrap { position: relative; display: flex; }
+.input-wrap .input { padding-right: 48px; letter-spacing: .08em; }
+.input-wrap .eye { position: absolute; right: 4px; top: 4px; }
+.input:disabled { opacity: .55; cursor: not-allowed; }
+.code-input { font-family: var(--f-mono); text-transform: uppercase; letter-spacing: .06em; }
+
+.btn-unlock { height: 50px; font-size: 15px; border-radius: 14px; }
+.btn-unlock .lbl, .btn-unlock .spin, .btn-unlock .done { transition: opacity 200ms, transform 320ms var(--spring); }
+.btn-unlock .spin, .btn-unlock .done { position: absolute; left: 50%; top: 50%; opacity: 0; transform: translate(-50%, -50%) scale(.5); }
+.btn-unlock .spin { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid rgba(27,18,4,.25); border-top-color: var(--accent-ink); animation: spin 700ms linear infinite; }
+.btn-unlock.loading .lbl, .btn-unlock.ok .lbl { opacity: 0; transform: translateY(-8px); }
+.btn-unlock.loading .spin { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.btn-unlock.ok .done { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.btn-unlock .done .ic { width: 24px; height: 24px; stroke-width: 2.5; stroke-dasharray: 30; stroke-dashoffset: 30; }
+.btn-unlock.ok .done .ic { animation: draw 500ms 80ms var(--ease-out) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.msg { min-height: 20px; font-size: 13px; color: var(--danger-text); display: flex; align-items: center; gap: 6px; }
+.msg.ok { color: var(--ok-text); }
+.msg:not(:empty) { animation: rise 360ms var(--ease-out); }
+.link { color: var(--dust); font-size: 13px; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 4px; transition: color var(--d2), text-decoration-color var(--d2); align-self: center; }
+.link:hover { color: var(--accent-text); text-decoration-color: var(--accent-text); }
+
+/* One-time recovery code: readable, selectable, never hidden behind an animation. */
+.code { font: 500 17px/1.4 var(--f-mono); letter-spacing: .06em; text-align: center; padding: 14px 12px; border-radius: 13px; border: 1px dashed var(--line-strong); background: rgb(var(--tint) / .04); color: var(--accent-text); user-select: all; overflow-wrap: anywhere; }
+.note { font-size: 12.5px; color: var(--faint); }
+
+.login-foot { position: absolute; left: 0; right: 0; bottom: 92px; text-align: center; color: var(--faint); font-size: 12.5px; display: flex; justify-content: center; gap: 10px; align-items: center; }
+.login-foot[hidden] { display: none; }
+.login-foot .ic { width: 14px; height: 14px; }
+.login.is-active .login-foot { animation: rise 700ms 900ms var(--ease-out) backwards; }
+@media (max-width: 760px) { .login-foot { bottom: 80px; } }

@@ -1,40 +1,71 @@
 import { send, showMessage } from './common.js';
+import { initAppearance, consumeWelcome } from '/ui/appearance.js';
+import { hydrateIcons } from '/ui/icons.js';
+import { animate, installEffects } from '/ui/motion.js';
+import { createSky } from '/ui/sky.js';
+import { playWelcome } from '/ui/welcome.js';
 
-const form = document.getElementById('form');
-const msg = document.getElementById('msg');
-const saveButton = document.getElementById('save');
-const recovery = document.getElementById('recovery');
-const code = document.getElementById('code');
+const $ = (id) => document.getElementById(id);
+const scene = $('login');
+const card = document.querySelector('.login-card');
+const form = $('form');
+const msg = $('msg');
+const saveButton = $('save');
+const recovery = $('recovery');
+const code = $('code');
 
-const state = await send('lock:getState');
-if (state.hasPassword) {
-  location.replace('options.html');
-}
+let sky = null;
+let busy = false;
+
+hydrateIcons();
+installEffects();
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  saveButton.disabled = true;
+  if (busy) return;
+  busy = true;
+  saveButton.classList.add('loading');
   showMessage(msg, '');
 
-  const result = await send('lock:setup', {
-    password: document.getElementById('password').value,
-    confirm: document.getElementById('confirm').value,
-  });
+  let result;
+  try {
+    result = await send('lock:setup', { password: $('password').value, confirm: $('confirm').value });
+  } finally {
+    saveButton.classList.remove('loading');
+    busy = false;
+  }
 
   if (result.ok) {
-    // The recovery code exists only in this reply; show it once.
+    // The recovery code exists only in this reply; show it once, at once.
     form.reset();
     form.hidden = true;
     code.textContent = result.recoveryCode;
     recovery.hidden = false;
-    document.getElementById('noted').focus();
+    $('noted').focus();
+    animate(card, [{ transform: 'scale(.97)' }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.34,1.56,.64,1)' });
+    sky?.burstAt(recovery.querySelector('.lc-mark'), 34);
   } else {
     showMessage(msg, result.error);
-    saveButton.disabled = false;
+    $('password').focus();
   }
 });
 
-document.getElementById('noted').addEventListener('click', () => {
+$('noted').addEventListener('click', () => {
   code.textContent = '';
-  location.replace('options.html');
+  location.replace('/options.html#lock');
 });
+
+// Listeners are in place; now decide how the page enters.
+const state = await send('lock:getState');
+if (state.hasPassword) {
+  location.replace('/options.html#lock');
+} else {
+  await initAppearance().catch(() => {});
+  const welcome = await consumeWelcome().catch(() => false);
+  sky = createSky($('sky'), { mode: welcome ? 'welcome' : 'orbit', fxCanvas: $('fx') });
+  // The card stays inert (not focusable or clickable) until the welcome is over.
+  if (welcome) await playWelcome($('welcome'), sky);
+  scene.inert = false;
+  scene.classList.add('is-active');
+  $('password').focus({ preventScroll: true });
+}

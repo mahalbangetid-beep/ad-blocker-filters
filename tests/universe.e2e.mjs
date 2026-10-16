@@ -842,6 +842,106 @@ test('unlock restores tabs and shows the dashboard', async () => {
   assert.equal((await bg({ type: 'ab:getOptions' })).settings.paused, false);
 });
 
+// ---------- Lock screen UI (welcome, form unlock) ----------
+
+// True when `sel` exists and is rendered (not display:none / visibility:hidden / [hidden]).
+const visible = (sel) => `(() => { const el = document.querySelector(${JSON.stringify(sel)}); return !!el && el.checkVisibility({ visibilityProperty: true }); })()`;
+
+test('startup shows the welcome, then the login card', async () => {
+  // The service worker raises this flag on browser startup; the lock screen consumes it once.
+  await evaluate(swSession, "chrome.storage.session.set({ 'core:welcome': true })");
+  lockSession = await lockBrowser();
+  await waitFor(lockSession, visible('#welcome'));
+  await screenshot(lockSession, 'lock-welcome');
+  // The card behind the welcome can be neither focused nor clicked.
+  assert.equal(await evaluate(lockSession, "!!document.querySelector('.login-card').closest('[inert]')"), true);
+  await waitFor(lockSession, "document.activeElement?.classList.contains('w-skip')");
+  assert.equal(await evaluate(swSession, "chrome.storage.session.get('core:welcome').then((g) => g['core:welcome'] ?? null)"), null, 'welcome flag consumed');
+
+  await evaluate(lockSession, "document.querySelector('.w-skip').click()");
+  await waitFor(lockSession, `${visible('#form')} && document.activeElement?.id === 'password'`);
+  await waitFor(lockSession, `!${visible('#welcome')}`);
+  assert.equal(await evaluate(lockSession, "!!document.querySelector('.login-card').closest('[inert]')"), false);
+  await sleep(1200);
+  await screenshot(lockSession, 'lock-login');
+});
+
+test('wrong password message appears at once in minimal motion', async () => {
+  const before = await evaluate(swSession, "chrome.storage.local.get('core:appearance').then((g) => g['core:appearance'] ?? null)");
+  await evaluate(swSession, `chrome.storage.local.set({ 'core:appearance': { ...${JSON.stringify(before || {})}, motion: 'minimal' } })`);
+  try {
+    await waitFor(lockSession, "document.documentElement.dataset.motion === 'minimal'");
+    // Time from the background's reply to the visible message (the password check itself is not animation).
+    const timing = await evaluate(lockSession, `new Promise((resolve) => {
+      const orig = chrome.runtime.sendMessage.bind(chrome.runtime);
+      let replyAt = 0;
+      chrome.runtime.sendMessage = (...a) => orig(...a).then((r) => { replyAt = performance.now(); return r; });
+      const msg = document.getElementById('msg');
+      const t0 = performance.now();
+      const obs = new MutationObserver(() => {
+        if (msg.textContent.includes('Password salah')) {
+          obs.disconnect();
+          const now = performance.now();
+          resolve({ afterReply: now - replyAt, total: now - t0 });
+        }
+      });
+      obs.observe(msg, { childList: true, characterData: true, subtree: true });
+      document.getElementById('password').value = 'salah';
+      document.getElementById('form').requestSubmit();
+      setTimeout(() => resolve(null), 5000);
+    })`);
+    assert.ok(timing, '"Password salah" never appeared');
+    assert.ok(timing.afterReply <= 300, `message took ${Math.round(timing.afterReply)} ms after the reply`);
+    assert.match(await evaluate(lockSession, "document.getElementById('msg').textContent"), /Sisa \d percobaan/);
+  } finally {
+    await evaluate(swSession, before
+      ? `chrome.storage.local.set({ 'core:appearance': ${JSON.stringify(before)} })`
+      : "chrome.storage.local.remove('core:appearance')");
+  }
+});
+
+test('unlocking from the form turns the lock tab into the dashboard', async () => {
+  const [lockTarget] = (await pageTargets()).filter((t) => t.url.startsWith(LOCK_PAGE()));
+  assert.ok(lockTarget, 'lock screen target');
+  await waitFor(lockSession, "document.documentElement.dataset.motion === 'full'");
+  // Record that the page itself sends lock:handoff (the service worker would otherwise do it after 4 s).
+  await evaluate(lockSession, `(() => {
+    const orig = chrome.runtime.sendMessage.bind(chrome.runtime);
+    chrome.runtime.sendMessage = async (m, ...rest) => {
+      if (m?.type === 'lock:handoff') await chrome.storage.session.set({ 'test:handoff': Date.now() });
+      return orig(m, ...rest);
+    };
+  })()`);
+  await evaluate(lockSession, `document.getElementById('password').value = ${JSON.stringify(PASSWORD)}; document.getElementById('form').requestSubmit()`);
+  await waitFor(lockSession, "document.querySelector('.login-card').classList.contains('unlocked')");
+
+  const dashUrl = /^(chrome:\/\/newtab\/|chrome-extension:\/\/[a-z]+\/modules\/tabs\/newtab\.html)$/;
+  await until(async () => (await pageTargets()).some((t) => t.targetId === lockTarget.targetId && dashUrl.test(t.url)),
+    'the lock tab itself becomes the dashboard', 15000);
+  const sent = await evaluate(swSession, "chrome.storage.session.get('test:handoff').then((g) => g['test:handoff'] ?? null)");
+  assert.ok(sent, 'the lock page sent lock:handoff');
+  await evaluate(swSession, "chrome.storage.session.remove('test:handoff')");
+
+  const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: lockTarget.targetId, flatten: true });
+  await cdp.send('Runtime.enable', {}, sessionId);
+  await waitFor(sessionId, "document.querySelectorAll('#space-list li').length > 0");
+  assert.equal((await bg({ type: 'lock:getState' })).locked, false);
+});
+
+test('manual lock shows no welcome', async () => {
+  await evaluate(swSession, "chrome.storage.session.remove('core:welcome')");
+  const session = await lockBrowser();
+  for (let i = 0; i < 10; i++) {
+    assert.equal(await evaluate(session, visible('#welcome')), false, 'welcome shown after a manual lock');
+    await sleep(100);
+  }
+  await waitFor(session, `${visible('#form')} && document.activeElement?.id === 'password'`);
+  assert.equal(await evaluate(session, "!!document.querySelector('.login-card').closest('[inert]')"), false);
+  // Leave the browser open for the next test.
+  assert.equal((await fromLock(session, { type: 'lock:unlock', password: PASSWORD })).ok, true);
+  await waitUnlocked();
+});
+
 test('recovery code opens the browser and replaces the password', async () => {
   const NEW_PASSWORD = 'baru-rahasia2';
   lockSession = await lockBrowser();
