@@ -139,7 +139,7 @@ test('uBO/AdGuard network options: to=, denyallow=, method=, all, 1p/3p, importa
 
 test('hosts lines and bare hostnames (uBO flavor) become domain rules', () => {
   const { rules } = convertFilterList('0.0.0.0 tracker.com\n127.0.0.1 localhost\nads.example.net', { flavor: 'ubo' });
-  assert.deepEqual(rules[0].condition.requestDomains, ['tracker.com', 'ads.example.net']);
+  assert.deepEqual(rules[0].condition.requestDomains, ['ads.example.net', 'tracker.com']);
   // ABP treats a bare hostname as a substring pattern, so it is not rewritten there.
   assert.equal(convertFilterList('ads.example.net').rules[0].condition.urlFilter, 'ads.example.net');
 });
@@ -170,4 +170,25 @@ test('engine honours $specifichide', () => {
   const css = createEngine([cosmetic]).cssFor('site.com');
   assert.match(css, /\.generic/);
   assert.doesNotMatch(css, /\.specific/);
+});
+
+// ---------- Feed validation (updater.js) ----------
+
+test('feed validation only lets block/allow rules and plain selectors through', async () => {
+  const { validateRules, validateCosmetic } = await import('../ad-blocker/updater.js');
+  const ok = { id: 1, priority: 1, action: { type: 'block' }, condition: { requestDomains: ['a.com'] } };
+  validateRules([ok]);
+  const bad = [
+    { ...ok, action: { type: 'redirect', redirect: { url: 'https://evil.example/' } } },
+    { ...ok, action: { type: 'modifyHeaders', responseHeaders: [] } },
+    { ...ok, priority: 1000 },
+    { ...ok, condition: { regexFilter: '.*' } },
+    { ...ok, id: 0 },
+  ];
+  for (const rule of bad) assert.throws(() => validateRules([rule]), JSON.stringify(rule));
+
+  const cosmetic = { generic: ['.ad'], specific: { 'a.com': ['.x'] }, exceptions: {}, globalExceptions: [] };
+  validateCosmetic(cosmetic);
+  assert.throws(() => validateCosmetic({ ...cosmetic, generic: ['body { background: url(https://evil.example) }'] }));
+  assert.throws(() => validateCosmetic({ ...cosmetic, specific: { 'a.com': ['.x}html{display:none'] } }));
 });

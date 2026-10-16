@@ -58,6 +58,36 @@ function renderLists() {
   }));
 }
 
+// ---------- Filter updates ----------
+
+const dateTime = (iso) => (iso ? new Date(iso).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '–');
+
+function renderUpdate() {
+  const feed = data.feed || {};
+  const version = feed.feedVersion && feed.status !== 'current' ? feed.feedVersion : data.bundleVersion;
+  let text = `Versi filter ${version || '–'} · dicek ${dateTime(feed.checkedAt)}`;
+  if (feed.status === 'current') text += ' · filter bawaan sudah yang terbaru';
+  if (feed.status === 'updated') text += ` · diperbarui ${dateTime(feed.updatedAt)}`;
+  if (feed.error) text += ` · ${feed.status === 'error' ? 'gagal' : 'catatan'}: ${feed.error}`;
+  $('update-status').textContent = text;
+  $('update-status').style.color = feed.status === 'error' ? 'var(--accent)' : '';
+  $('update-source').textContent = `Sumber: ${data.feedUrl || '(tidak ada)'}`;
+  $('opt-autoupdate').checked = data.settings.autoUpdate;
+}
+
+$('opt-autoupdate').addEventListener('change', (e) => send('ab:saveSettings', { patch: { autoUpdate: e.target.checked } }));
+$('update-now').addEventListener('click', async () => {
+  const button = $('update-now');
+  button.disabled = true;
+  button.textContent = 'Memperbarui…';
+  await send('ab:updateFilters');
+  data = await send('ab:getOptions');
+  renderUpdate();
+  renderLists();
+  button.disabled = false;
+  button.textContent = 'Perbarui sekarang';
+});
+
 // ---------- Allowlist ----------
 
 function renderAllowlist() {
@@ -130,3 +160,4 @@ $('total').textContent = `${number.format(data.totalBlocked)} permintaan dibloki
 
 renderLists();
 renderAllowlist();
+renderUpdate();

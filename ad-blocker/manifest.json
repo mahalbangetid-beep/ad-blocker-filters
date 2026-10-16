@@ -13,7 +13,8 @@
     "scripting",
     "webNavigation",
     "webRequest",
-    "contextMenus"
+    "contextMenus",
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>"

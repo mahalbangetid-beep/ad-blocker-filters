@@ -268,7 +268,8 @@ if (flag('--update-extension')) {
     cosmeticFilters: c.cosmeticFilters,
     sources: c.sources.filter((s) => s.status !== 'disabled').map((s) => ({ title: s.title, homepage: s.homepage, license: s.license, version: s.version })),
   }));
-  await writeFile(join(EXT_DIR, 'lists.json'), `${JSON.stringify({ builtAt: now.toISOString(), feedVersion: version, lists }, null, 2)}\n`);
+  const bundle = { builtAt: now.toISOString(), feedVersion: version, feedUrl: config.feedUrl || null, lists };
+  await writeFile(join(EXT_DIR, 'lists.json'), `${JSON.stringify(bundle, null, 2)}\n`);
 
   const manifestPath = join(EXT_DIR, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));

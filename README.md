@@ -54,6 +54,14 @@ GitHub Actions (`.github/workflows/filter-bot.yml`) menjalankannya setiap hari p
 muat ruleset baru ke Chromium dan pastikan iklan masih terblokir → terbitkan ke branch `gh-pages`. Bila ada sumber yang
 tidak tersedia sama sekali, atau verifikasi gagal, feed tidak diterbitkan.
 
+**Pembaruan otomatis di extension** (`ad-blocker/updater.js`): sekali sehari (chrome.alarms) dan lewat tombol
+"Perbarui sekarang" di Pengaturan, extension mengambil `index.json`, mengunduh kategori yang aktif, memeriksa SHA-256,
+lalu membandingkannya dengan ruleset bawaan: aturan baru → aturan dinamis (maks. 30.000, 5.000 disisakan untuk
+allowlist/filter sendiri), aturan yang dihapus → `updateStaticRules` (maks. 5.000), filter elemen → diganti seluruhnya.
+Feed hanya berisi data dan divalidasi: aksi selain `block`/`allow`/`allowAllRequests` dan selector berisi `{}` ditolak.
+Bila perubahan melebihi batas Chrome, aturan jaringan bawaan dipertahankan sampai extension diperbarui. Domain
+dikelompokkan per hash agar satu perubahan filter hanya mengubah satu aturan.
+
 Lisensi sumber: EasyList/EasyPrivacy (GPLv3 / CC BY-SA 3.0), Fanboy (CC BY 3.0), uBlock Origin & AdGuard & ABPindo &
 AdBlockID (GPLv3), NoCoin (MIT), ABP Anti-Circumvention (CC BY-SA 3.0).
 

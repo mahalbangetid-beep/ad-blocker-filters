@@ -1,6 +1,7 @@
 {
-  "builtAt": "2026-10-16T08:48:56.138Z",
-  "feedVersion": "202610160848",
+  "builtAt": "2026-10-16T09:02:14.265Z",
+  "feedVersion": "202610160902",
+  "feedUrl": "https://mahalbangetid-beep.github.io/ad-blocker-filters/",
   "lists": [
     {
       "id": "ads",
@@ -8,28 +9,28 @@
       "description": "Iklan di seluruh web (gabungan EasyList, uBlock Origin, AdGuard, dan daftar Adblock Plus/AdBlock)",
       "defaultEnabled": true,
       "language": null,
-      "version": "202610160848",
-      "ruleCount": 16875,
-      "networkFilters": 85335,
+      "version": "202610160902",
+      "ruleCount": 16942,
+      "networkFilters": 85338,
       "cosmeticFilters": 55716,
       "sources": [
         {
           "title": "EasyList",
           "homepage": "https://easylist.to/",
           "license": "GPLv3 / CC BY-SA 3.0",
-          "version": "202610160836"
+          "version": "202610160855"
         },
         {
           "title": "ABP Anti-Circumvention",
           "homepage": "https://github.com/abp-filters/abp-filters-anti-cv",
           "license": "CC BY-SA 3.0",
-          "version": "202610160842"
+          "version": "202610160851"
         },
         {
           "title": "Adblock Warning Removal List",
           "homepage": "https://easylist.to/",
           "license": "GPLv3 / CC BY-SA 3.0",
-          "version": "202610160842"
+          "version": "202610160851"
         },
         {
           "title": "uBlock filters",
@@ -63,8 +64,8 @@
       "description": "Iklan di situs berbahasa Indonesia (ABPindo + AdBlockID)",
       "defaultEnabled": false,
       "language": "id",
-      "version": "202610160848",
-      "ruleCount": 2800,
+      "version": "202610160902",
+      "ruleCount": 2802,
       "networkFilters": 5059,
       "cosmeticFilters": 10794,
       "sources": [
@@ -88,8 +89,8 @@
       "description": "Situs berbahaya, penipuan, dan penambang kripto",
       "defaultEnabled": true,
       "language": null,
-      "version": "202610160848",
-      "ruleCount": 1186,
+      "version": "202610160902",
+      "ruleCount": 1188,
       "networkFilters": 4365,
       "cosmeticFilters": 99,
       "sources": [
@@ -119,8 +120,8 @@
       "description": "Pelacak dan analitik (EasyPrivacy, uBlock Privacy, AdGuard Tracking Protection)",
       "defaultEnabled": false,
       "language": null,
-      "version": "202610160848",
-      "ruleCount": 9881,
+      "version": "202610160902",
+      "ruleCount": 9905,
       "networkFilters": 57145,
       "cosmeticFilters": 7,
       "sources": [
@@ -128,7 +129,7 @@
           "title": "EasyPrivacy",
           "homepage": "https://easylist.to/",
           "license": "GPLv3 / CC BY-SA 3.0",
-          "version": "202610160836"
+          "version": "202610160845"
         },
         {
           "title": "uBlock filters – Privacy",
@@ -144,8 +145,8 @@
       "description": "Pop-up cookie, widget media sosial, notifikasi, dan gangguan lain",
       "defaultEnabled": false,
       "language": null,
-      "version": "202610160848",
-      "ruleCount": 8849,
+      "version": "202610160902",
+      "ruleCount": 8850,
       "networkFilters": 10860,
       "cosmeticFilters": 87353,
       "sources": [

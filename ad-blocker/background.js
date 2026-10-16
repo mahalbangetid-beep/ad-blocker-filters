@@ -1,5 +1,6 @@
 import { convertFilterList, assignIds, PRIORITY } from './filters.js';
 import { createEngine, hostMatches } from './cosmetic.js';
+import { checkForUpdates, clearFeedUpdates, feedAdditions, feedCosmetic, readFeedState, syncDisabledStaticRules } from './updater.js';
 
 // Storage (all keys prefixed "ab:" so this module can live next to others):
 //   local:   ab:settings, ab:total (blocked requests, all time)
@@ -8,6 +9,8 @@ const SETTINGS_KEY = 'ab:settings';
 const TOTAL_KEY = 'ab:total';
 const TABS_KEY = 'ab:tabs';
 const MENU_ID = 'ab-block-element';
+const UPDATE_ALARM = 'ab-update-filters';
+const UPDATE_PERIOD_MINUTES = 24 * 60;
 
 const DEFAULT_SETTINGS = {
   enabledLists: null, // null = defaults from lists.json (+ language list)
@@ -17,14 +20,21 @@ const DEFAULT_SETTINGS = {
   showBadge: true,
   contextMenu: true,
   youtube: true,
+  autoUpdate: true,
+  feedUrl: null, // null = feedUrl from lists.json
 };
 
 // ---------- Lazy data (service workers may not use top-level await) ----------
 
-let listsPromise = null;
-function getLists() {
-  listsPromise ??= fetch(chrome.runtime.getURL('lists.json')).then((r) => r.json()).then((d) => d.lists);
-  return listsPromise;
+// lists.json describes the bundled rulesets: { feedVersion, feedUrl, lists: [...] }.
+let bundlePromise = null;
+function getBundle() {
+  bundlePromise ??= fetch(chrome.runtime.getURL('lists.json')).then((r) => r.json());
+  return bundlePromise;
+}
+
+async function getLists() {
+  return (await getBundle()).lists;
 }
 
 async function getSettings() {
@@ -91,18 +101,28 @@ function convertCustom(text) {
   return customCache.result;
 }
 
-// Dynamic rules = allowlisted sites + the user's own network filters.
+function userRules(settings) {
+  const rules = [];
+  for (const domain of settings.allowlist) {
+    rules.push({
+      priority: PRIORITY.allowlist,
+      action: { type: 'allowAllRequests' },
+      condition: { requestDomains: [domain], resourceTypes: ['main_frame', 'sub_frame'] },
+    });
+  }
+  rules.push(...convertCustom(settings.customFilters).rules);
+  return rules;
+}
+
+// Dynamic rules = allowlisted sites + the user's own network filters + rules the
+// daily feed added to the enabled lists.
 async function applyDynamicRules(settings) {
   const rules = [];
   if (!settings.paused) {
-    for (const domain of settings.allowlist) {
-      rules.push({
-        priority: PRIORITY.allowlist,
-        action: { type: 'allowAllRequests' },
-        condition: { requestDomains: [domain], resourceTypes: ['main_frame', 'sub_frame'] },
-      });
-    }
-    rules.push(...convertCustom(settings.customFilters).rules);
+    rules.push(...userRules(settings));
+    const limit = chrome.declarativeNetRequest.MAX_NUMBER_OF_DYNAMIC_RULES ?? 30000;
+    const additions = await feedAdditions(settings.enabledLists);
+    if (rules.length + additions.length <= limit) rules.push(...additions);
   }
   const addRules = assignIds(rules);
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
@@ -153,10 +173,13 @@ async function applyYoutube(settings) {
 
 let engineCache = { key: null, engine: null };
 async function getEngine(settings) {
-  const key = JSON.stringify([settings.enabledLists, settings.customFilters]);
+  const feed = await readFeedState();
+  const versions = settings.enabledLists.map((id) => feed.categories[id]?.version || null);
+  const key = JSON.stringify([settings.enabledLists, versions, settings.customFilters]);
   if (engineCache.key === key) return engineCache.engine;
-  const parts = await Promise.all(settings.enabledLists.map((id) =>
-    fetch(chrome.runtime.getURL(`cosmetic/${id}.json`)).then((r) => r.json()).catch(() => ({}))));
+  // Prefer element-hiding data from the daily feed over the bundled copy.
+  const parts = await Promise.all(settings.enabledLists.map(async (id) => (await feedCosmetic(id))
+    ?? fetch(chrome.runtime.getURL(`cosmetic/${id}.json`)).then((r) => r.json()).catch(() => ({}))));
   parts.push(convertCustom(settings.customFilters).cosmetic);
   engineCache = { key, engine: createEngine(parts) };
   return engineCache.engine;
@@ -165,12 +188,51 @@ async function getEngine(settings) {
 async function applyAll() {
   const settings = await getSettings();
   await applyRulesets(settings);
+  await syncDisabledStaticRules((await getLists()).map((l) => l.id)).catch(() => {});
   const failed = await applyDynamicRules(settings);
   await applyBadge(settings);
   await applyYoutube(settings);
   applyMenu(settings);
   return { settings, failed };
 }
+
+// ---------- Daily filter updates ----------
+
+// Updates run one after another, so a manual "update now" right after changing
+// the feed URL never piggybacks on a check that is still using the old settings.
+let updateQueue = Promise.resolve();
+function runUpdate(force = false) {
+  const run = updateQueue.then(() => updateOnce(force));
+  updateQueue = run.catch(() => {});
+  return run;
+}
+
+async function updateOnce(force) {
+  const settings = await getSettings();
+  if (!settings.autoUpdate && !force) return readFeedState();
+  const bundle = await getBundle();
+  const feedUrl = settings.feedUrl || bundle.feedUrl;
+  if (!feedUrl) return readFeedState();
+  const state = await checkForUpdates({
+    feedUrl,
+    bundle,
+    enabled: settings.enabledLists,
+    userRules: userRules(settings).length,
+    force,
+  });
+  if (state.status !== 'error') await applyAll();
+  return state;
+}
+
+async function ensureUpdateAlarm() {
+  if (!(await chrome.alarms.get(UPDATE_ALARM))) {
+    await chrome.alarms.create(UPDATE_ALARM, { delayInMinutes: 1, periodInMinutes: UPDATE_PERIOD_MINUTES });
+  }
+}
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === UPDATE_ALARM) runUpdate(false);
+});
 
 // ---------- Element hiding ----------
 
@@ -343,7 +405,12 @@ const handlers = {
     const [settings, lists] = await Promise.all([getSettings(), getLists()]);
     const { [TOTAL_KEY]: total = 0 } = await chrome.storage.local.get(TOTAL_KEY);
     const custom = convertCustom(settings.customFilters).stats;
-    return { ok: true, settings, lists, totalBlocked: total + pendingTotal, custom };
+    const bundle = await getBundle();
+    const feed = await readFeedState();
+    return {
+      ok: true, settings, lists, totalBlocked: total + pendingTotal, custom,
+      feed, bundleVersion: bundle.feedVersion, feedUrl: settings.feedUrl || bundle.feedUrl,
+    };
   },
 
   async 'ab:saveSettings'({ patch }) {
@@ -356,8 +423,11 @@ const handlers = {
     if ('showBadge' in (patch || {})) allowed.showBadge = Boolean(patch.showBadge);
     if ('contextMenu' in (patch || {})) allowed.contextMenu = Boolean(patch.contextMenu);
     if ('youtube' in (patch || {})) allowed.youtube = Boolean(patch.youtube);
+    if ('autoUpdate' in (patch || {})) allowed.autoUpdate = Boolean(patch.autoUpdate);
     await saveSettings(allowed);
     const { settings } = await applyAll();
+    // A newly enabled list may need its update downloaded.
+    if (allowed.enabledLists) runUpdate(false);
     return { ok: true, settings };
   },
 
@@ -365,6 +435,31 @@ const handlers = {
     await saveSettings({ customFilters: String(text || '') });
     const { failed } = await applyAll();
     return { ok: true, stats: convertCustom(String(text || '')).stats, failed };
+  },
+
+  async 'ab:updateFilters'() {
+    const feed = await runUpdate(true);
+    return { ok: feed.status !== 'error', feed, error: feed.error };
+  },
+
+  // Points the extension at another feed (forks, local testing). null = default.
+  async 'ab:setFeedUrl'({ url }) {
+    let feedUrl = null;
+    if (url !== null) {
+      let parsed;
+      try {
+        parsed = new URL(url);
+      } catch {
+        return { ok: false, error: 'URL tidak valid' };
+      }
+      if (!/^https?:$/.test(parsed.protocol)) return { ok: false, error: 'URL harus http(s)' };
+      if (!parsed.pathname.endsWith('/')) parsed.pathname += '/';
+      feedUrl = parsed.href;
+    }
+    await saveSettings({ feedUrl });
+    await clearFeedUpdates();
+    await applyAll();
+    return { ok: true };
   },
 
   async 'ab:allowlistAdd'({ domain }) {
@@ -395,8 +490,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   // Enabled rulesets reset to the manifest defaults on install/update; reapply ours.
   if (reason === 'install') await saveSettings({});
+  // Downloaded updates were computed against the previous bundled rulesets.
+  if (reason === 'update') await clearFeedUpdates();
   await applyAll();
+  await ensureUpdateAlarm();
+  runUpdate(false);
   if (reason === 'install') chrome.runtime.openOptionsPage();
 });
 
-chrome.runtime.onStartup.addListener(applyAll);
+chrome.runtime.onStartup.addListener(async () => {
+  await applyAll();
+  await ensureUpdateAlarm();
+});

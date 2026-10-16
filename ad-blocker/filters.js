@@ -493,10 +493,24 @@ function dedupeRules(rules) {
   });
 }
 
+// FNV-1a: small, stable string hash for bucketing.
+function hash(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+const MAX_DOMAINS_PER_RULE = 700;
+
 // Rules that differ only in requestDomains are merged into one rule, which keeps
-// big lists far below Chrome's rule limits.
+// big lists far below Chrome's rule limits. Large groups are split into buckets
+// by a hash of the domain (not by position), so adding or removing one domain
+// changes only one rule — that keeps daily updates small.
 export function mergeDomainRules(rules) {
-  const merged = new Map();
+  const groups = new Map();
   const out = [];
   for (const rule of rules) {
     if (!rule.condition.requestDomains) {
@@ -505,17 +519,18 @@ export function mergeDomainRules(rules) {
     }
     const { requestDomains, ...rest } = rule.condition;
     const key = JSON.stringify([rule.priority, rule.action, rest]);
-    const existing = merged.get(key);
-    if (existing && existing.condition.requestDomains.length < 1000) {
-      existing.condition.requestDomains.push(...requestDomains);
-    } else {
-      const copy = { ...rule, condition: { ...rest, requestDomains: [...requestDomains] } };
-      merged.set(key, copy);
-      out.push(copy);
-    }
+    let group = groups.get(key);
+    if (!group) groups.set(key, (group = { rule, rest, domains: new Set() }));
+    for (const d of requestDomains) group.domains.add(d);
   }
-  for (const rule of out) {
-    if (rule.condition.requestDomains) rule.condition.requestDomains = [...new Set(rule.condition.requestDomains)];
+  for (const { rule, rest, domains } of groups.values()) {
+    let buckets = 1;
+    while (domains.size / buckets > MAX_DOMAINS_PER_RULE) buckets *= 2;
+    const lists = Array.from({ length: buckets }, () => []);
+    for (const d of domains) lists[hash(d) % buckets].push(d);
+    for (const list of lists) {
+      if (list.length) out.push({ ...rule, condition: { ...rest, requestDomains: list.sort() } });
+    }
   }
   return out;
 }

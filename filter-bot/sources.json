@@ -1,4 +1,5 @@
 {
+  "feedUrl": "https://mahalbangetid-beep.github.io/ad-blocker-filters/",
   "categories": [
     {
       "id": "ads",
@@ -6,14 +7,74 @@
       "description": "Iklan di seluruh web (gabungan EasyList, uBlock Origin, AdGuard, dan daftar Adblock Plus/AdBlock)",
       "defaultEnabled": true,
       "sources": [
-        { "id": "easylist", "title": "EasyList", "flavor": "abp", "url": "https://easylist.to/easylist/easylist.txt", "homepage": "https://easylist.to/", "license": "GPLv3 / CC BY-SA 3.0" },
-        { "id": "abp-anticv", "title": "ABP Anti-Circumvention", "flavor": "abp", "url": "https://easylist-downloads.adblockplus.org/abp-filters-anti-cv.txt", "homepage": "https://github.com/abp-filters/abp-filters-anti-cv", "license": "CC BY-SA 3.0" },
-        { "id": "adblock-warning-removal", "title": "Adblock Warning Removal List", "flavor": "abp", "url": "https://easylist-downloads.adblockplus.org/antiadblockfilters.txt", "homepage": "https://easylist.to/", "license": "GPLv3 / CC BY-SA 3.0", "from": "AdBlock" },
-        { "id": "ubo-filters", "title": "uBlock filters", "flavor": "ubo", "url": "https://ublockorigin.github.io/uAssets/filters/filters.txt", "homepage": "https://github.com/uBlockOrigin/uAssets", "license": "GPLv3" },
-        { "id": "ubo-quick-fixes", "title": "uBlock filters – Quick fixes", "flavor": "ubo", "url": "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt", "homepage": "https://github.com/uBlockOrigin/uAssets", "license": "GPLv3" },
-        { "id": "ubo-unbreak", "title": "uBlock filters – Unbreak", "flavor": "ubo", "url": "https://ublockorigin.github.io/uAssets/filters/unbreak.txt", "homepage": "https://github.com/uBlockOrigin/uAssets", "license": "GPLv3" },
-        { "id": "adguard-base", "title": "AdGuard Base (tanpa EasyList)", "flavor": "adguard", "url": "https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt", "homepage": "https://github.com/AdguardTeam/AdguardFilters", "license": "GPLv3" },
-        { "id": "adblock-custom", "title": "Chrome AdBlock auxiliary filters", "flavor": "abp", "url": "https://cdn.adblockcdn.com/filters/adblock_custom.txt", "homepage": "https://getadblock.com/", "license": "tidak dicantumkan", "from": "AdBlock", "enabled": false, "note": "Nonaktif: list tidak mencantumkan lisensi." }
+        {
+          "id": "easylist",
+          "title": "EasyList",
+          "flavor": "abp",
+          "url": "https://easylist.to/easylist/easylist.txt",
+          "homepage": "https://easylist.to/",
+          "license": "GPLv3 / CC BY-SA 3.0"
+        },
+        {
+          "id": "abp-anticv",
+          "title": "ABP Anti-Circumvention",
+          "flavor": "abp",
+          "url": "https://easylist-downloads.adblockplus.org/abp-filters-anti-cv.txt",
+          "homepage": "https://github.com/abp-filters/abp-filters-anti-cv",
+          "license": "CC BY-SA 3.0"
+        },
+        {
+          "id": "adblock-warning-removal",
+          "title": "Adblock Warning Removal List",
+          "flavor": "abp",
+          "url": "https://easylist-downloads.adblockplus.org/antiadblockfilters.txt",
+          "homepage": "https://easylist.to/",
+          "license": "GPLv3 / CC BY-SA 3.0",
+          "from": "AdBlock"
+        },
+        {
+          "id": "ubo-filters",
+          "title": "uBlock filters",
+          "flavor": "ubo",
+          "url": "https://ublockorigin.github.io/uAssets/filters/filters.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3"
+        },
+        {
+          "id": "ubo-quick-fixes",
+          "title": "uBlock filters – Quick fixes",
+          "flavor": "ubo",
+          "url": "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3"
+        },
+        {
+          "id": "ubo-unbreak",
+          "title": "uBlock filters – Unbreak",
+          "flavor": "ubo",
+          "url": "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3"
+        },
+        {
+          "id": "adguard-base",
+          "title": "AdGuard Base (tanpa EasyList)",
+          "flavor": "adguard",
+          "url": "https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt",
+          "homepage": "https://github.com/AdguardTeam/AdguardFilters",
+          "license": "GPLv3"
+        },
+        {
+          "id": "adblock-custom",
+          "title": "Chrome AdBlock auxiliary filters",
+          "flavor": "abp",
+          "url": "https://cdn.adblockcdn.com/filters/adblock_custom.txt",
+          "homepage": "https://getadblock.com/",
+          "license": "tidak dicantumkan",
+          "from": "AdBlock",
+          "enabled": false,
+          "note": "Nonaktif: list tidak mencantumkan lisensi."
+        }
       ]
     },
     {
@@ -23,8 +84,22 @@
       "defaultEnabled": false,
       "language": "id",
       "sources": [
-        { "id": "abpindo", "title": "ABPindo", "flavor": "abp", "url": "https://raw.githubusercontent.com/ABPindo/indonesianadblockrules/master/subscriptions/abpindo.txt", "homepage": "https://github.com/ABPindo/indonesianadblockrules", "license": "GPLv3" },
-        { "id": "adblockid", "title": "AdBlockID", "flavor": "adguard", "url": "https://raw.githubusercontent.com/realodix/AdBlockID/main/dist/adblockid.adfl.txt", "homepage": "https://github.com/realodix/AdBlockID", "license": "GPLv3" }
+        {
+          "id": "abpindo",
+          "title": "ABPindo",
+          "flavor": "abp",
+          "url": "https://raw.githubusercontent.com/ABPindo/indonesianadblockrules/master/subscriptions/abpindo.txt",
+          "homepage": "https://github.com/ABPindo/indonesianadblockrules",
+          "license": "GPLv3"
+        },
+        {
+          "id": "adblockid",
+          "title": "AdBlockID",
+          "flavor": "adguard",
+          "url": "https://raw.githubusercontent.com/realodix/AdBlockID/main/dist/adblockid.adfl.txt",
+          "homepage": "https://github.com/realodix/AdBlockID",
+          "license": "GPLv3"
+        }
       ]
     },
     {
@@ -33,9 +108,31 @@
       "description": "Situs berbahaya, penipuan, dan penambang kripto",
       "defaultEnabled": true,
       "sources": [
-        { "id": "ubo-badware", "title": "uBlock filters – Badware risks", "flavor": "ubo", "url": "https://ublockorigin.github.io/uAssets/filters/badware.txt", "homepage": "https://github.com/uBlockOrigin/uAssets", "license": "GPLv3" },
-        { "id": "ubo-resource-abuse", "title": "uBlock filters – Resource abuse", "flavor": "ubo", "url": "https://ublockorigin.github.io/uAssets/filters/resource-abuse.txt", "homepage": "https://github.com/uBlockOrigin/uAssets", "license": "GPLv3" },
-        { "id": "nocoin", "title": "NoCoin Filter List", "flavor": "abp", "url": "https://raw.githubusercontent.com/hoshsadiq/adblock-nocoin-list/master/nocoin.txt", "homepage": "https://github.com/hoshsadiq/adblock-nocoin-list", "license": "MIT", "from": "AdBlock" }
+        {
+          "id": "ubo-badware",
+          "title": "uBlock filters – Badware risks",
+          "flavor": "ubo",
+          "url": "https://ublockorigin.github.io/uAssets/filters/badware.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3"
+        },
+        {
+          "id": "ubo-resource-abuse",
+          "title": "uBlock filters – Resource abuse",
+          "flavor": "ubo",
+          "url": "https://ublockorigin.github.io/uAssets/filters/resource-abuse.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3"
+        },
+        {
+          "id": "nocoin",
+          "title": "NoCoin Filter List",
+          "flavor": "abp",
+          "url": "https://raw.githubusercontent.com/hoshsadiq/adblock-nocoin-list/master/nocoin.txt",
+          "homepage": "https://github.com/hoshsadiq/adblock-nocoin-list",
+          "license": "MIT",
+          "from": "AdBlock"
+        }
       ]
     },
     {
@@ -44,9 +141,32 @@
       "description": "Pelacak dan analitik (EasyPrivacy, uBlock Privacy, AdGuard Tracking Protection)",
       "defaultEnabled": false,
       "sources": [
-        { "id": "easyprivacy", "title": "EasyPrivacy", "flavor": "abp", "url": "https://easylist.to/easylist/easyprivacy.txt", "homepage": "https://easylist.to/", "license": "GPLv3 / CC BY-SA 3.0" },
-        { "id": "ubo-privacy", "title": "uBlock filters – Privacy", "flavor": "ubo", "url": "https://ublockorigin.github.io/uAssets/filters/privacy.txt", "homepage": "https://github.com/uBlockOrigin/uAssets", "license": "GPLv3" },
-        { "id": "adguard-tracking", "title": "AdGuard Tracking Protection", "flavor": "adguard", "url": "https://filters.adtidy.org/extension/ublock/filters/3.txt", "homepage": "https://github.com/AdguardTeam/AdguardFilters", "license": "GPLv3", "enabled": false, "note": "Nonaktif: menghasilkan ~240.000 aturan, melebihi batas aturan Chrome." }
+        {
+          "id": "easyprivacy",
+          "title": "EasyPrivacy",
+          "flavor": "abp",
+          "url": "https://easylist.to/easylist/easyprivacy.txt",
+          "homepage": "https://easylist.to/",
+          "license": "GPLv3 / CC BY-SA 3.0"
+        },
+        {
+          "id": "ubo-privacy",
+          "title": "uBlock filters – Privacy",
+          "flavor": "ubo",
+          "url": "https://ublockorigin.github.io/uAssets/filters/privacy.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3"
+        },
+        {
+          "id": "adguard-tracking",
+          "title": "AdGuard Tracking Protection",
+          "flavor": "adguard",
+          "url": "https://filters.adtidy.org/extension/ublock/filters/3.txt",
+          "homepage": "https://github.com/AdguardTeam/AdguardFilters",
+          "license": "GPLv3",
+          "enabled": false,
+          "note": "Nonaktif: menghasilkan ~240.000 aturan, melebihi batas aturan Chrome."
+        }
       ]
     },
     {
@@ -55,11 +175,50 @@
       "description": "Pop-up cookie, widget media sosial, notifikasi, dan gangguan lain",
       "defaultEnabled": false,
       "sources": [
-        { "id": "fanboy-annoyance", "title": "Fanboy's Annoyance List", "flavor": "abp", "url": "https://secure.fanboy.co.nz/fanboy-annoyance.txt", "homepage": "https://easylist.to/", "license": "CC BY 3.0", "from": "AdBlock" },
-        { "id": "ubo-annoyances", "title": "uBlock filters – Other Annoyances", "flavor": "ubo", "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt", "homepage": "https://github.com/uBlockOrigin/uAssets", "license": "GPLv3" },
-        { "id": "ubo-cookies", "title": "uBlock filters – Cookie Notices", "flavor": "ubo", "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-cookies.txt", "homepage": "https://github.com/uBlockOrigin/uAssets", "license": "GPLv3" },
-        { "id": "adguard-annoyances", "title": "AdGuard Annoyances", "flavor": "adguard", "url": "https://filters.adtidy.org/extension/ublock/filters/14.txt", "homepage": "https://github.com/AdguardTeam/AdguardFilters", "license": "GPLv3" },
-        { "id": "adblock-distraction-control", "title": "AdBlock Distraction Control (Free)", "flavor": "abp", "url": "https://cdn.adblockcdn.com/filters/distraction-control-free.txt", "homepage": "https://getadblock.com/", "license": "tidak dicantumkan", "from": "AdBlock", "enabled": false, "note": "Nonaktif: list tidak mencantumkan lisensi." }
+        {
+          "id": "fanboy-annoyance",
+          "title": "Fanboy's Annoyance List",
+          "flavor": "abp",
+          "url": "https://secure.fanboy.co.nz/fanboy-annoyance.txt",
+          "homepage": "https://easylist.to/",
+          "license": "CC BY 3.0",
+          "from": "AdBlock"
+        },
+        {
+          "id": "ubo-annoyances",
+          "title": "uBlock filters – Other Annoyances",
+          "flavor": "ubo",
+          "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3"
+        },
+        {
+          "id": "ubo-cookies",
+          "title": "uBlock filters – Cookie Notices",
+          "flavor": "ubo",
+          "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-cookies.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3"
+        },
+        {
+          "id": "adguard-annoyances",
+          "title": "AdGuard Annoyances",
+          "flavor": "adguard",
+          "url": "https://filters.adtidy.org/extension/ublock/filters/14.txt",
+          "homepage": "https://github.com/AdguardTeam/AdguardFilters",
+          "license": "GPLv3"
+        },
+        {
+          "id": "adblock-distraction-control",
+          "title": "AdBlock Distraction Control (Free)",
+          "flavor": "abp",
+          "url": "https://cdn.adblockcdn.com/filters/distraction-control-free.txt",
+          "homepage": "https://getadblock.com/",
+          "license": "tidak dicantumkan",
+          "from": "AdBlock",
+          "enabled": false,
+          "note": "Nonaktif: list tidak mencantumkan lisensi."
+        }
       ]
     }
   ]

@@ -12,6 +12,7 @@ import { mkdtempSync, rmSync, existsSync, readdirSync, readFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const extDir = join(root, 'ad-blocker');
@@ -52,6 +53,8 @@ const PAGE = `<!doctype html><html><head><title>Uji iklan</title></head><body>
 <script src="http://adsterra.com:${PORT}/tp.js" onload="mark('thirdParty', true)" onerror="mark('thirdParty', false)"></script>
 <script src="/custom-block.js" onload="mark('custom', true)" onerror="mark('custom', false)"></script>
 <script src="/app.js" onload="mark('normal', true)" onerror="mark('normal', false)"></script>
+<div id="feed-ad">IKLAN (selector dari feed)</div>
+<script src="http://newad.test:${PORT}/n.js" onload="mark('feedNew', true)" onerror="mark('feedNew', false)"></script>
 </body></html>`;
 
 // Mimics how YouTube delivers ads: inside the player response (inline, via
@@ -67,7 +70,14 @@ const YT_PAGE = `<!doctype html><html><body>
   window.fetched = fetch('/youtubei/v1/player').then((r) => r.json());
 </script></body></html>`;
 
+// Local copy of a filter-bot feed, filled by publishFeed() in the update tests.
+const feedFiles = new Map();
+
 function handle(req, res) {
+  if (req.url.startsWith('/feed/')) {
+    const body = feedFiles.get(req.url.slice('/feed/'.length).split('?')[0]);
+    return body ? res.writeHead(200, { 'content-type': 'application/json' }).end(body) : res.writeHead(404).end();
+  }
   hits.push(`${req.headers.host}${req.url}`);
   if (req.url.startsWith('/page')) return res.writeHead(200, { 'content-type': 'text/html' }).end(PAGE);
   if (req.url.startsWith('/watch')) return res.writeHead(200, { 'content-type': 'text/html' }).end(YT_PAGE);
@@ -161,6 +171,7 @@ async function loadTestPage() {
     loads: window.loads,
     adBanner: getComputedStyle(document.getElementById('ad_banner')).display,
     customAd: getComputedStyle(document.querySelector('.my-custom-ad')).display,
+    feedAd: getComputedStyle(document.getElementById('feed-ad')).display,
     content: getComputedStyle(document.getElementById('content')).display,
   })`);
 }
@@ -178,7 +189,7 @@ before(async () => {
     `--user-data-dir=${profile}`,
     `--load-extension=${extDir}`,
     `--disable-extensions-except=${extDir}`,
-    `--host-resolver-rules=MAP site.test 127.0.0.1, MAP adnxs.com 127.0.0.1, MAP adsterra.com 127.0.0.1, MAP www.youtube.com 127.0.0.1`,
+    `--host-resolver-rules=MAP site.test 127.0.0.1, MAP adnxs.com 127.0.0.1, MAP adsterra.com 127.0.0.1, MAP www.youtube.com 127.0.0.1, MAP newad.test 127.0.0.1, MAP feed.test 127.0.0.1`,
     '--no-first-run',
     '--no-default-browser-check',
     '--lang=en-US',
@@ -371,6 +382,86 @@ test('YouTube scripts follow pause and the YouTube setting', async () => {
   await bg({ type: 'ab:saveSettings', patch: { youtube: true } });
   r = await loadYoutube();
   assert.deepEqual(r.fetched, ['videoDetails'], 'setting back on');
+});
+
+// ---------- Daily feed updates ----------
+
+const sha256 = (text) => createHash('sha256').update(text).digest('hex');
+const FEED_URL = `http://feed.test:${PORT}/feed/`;
+
+function publishFeed({ version, rules, cosmetic, corruptChecksum = false }) {
+  const rulesJson = JSON.stringify(rules);
+  const cosmeticJson = JSON.stringify(cosmetic);
+  feedFiles.set('rules/ads.json', rulesJson);
+  feedFiles.set('cosmetic/ads.json', cosmeticJson);
+  feedFiles.set('index.json', JSON.stringify({
+    schema: 1,
+    version,
+    categories: [{
+      id: 'ads',
+      title: 'Iklan',
+      ruleCount: rules.length,
+      files: {
+        rules: { path: 'rules/ads.json', sha256: corruptChecksum ? '0'.repeat(64) : sha256(rulesJson) },
+        cosmetic: { path: 'cosmetic/ads.json', sha256: sha256(cosmeticJson) },
+      },
+    }],
+  }));
+}
+
+const bundledRules = () => JSON.parse(readFileSync(join(extDir, 'rules', 'ads.json'), 'utf8'));
+const bundledCosmetic = () => JSON.parse(readFileSync(join(extDir, 'cosmetic', 'ads.json'), 'utf8'));
+const disabledIds = () => evaluate(swSession, "chrome.declarativeNetRequest.getDisabledRuleIds({ rulesetId: 'ads' })");
+let removedRule;
+
+test('daily update adds new rules, disables removed ones and refreshes element hiding', async () => {
+  const bundled = bundledRules();
+  // The feed dropped the domain group containing adnxs.com and added a new ad server.
+  removedRule = bundled.find((r) => r.condition.requestDomains?.includes('adnxs.com'));
+  const rules = [
+    ...bundled.filter((r) => r !== removedRule).map(({ id, ...r }) => r),
+    { priority: 1, action: { type: 'block' }, condition: { requestDomains: ['newad.test'] } },
+  ].map((r, i) => ({ id: i + 1, ...r }));
+  const cosmetic = bundledCosmetic();
+  publishFeed({ version: '209901010000', rules, cosmetic: { ...cosmetic, generic: [...cosmetic.generic, '#feed-ad'] } });
+
+  let r = await loadTestPage();
+  assert.equal(r.loads.feedNew, true, 'before the update the new ad server is not known');
+  assert.equal(r.feedAd, 'block');
+
+  assert.equal((await bg({ type: 'ab:setFeedUrl', url: FEED_URL })).ok, true);
+  const result = await bg({ type: 'ab:updateFilters' });
+  assert.equal(result.feed.status, 'updated', result.error);
+  assert.equal(result.feed.categories.ads.added.length, 1);
+  assert.deepEqual(result.feed.categories.ads.disabled, [removedRule.id]);
+  assert.deepEqual(await disabledIds(), [removedRule.id]);
+
+  r = await loadTestPage();
+  assert.equal(r.loads.feedNew, false, 'rule added by the feed blocks');
+  assert.equal(r.feedAd, 'none', 'selector added by the feed hides');
+  assert.equal(r.loads.pattern, false, 'bundled rules keep working');
+  assert.equal(r.loads.normal, true);
+});
+
+test('a feed with a bad checksum is rejected and the last good update stays', async () => {
+  publishFeed({ version: '209901010001', rules: [], cosmetic: bundledCosmetic(), corruptChecksum: true });
+  const result = await bg({ type: 'ab:updateFilters' });
+  assert.equal(result.feed.status, 'error');
+  assert.match(result.error, /checksum/);
+  assert.deepEqual(await disabledIds(), [removedRule.id]);
+  const r = await loadTestPage();
+  assert.equal(r.loads.feedNew, false);
+});
+
+test('a feed older than the bundled rules clears downloaded updates', async () => {
+  publishFeed({ version: '200001010000', rules: bundledRules(), cosmetic: bundledCosmetic() });
+  const result = await bg({ type: 'ab:updateFilters' });
+  assert.equal(result.feed.status, 'current');
+  assert.deepEqual(await disabledIds(), []);
+  const r = await loadTestPage();
+  assert.equal(r.loads.feedNew, true);
+  assert.equal(r.feedAd, 'block');
+  await bg({ type: 'ab:setFeedUrl', url: null });
 });
 
 test('extension pages render without errors', async () => {

@@ -35,6 +35,7 @@
     .msg.error { color: var(--accent); }
     .remove { border: 1px solid var(--border); background: none; color: var(--muted); border-radius: 7px; padding: 4px 10px; }
     .help { font-size: 13px; color: var(--muted); }
+    .update-card { margin-bottom: 14px; }
     .help code { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 0 4px; }
   </style>
 </head>
@@ -57,6 +58,17 @@
     <section id="tab-lists">
       <h2>Daftar filter</h2>
       <p>Pilih daftar yang dipakai untuk memblokir iklan dan elemen. Perubahan berlaku seketika.</p>
+      <div class="card update-card">
+        <label class="item">
+          <span class="text"><span class="title">Perbarui filter otomatis setiap hari</span>
+            <span class="desc" id="update-status"></span></span>
+          <span class="switch"><input type="checkbox" id="opt-autoupdate"><span></span></span>
+        </label>
+        <div class="item">
+          <span class="text desc" id="update-source"></span>
+          <button class="btn" id="update-now">Perbarui sekarang</button>
+        </div>
+      </div>
       <div class="card" id="lists"></div>
     </section>
 
