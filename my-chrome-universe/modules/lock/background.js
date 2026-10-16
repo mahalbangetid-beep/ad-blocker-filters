@@ -1,5 +1,5 @@
 import { createPasswordRecord, verifyPassword, generateRecoveryCode, normalizeRecoveryCode } from './crypto.js';
-import { lockStatus, messageAllowed, LOCK_PATH, SETUP_PATH } from '../../core/gate.js';
+import { guardAction, lockStatus, messageAllowed, senderAllowed, LOCK_PATH, SETUP_PATH } from '../../core/gate.js';
 import { isModuleEnabled, setModuleState } from '../../core/modules.js';
 
 const LOCK_URL = chrome.runtime.getURL(LOCK_PATH);
@@ -184,18 +184,23 @@ async function verifyThrottled(secret, key) {
   };
 }
 
-// Checks run one at a time so concurrent guesses are each counted (and see each other's
-// lockout). `onSuccess` runs inside the same turn, so a recovery code is replaced before
-// any other check can use it again; its result is merged into the reply.
+// Secret checks and password writes run one at a time, so concurrent guesses are each
+// counted (and see each other's lockout) and two setups cannot both store a password.
 let checkQueue = Promise.resolve();
+function serialized(task) {
+  const run = checkQueue.then(task);
+  checkQueue = run.catch(() => {});
+  return run;
+}
+
+// `onSuccess` runs inside the same turn, so a recovery code is replaced before any other
+// check can use it again; its result is merged into the reply.
 function checkSecret(secret, key, onSuccess) {
-  const run = checkQueue.then(async () => {
+  return serialized(async () => {
     const result = await verifyThrottled(secret, key);
     if (result.ok && onSuccess) Object.assign(result, await onSuccess());
     return result;
   });
-  checkQueue = run.catch(() => {});
-  return run;
 }
 
 const checkPassword = (password) => checkSecret(password, 'lock:auth');
@@ -251,16 +256,21 @@ const handlers = {
   },
 
   async 'lock:setup'({ password, confirm }) {
-    if (await getAuth()) return { ok: false, error: 'Password sudah diatur. Ganti lewat halaman Pengaturan.' };
+    const exists = { ok: false, error: 'Password sudah diatur. Ganti lewat halaman Pengaturan.' };
+    if (await getAuth()) return exists;
     const invalid = validateNewPassword(password, confirm);
     if (invalid) return { ok: false, error: invalid };
-    const { recoveryCode } = await rotateRecoveryCode({
-      'lock:auth': await createPasswordRecord(password),
-      'lock:failures': 0,
-      'lock:lockoutUntil': 0,
+    // Check again inside the queue: only the first of two concurrent setups may write.
+    return serialized(async () => {
+      if (await getAuth()) return exists;
+      const { recoveryCode } = await rotateRecoveryCode({
+        'lock:auth': await createPasswordRecord(password),
+        'lock:failures': 0,
+        'lock:lockoutUntil': 0,
+      });
+      await chrome.storage.session.set({ 'lock:unlocked': true });
+      return { ok: true, recoveryCode };
     });
-    await chrome.storage.session.set({ 'lock:unlocked': true });
-    return { ok: true, recoveryCode };
   },
 
   async 'lock:unlock'({ password }) {
@@ -294,11 +304,16 @@ const handlers = {
 
   async 'lock:changePassword'({ current, password, confirm }) {
     if (await isLocked()) return { ok: false, error: 'Browser sedang terkunci.' };
-    const check = await checkPassword(current);
+    // Validated and written in the same queue turn as the check, so no other check or
+    // recovery can slip in between.
+    const check = await checkSecret(current, 'lock:auth', async () => {
+      const invalid = validateNewPassword(password, confirm);
+      if (invalid) return { invalid };
+      await chrome.storage.local.set({ 'lock:auth': await createPasswordRecord(password) });
+      return {};
+    });
     if (!check.ok) return currentPasswordError(check);
-    const invalid = validateNewPassword(password, confirm);
-    if (invalid) return { ok: false, error: invalid };
-    await chrome.storage.local.set({ 'lock:auth': await createPasswordRecord(password) });
+    if (check.invalid) return { ok: false, error: check.invalid };
     return { ok: true };
   },
 
@@ -339,6 +354,10 @@ const handlers = {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const type = message?.type;
   if (typeof type !== 'string' || !Object.hasOwn(handlers, type)) return false;
+  if (!senderAllowed(sender, type)) {
+    sendResponse({ ok: false, error: 'forbidden' });
+    return false;
+  }
   (async () => {
     if (!(await messageAllowed(type))) return { ok: false, error: 'locked' };
     return handlers[type](message);
@@ -380,8 +399,11 @@ chrome.idle.onStateChanged.addListener(async (state) => {
   }
 });
 
+// Without a password the shortcut leads to "Buat password" (opens or focuses setup).
 chrome.commands?.onCommand.addListener(async (command) => {
-  if (command === 'lock-browser') await lock();
+  if (command !== 'lock-browser') return;
+  if ((await lockStatus()) === 'setup') await guardAction();
+  else await lock();
 });
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {

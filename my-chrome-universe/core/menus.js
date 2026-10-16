@@ -22,8 +22,13 @@ async function build() {
   for (const { id } of MODULES) {
     const provider = providers.get(id);
     if (!provider || !(await isModuleEnabled(id))) continue;
-    for (const props of await provider()) {
-      chrome.contextMenus.create(props, () => { void chrome.runtime.lastError; });
+    // One broken provider must not take the other modules' items with it.
+    try {
+      for (const props of await provider()) {
+        chrome.contextMenus.create(props, () => { void chrome.runtime.lastError; });
+      }
+    } catch (err) {
+      console.warn(`Context menu provider "${id}" failed:`, err);
     }
   }
 }

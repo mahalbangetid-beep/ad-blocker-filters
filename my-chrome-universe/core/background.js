@@ -1,6 +1,6 @@
 // Core service-worker wiring shared by all modules.
 import { MODULES, getModuleStates, onModuleStatesChanged, setModuleState } from './modules.js';
-import { messageAllowed } from './gate.js';
+import { messageAllowed, senderAllowed } from './gate.js';
 import { rebuildMenus } from './menus.js';
 
 // Context menus are rebuilt from the module providers whenever they may be stale.
@@ -25,6 +25,10 @@ const handlers = {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const type = message?.type;
   if (typeof type !== 'string' || !Object.hasOwn(handlers, type)) return false;
+  if (!senderAllowed(sender, type)) {
+    sendResponse({ ok: false, error: 'forbidden' });
+    return false;
+  }
   (async () => {
     if (!(await messageAllowed(type))) return { ok: false, error: 'locked' };
     return handlers[type](message);

@@ -16,6 +16,18 @@ export const PUBLIC_MESSAGES = new Set([
   'lock:getState', 'lock:setup', 'lock:unlock', 'lock:recover', 'lock:lock', 'core:getModules',
 ]);
 
+// Messages a content script may send from a website: only the block-element picker's.
+export const WEB_MESSAGES = new Set(['ab:addFilter']);
+
+// Defense in depth for every onMessage listener: only this extension, and only its own
+// pages (popup, tabs, frames; sender.url is the frame's URL) unless the type is in WEB_MESSAGES.
+export function senderAllowed(sender, type) {
+  if (!sender || sender.id !== chrome.runtime.id) return false;
+  if (WEB_MESSAGES.has(type)) return true;
+  const url = sender.url ?? sender.tab?.url;
+  return typeof url === 'string' && url.startsWith(chrome.runtime.getURL(''));
+}
+
 export async function messageAllowed(type) {
   return PUBLIC_MESSAGES.has(type) || (await lockStatus()) === 'open';
 }

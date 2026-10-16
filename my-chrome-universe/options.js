@@ -1,6 +1,6 @@
 // Shared settings page: one sidebar entry per module, content chosen by #<id>.
 import { guardPage } from './core/page-guard.js';
-import { MODULES } from './core/modules.js';
+import { MODULES, onModuleStatesChanged } from './core/modules.js';
 import { moduleSwitch, messageLine } from './core/panel.js';
 
 await guardPage('tab');
@@ -26,6 +26,10 @@ function renderMenu(active) {
   }
 }
 
+// Keeps the shown switch in line with the stored states (changed from the popup, a frame, ...).
+let syncSwitch = () => {};
+onModuleStatesChanged((states) => syncSwitch(states));
+
 // Turning Browser Lock off needs the current password: inline field, never prompt().
 function lockSwitch(enabled, msg, rerender) {
   const form = el('form', { hidden: true });
@@ -48,6 +52,12 @@ function lockSwitch(enabled, msg, rerender) {
     if (!result?.ok) msg.textContent = result?.error === 'locked' ? 'Browser sedang terkunci.' : result?.error || 'Gagal menyimpan';
   });
   cancel.addEventListener('click', () => { form.reset(); form.hidden = true; });
+  syncSwitch = (states) => {
+    if (input.checked === states.lock) return;
+    input.checked = states.lock;
+    form.reset();
+    form.hidden = true;
+  };
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const result = await send('lock:setEnabled', { enabled: false, current: pass.value });
@@ -71,11 +81,12 @@ async function render() {
   if (mod.id === 'lock') {
     controls = lockSwitch(enabled, msg, rerender);
   } else {
-    const { row } = moduleSwitch(enabled, async (on) => {
+    const { row, input } = moduleSwitch(enabled, async (on) => {
       const result = await send('core:setModule', { id: mod.id, enabled: on });
       await rerender();
       if (!result?.ok) main.querySelector('.mcu-msg').textContent = result?.error || 'Gagal menyimpan';
     });
+    syncSwitch = (states) => { input.checked = states[mod.id]; };
     controls = [row];
   }
 

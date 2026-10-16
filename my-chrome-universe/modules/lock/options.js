@@ -1,10 +1,14 @@
 import { send, showMessage } from './common.js';
 import { guardPage } from '../../core/page-guard.js';
 
-// May later be shown inside the settings page's iframe.
-await guardPage(window.top === window ? 'tab' : 'frame');
+// Also shown inside the shared settings page's iframe.
+const inFrame = window.top !== window;
+await guardPage(inFrame ? 'frame' : 'tab');
 
 const $ = (id) => document.getElementById(id);
+
+// In the settings page the parent's "Aktif" switch is the single on/off control.
+if (inFrame) $('enabled-section').hidden = true;
 
 const errorText = (result) => (result.error === 'locked' ? 'Browser sedang terkunci.' : result.error);
 

@@ -93,7 +93,7 @@ const session = { 'lock:unlocked': true };
 const omniboxSuggestions = [];
 
 const chrome = {
-  runtime: { getURL: (p) => BASE + p.replace(/^\//, ''), onMessage: event(), onInstalled: event() },
+  runtime: { id: 'testid', getURL: (p) => BASE + p.replace(/^\//, ''), onMessage: event(), onInstalled: event() },
   storage: {
     local: {
       async get(key) { return key in store ? { [key]: structuredClone(store[key]) } : {}; },
@@ -138,10 +138,11 @@ const chrome = {
 };
 globalThis.chrome = chrome;
 
-function send(message) {
+// Messages come from the dashboard (an extension page) unless a test says otherwise.
+function send(message, sender = { id: 'testid', url: DASHBOARD, tab: { id: 0, url: 'chrome://newtab/' } }) {
   return new Promise((resolve) => {
     let handled = false;
-    for (const fn of chrome.runtime.onMessage.listeners) if (fn(message, {}, resolve) === true) handled = true;
+    for (const fn of chrome.runtime.onMessage.listeners) if (fn(message, sender, resolve) === true) handled = true;
     if (!handled) resolve(undefined);
   });
 }
@@ -269,6 +270,14 @@ test('tab messages are refused while locked', async () => {
   session['lock:unlocked'] = true;
   assert.equal((await send(op)).ok, true);
   assert.ok(collections().some((c) => c.name === 'Terkunci'));
+});
+
+test('tab messages from websites are refused', async () => {
+  const web = { id: 'testid', url: 'https://evil.test/', tab: { id: 5, url: 'https://evil.test/' } };
+  const op = { type: 'tm:op', op: { type: 'collection/create', name: 'Dari web' } };
+  assert.deepEqual(await send(op, web), { ok: false, error: 'forbidden' });
+  assert.deepEqual(await send({ type: 'tm:getData' }, web), { ok: false, error: 'forbidden' });
+  assert.ok(!collections().some((c) => c.name === 'Dari web'));
 });
 
 test('shortcuts and menus do nothing while the module is off', async () => {

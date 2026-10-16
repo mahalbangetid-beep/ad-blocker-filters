@@ -1,6 +1,6 @@
 import { STORAGE_KEY, INBOX_NAME, applyOp, normalize, emptyData, findCollection, findSpace, isSavableUrl, search, sessionName } from './store.js';
 import { registerMenuProvider } from '../../core/menus.js';
-import { guardAction, lockStatus, messageAllowed } from '../../core/gate.js';
+import { guardAction, lockStatus, messageAllowed, senderAllowed } from '../../core/gate.js';
 import { isModuleEnabled } from '../../core/modules.js';
 
 const DASHBOARD_PATH = 'modules/tabs/newtab.html';
@@ -157,6 +157,10 @@ const handlers = {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const type = message?.type;
   if (typeof type !== 'string' || !Object.hasOwn(handlers, type)) return false;
+  if (!senderAllowed(sender, type)) {
+    sendResponse({ ok: false, error: 'forbidden' });
+    return false;
+  }
   (async () => {
     if (!(await messageAllowed(type))) return { ok: false, error: 'locked' };
     return handlers[type](message);

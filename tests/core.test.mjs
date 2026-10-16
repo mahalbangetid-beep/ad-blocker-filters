@@ -46,7 +46,7 @@ const created = [];
 let removeAllCalls = 0;
 
 const chrome = {
-  runtime: { getURL: (p) => BASE + p, onMessage: event(), onInstalled: event(), onStartup: event() },
+  runtime: { id: 'testid', getURL: (p) => BASE + p, onMessage: event(), onInstalled: event(), onStartup: event() },
   storage: { local: area('local'), session: area('session'), onChanged },
   tabs: {
     async query() { return tabs.map((t) => ({ ...t })); },
@@ -70,7 +70,7 @@ globalThis.chrome = chrome;
 
 const { getModuleStates, isModuleEnabled, setModuleState, onModuleStatesChanged } =
   await import('../my-chrome-universe/core/modules.js');
-const { lockStatus, messageAllowed, guardAction } = await import('../my-chrome-universe/core/gate.js');
+const { lockStatus, messageAllowed, guardAction, senderAllowed } = await import('../my-chrome-universe/core/gate.js');
 const { registerMenuProvider, rebuildMenus } = await import('../my-chrome-universe/core/menus.js');
 
 beforeEach(() => {
@@ -155,10 +155,49 @@ test('menus from every enabled module coexist', async () => {
   assert.equal(created.length, 5);
 });
 
-function send(message) {
+test('a failing menu provider does not hide the other modules\' items', async () => {
+  registerMenuProvider('adblock', async () => { throw new Error('boom'); });
+  registerMenuProvider('tabs', async () => [1, 2].map((n) => ({ id: `tm:${n}`, title: 't' })));
+  await rebuildMenus();
+  assert.deepEqual(created.map((p) => p.id), ['tm:1', 'tm:2']);
+  registerMenuProvider('adblock', () => { throw new Error('sync boom'); });
+  await rebuildMenus();
+  assert.deepEqual(created.map((p) => p.id), ['tm:1', 'tm:2']);
+});
+
+const PAGE_SENDER = { id: 'testid', url: BASE + 'popup.html' };
+
+test('senderAllowed accepts only our extension pages (and the picker\'s ab:addFilter)', () => {
+  // Extension pages: popup (no tab), options/dashboard tabs, frames inside them.
+  assert.equal(senderAllowed(PAGE_SENDER, 'core:getModules'), true);
+  assert.equal(senderAllowed({ id: 'testid', url: BASE + 'modules/lock/options.html', tab: { id: 1, url: BASE + 'options.html' } }, 'lock:setEnabled'), true);
+  // The New Tab override reports a chrome:// tab URL but its own extension URL.
+  assert.equal(senderAllowed({ id: 'testid', url: BASE + 'modules/tabs/newtab.html', tab: { id: 2, url: 'chrome://newtab/' } }, 'tm:getData'), true);
+  assert.equal(senderAllowed({ id: 'testid', tab: { id: 3, url: BASE + 'options.html' } }, 'tm:getData'), true);
+
+  // Content scripts on websites, other extensions, missing data: refused.
+  const web = { id: 'testid', url: 'https://evil.test/', tab: { id: 4, url: 'https://evil.test/' } };
+  for (const type of ['lock:setEnabled', 'lock:unlock', 'tm:op', 'ab:saveSettings', 'core:setModule']) {
+    assert.equal(senderAllowed(web, type), false, type);
+  }
+  assert.equal(senderAllowed({ id: 'testid', url: 'https://evil.test/', tab: { id: 4, url: BASE + 'x.html' } }, 'tm:op'), false);
+  assert.equal(senderAllowed({ id: 'other', url: BASE + 'popup.html' }, 'core:getModules'), false);
+  assert.equal(senderAllowed({ id: 'other', url: 'chrome-extension://other/popup.html' }, 'core:getModules'), false);
+  assert.equal(senderAllowed({ id: 'testid' }, 'core:getModules'), false);
+  assert.equal(senderAllowed({ id: 'testid', url: 'chrome-extension://testidx/popup.html' }, 'core:getModules'), false);
+  assert.equal(senderAllowed({}, 'core:getModules'), false);
+  assert.equal(senderAllowed(undefined, 'core:getModules'), false);
+
+  // The block-element picker runs as a content script on websites.
+  assert.equal(senderAllowed(web, 'ab:addFilter'), true);
+  assert.equal(senderAllowed(PAGE_SENDER, 'ab:addFilter'), true);
+  assert.equal(senderAllowed({ ...web, id: 'other' }, 'ab:addFilter'), false);
+});
+
+function send(message, sender = PAGE_SENDER) {
   return new Promise((resolve) => {
     let handled = false;
-    for (const fn of chrome.runtime.onMessage.listeners) if (fn(message, {}, resolve) === true) handled = true;
+    for (const fn of chrome.runtime.onMessage.listeners) if (fn(message, sender, resolve) === true) handled = true;
     if (!handled) resolve(undefined);
   });
 }
@@ -179,4 +218,13 @@ test('core:setModule refuses lock, accepts adblock and is gated', async () => {
   const r = await send({ type: 'core:setModule', id: 'adblock', enabled: false });
   assert.deepEqual(r, { ok: true, modules: { adblock: false, tabs: true, lock: true } });
   assert.deepEqual(await send({ type: 'core:getModules' }), { ok: true, modules: { adblock: false, tabs: true, lock: true } });
+});
+
+test('core messages from a web page are refused', async () => {
+  await chrome.storage.local.set({ 'lock:auth': { hash: 'x' } });
+  await chrome.storage.session.set({ 'lock:unlocked': true });
+  const web = { id: 'testid', url: 'https://evil.test/', tab: { id: 9, url: 'https://evil.test/' } };
+  assert.deepEqual(await send({ type: 'core:setModule', id: 'adblock', enabled: false }, web), { ok: false, error: 'forbidden' });
+  assert.deepEqual(await send({ type: 'core:getModules' }, { id: 'other', url: 'chrome-extension://other/x.html' }), { ok: false, error: 'forbidden' });
+  assert.equal(await isModuleEnabled('adblock'), true);
 });

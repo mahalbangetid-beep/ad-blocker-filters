@@ -36,6 +36,7 @@ const windows = [{ id: 100, focused: true, incognito: false, type: 'normal' }];
 
 const chrome = {
   runtime: {
+    id: 'testid',
     getURL: (p) => BASE + p,
     onMessage: event(),
     onInstalled: event(),
@@ -87,15 +88,17 @@ const NEWTAB = 'chrome://newtab/';
 const CODE_FORMAT = /^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){4}$/;
 let recoveryCode = null; // the latest code handed out, as the user would have noted it
 
-function send(message) {
+// Messages come from our own extension pages unless a test says otherwise.
+const PAGE_SENDER = { id: 'testid', url: BASE + 'modules/lock/options.html' };
+function send(message, sender = PAGE_SENDER) {
   return new Promise((resolve) => {
-    for (const fn of chrome.runtime.onMessage.listeners) fn(message, {}, resolve);
+    for (const fn of chrome.runtime.onMessage.listeners) fn(message, sender, resolve);
   });
 }
 
 const { setModuleState, isModuleEnabled } = await import('../my-chrome-universe/core/modules.js');
 const { lockStatus } = await import('../my-chrome-universe/core/gate.js');
-const { generateRecoveryCode, normalizeRecoveryCode } = await import('../my-chrome-universe/modules/lock/crypto.js');
+const { generateRecoveryCode, normalizeRecoveryCode, verifyPassword } = await import('../my-chrome-universe/modules/lock/crypto.js');
 await import('../my-chrome-universe/modules/lock/background.js');
 await settle();
 
@@ -114,12 +117,37 @@ test('lock cannot be disabled before a password exists', async () => {
   assert.equal((await send({ type: 'lock:recover', code: 'AAAA', password: 'baru1234', confirm: 'baru1234' })).ok, false);
 });
 
+test('the lock shortcut opens setup while there is no password', async () => {
+  const SETUP = BASE + 'modules/lock/setup.html';
+  const setupTabs = () => tabs.filter((t) => t.url === SETUP);
+  await chrome.tabs.remove(setupTabs().map((t) => t.id));
+  await settle();
+  assert.equal(setupTabs().length, 0);
+  await chrome.commands.onCommand.fire('lock-browser');
+  await settle();
+  assert.equal(setupTabs().length, 1, 'shortcut opens the setup page');
+  // Pressed again: the existing setup tab is focused, not duplicated.
+  await chrome.commands.onCommand.fire('lock-browser');
+  await settle();
+  assert.equal(setupTabs().length, 1);
+  assert.equal(await lockStatus(), 'setup');
+});
+
 test('setup validates and stores only a hash', async () => {
   assert.equal((await send({ type: 'lock:setup', password: 'abc', confirm: 'abc' })).ok, false);
   assert.equal((await send({ type: 'lock:setup', password: 'rahasia1', confirm: 'rahasia2' })).ok, false);
-  const ok = await send({ type: 'lock:setup', password: 'rahasia1', confirm: 'rahasia1' });
+  // Two setups at once (e.g. two setup tabs): exactly one wins and its recovery code stays valid.
+  const [ok, second] = await Promise.all([
+    send({ type: 'lock:setup', password: 'rahasia1', confirm: 'rahasia1' }),
+    send({ type: 'lock:setup', password: 'hacked12', confirm: 'hacked12' }),
+  ]);
   assert.equal(ok.ok, true);
+  assert.equal(second.ok, false);
+  assert.equal(second.recoveryCode, undefined);
   recoveryCode = ok.recoveryCode;
+  const stored = chrome.storage.local.dump();
+  assert.equal(await verifyPassword('rahasia1', stored['lock:auth']), true);
+  assert.equal(await verifyPassword(normalizeRecoveryCode(recoveryCode), stored['lock:recovery']), true);
   const local = chrome.storage.local.dump();
   assert.ok(local['lock:auth'], 'password record is stored under lock:auth');
   assert.ok(!JSON.stringify(local).includes('rahasia1'), 'plain password must not be stored');
@@ -313,6 +341,16 @@ test('change password requires the current one', async () => {
   assert.equal((await send({ type: 'lock:setEnabled', enabled: true })).ok, true);
   // The old removePassword message is gone; the password stays.
   assert.equal((await send({ type: 'lock:getState' })).hasPassword, true);
+});
+
+test('lock messages from websites or other extensions are refused', async () => {
+  const web = { id: 'testid', url: 'https://evil.test/', tab: { id: 999, url: 'https://evil.test/' } };
+  const forbidden = { ok: false, error: 'forbidden' };
+  assert.deepEqual(await send({ type: 'lock:setEnabled', enabled: false, current: 'baru1234' }, web), forbidden);
+  assert.deepEqual(await send({ type: 'lock:getState' }, web), forbidden);
+  assert.deepEqual(await send({ type: 'lock:lock' }, { id: 'other', url: 'chrome-extension://other/x.html' }), forbidden);
+  assert.equal(await isModuleEnabled('lock'), true);
+  assert.equal(await lockStatus(), 'open');
 });
 
 test('unknown and old unprefixed messages are ignored', () => {

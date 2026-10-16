@@ -69,6 +69,9 @@ Untuk mencoba manual: `chrome://extensions` → Developer mode → Load unpacked
 - **Gerbang kunci**: Browser Lock wajib. Status (`setup`/`locked`/`open`) dibaca dari storage setiap kali (`lockStatus`,
   tanpa cache). Handler pesan memanggil `messageAllowed(type)` (kecuali `PUBLIC_MESSAGES`); setiap halaman extension
   (selain layar kunci/setup) `await guardPage('tab'|'popup'|'frame')` sebelum membaca data.
+- **Pengirim pesan**: setiap listener `onMessage` memanggil `senderAllowed(sender, type)` (`core/gate.js`) dan menjawab
+  `{ ok:false, error:'forbidden' }` untuk extension lain atau halaman web; hanya `WEB_MESSAGES` (`ab:addFilter` dari picker)
+  boleh datang dari content script.
 - **Menu klik kanan**: hanya `core/menus.js` yang boleh memanggil `chrome.contextMenus.removeAll`; modul memakai
   `registerMenuProvider(id, provider)`.
 - Aturan dinamis declarativeNetRequest seluruhnya milik modul adblock.

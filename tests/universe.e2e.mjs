@@ -684,6 +684,37 @@ test('options page lists every module', async () => {
   await waitFor(s, "document.getElementById('frame')?.src.endsWith('/modules/lock/options.html')");
   await waitFor(s, "(document.getElementById('frame')?.contentDocument?.body?.innerText || '').includes('Pengaturan Browser Lock')");
 
+  // The parent "Aktif" switch is the only on/off control: the framed lock page hides its own.
+  const inFrame = (expr) => evaluate(s, `(() => { const d = document.getElementById('frame').contentDocument; return ${expr}; })()`);
+  await waitFor(s, "!document.getElementById('frame').contentDocument.getElementById('has-password').hidden");
+  assert.equal(await inFrame("d.getElementById('enabled').checkVisibility()"), false, 'lock page on/off switch is hidden in the frame');
+  assert.equal(await inFrame("d.getElementById('enabled-section').hidden"), true);
+  assert.equal(await inFrame("d.getElementById('change-form').checkVisibility()"), true, 'the rest of the lock settings stay');
+
+  const sw = "document.querySelector('.mcu-module-switch input')";
+  const confirmOff = (pw) => evaluate(s, `(() => {
+    const input = document.getElementById('disable-current');
+    input.value = ${JSON.stringify(pw)};
+    input.form.requestSubmit();
+  })()`);
+  assert.equal(await evaluate(s, `${sw}.checked`), true);
+  await evaluate(s, `${sw}.click()`);
+  await waitFor(s, "!!document.getElementById('disable-current') && !document.getElementById('disable-current').form.hidden");
+  assert.equal(await evaluate(s, `${sw}.checked`), true, 'stays on until the password is confirmed');
+  await confirmOff('salah-sekali');
+  await waitFor(s, "document.querySelector('.mcu-msg').textContent.includes('salah')");
+  assert.equal((await bg({ type: 'lock:getState' })).enabled, true, 'wrong password keeps the lock on');
+  assert.equal(await evaluate(s, `${sw}.checked`), true);
+  await confirmOff(PASSWORD);
+  await waitFor(s, `${sw} && !${sw}.checked`);
+  assert.equal((await bg({ type: 'lock:getState' })).enabled, false);
+  // Turned back on elsewhere (e.g. the popup): the parent switch follows the stored state.
+  assert.equal((await bg({ type: 'lock:setEnabled', enabled: true })).ok, true);
+  await waitFor(s, `${sw}.checked`);
+  const state = await bg({ type: 'lock:getState' });
+  assert.equal(state.enabled, true);
+  assert.equal(state.locked, false);
+
   await evaluate(s, "location.hash = '#adblock'");
   await waitFor(s, "document.getElementById('frame')?.src.endsWith('/modules/adblock/options.html')");
   await waitFor(s, "(document.getElementById('frame')?.contentDocument?.body?.innerText || '').length > 50");

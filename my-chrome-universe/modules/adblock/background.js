@@ -2,7 +2,7 @@ import { convertFilterList, assignIds, PRIORITY } from './filters.js';
 import { createEngine, hostMatches } from './cosmetic.js';
 import { checkForUpdates, clearFeedUpdates, feedAdditions, feedCosmetic, readFeedState, syncDisabledStaticRules } from './updater.js';
 import { registerMenuProvider, rebuildMenus } from '../../core/menus.js';
-import { guardAction, messageAllowed } from '../../core/gate.js';
+import { guardAction, messageAllowed, senderAllowed } from '../../core/gate.js';
 import { isModuleEnabled, onModuleStatesChanged } from '../../core/modules.js';
 
 // Storage (all keys prefixed "ab:" so this module can live next to others):
@@ -482,6 +482,10 @@ const handlers = {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const type = message?.type;
   if (typeof type !== 'string' || !Object.hasOwn(handlers, type)) return false;
+  if (!senderAllowed(sender, type)) {
+    sendResponse({ ok: false, error: 'forbidden' });
+    return false;
+  }
   (async () => {
     if (!(await messageAllowed(type))) return { ok: false, error: 'locked' };
     return handlers[type](message, sender);
