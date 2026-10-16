@@ -1,5 +1,5 @@
 // Manual live check against real YouTube (needs internet; not part of the normal suite).
-// Loads ad-blocker/ into Playwright's Chromium, opens a video twice — with the
+// Loads my-chrome-universe/ into Playwright's Chromium, opens a video twice — with the
 // YouTube option off (baseline) and on — and reports ad data and ad playback.
 //
 // Run: node tests/youtube.live.mjs [videoUrl]
@@ -11,7 +11,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const extDir = join(root, 'my-chrome-universe/modules/adblock');
+const extDir = join(root, 'my-chrome-universe');
 const VIDEO = process.argv[2] || 'https://www.youtube.com/watch?v=kJQP7kiw5Fk';
 const CDP_PORT = 9334;
 const WATCH_MS = 25000;
@@ -67,7 +67,7 @@ try {
     const { targetInfos } = await send('Target.getTargets');
     for (const t of targetInfos.filter((x) => x.type === 'service_worker')) {
       const { sessionId } = await send('Target.attachToTarget', { targetId: t.targetId, flatten: true });
-      if ((await evaluate(sessionId, 'chrome.runtime.getManifest().name').catch(() => '')).startsWith('Ad Blocker')) extId = new URL(t.url).host;
+      if ((await evaluate(sessionId, 'chrome.runtime.getManifest().name').catch(() => '')) === 'My Chrome Universe') extId = new URL(t.url).host;
     }
     if (!extId) await sleep(200);
   }
@@ -81,7 +81,7 @@ try {
     return { sessionId, targetId };
   }
 
-  const popup = await open(`chrome-extension://${extId}/popup.html`);
+  const popup = await open(`chrome-extension://${extId}/modules/adblock/popup.html`);
   await sleep(500);
   const bg = (msg) => evaluate(popup.sessionId, `chrome.runtime.sendMessage(${JSON.stringify(msg)})`);
 

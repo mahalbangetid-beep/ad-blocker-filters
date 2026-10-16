@@ -153,7 +153,7 @@ $('credits').replaceChildren(...[...sources.values()].map((s) => h('div', { clas
   h('span', { class: 'text' },
     h('span', { class: 'title' }, s.title),
     h('div', { class: 'desc' }, h('a', { href: s.homepage, target: '_blank', rel: 'noopener' }, s.homepage), ` · lisensi ${s.license}`)))));
-const lists = await fetch(chrome.runtime.getURL('lists.json')).then((r) => r.json());
+const lists = await fetch(chrome.runtime.getURL('modules/adblock/lists.json')).then((r) => r.json());
 $('built').textContent = `Filter list dikompilasi ${new Date(lists.builtAt).toLocaleString('id-ID')} (feed ${lists.feedVersion}). Perbarui dengan menjalankan filter-bot/bot.mjs --update-extension lalu muat ulang extension.`;
 
 $('total').textContent = `${number.format(data.totalBlocked)} permintaan diblokir sejak dipasang`;

@@ -12,7 +12,7 @@
   };
   const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 
-  const base = `${location.origin}/my-chrome-universe/modules/tabs/`;
+  const base = `${location.origin}/my-chrome-universe/`; // extension root
   const local = {};
   const onChanged = event();
 
@@ -20,7 +20,7 @@
   const windows = [{ id: 1, focused: true, type: 'normal' }, { id: 2, focused: false, type: 'normal' }];
   const groups = [{ id: 7, title: 'Riset', color: 'blue', windowId: 1 }];
   const tabs = [
-    { id: 1, windowId: 1, url: `${base}newtab.html`, title: 'Tab Manager', active: true, groupId: -1 },
+    { id: 1, windowId: 1, url: `${base}modules/tabs/newtab.html`, title: 'Tab Manager', active: true, groupId: -1 },
     { id: 2, windowId: 1, url: 'https://developer.mozilla.org/', title: 'MDN Web Docs', groupId: -1 },
     { id: 3, windowId: 1, url: 'https://github.com/', title: 'GitHub', groupId: 7 },
     { id: 4, windowId: 1, url: 'https://stackoverflow.com/', title: 'Stack Overflow', groupId: 7 },

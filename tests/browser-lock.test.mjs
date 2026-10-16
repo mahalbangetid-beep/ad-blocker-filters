@@ -82,7 +82,7 @@ const chrome = {
 globalThis.chrome = chrome;
 
 const settle = () => new Promise((r) => setTimeout(r, 50));
-const LOCK = BASE + 'lock.html';
+const LOCK = BASE + 'modules/lock/lock.html';
 
 function send(message) {
   return new Promise((resolve) => {
@@ -96,7 +96,7 @@ await settle();
 test('install opens setup page', async () => {
   await chrome.runtime.onInstalled.fire({ reason: 'install' });
   await settle();
-  assert.ok(tabs.some((t) => t.url === BASE + 'setup.html'));
+  assert.ok(tabs.some((t) => t.url === BASE + 'modules/lock/setup.html'));
 });
 
 test('setup validates and stores only a hash', async () => {

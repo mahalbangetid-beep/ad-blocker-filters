@@ -1,6 +1,7 @@
 import { convertFilterList, assignIds, PRIORITY } from './filters.js';
 import { createEngine, hostMatches } from './cosmetic.js';
 import { checkForUpdates, clearFeedUpdates, feedAdditions, feedCosmetic, readFeedState, syncDisabledStaticRules } from './updater.js';
+import { registerMenuProvider, rebuildMenus } from '../../core/menus.js';
 
 // Storage (all keys prefixed "ab:" so this module can live next to others):
 //   local:   ab:settings, ab:total (blocked requests, all time)
@@ -29,7 +30,7 @@ const DEFAULT_SETTINGS = {
 // lists.json describes the bundled rulesets: { feedVersion, feedUrl, lists: [...] }.
 let bundlePromise = null;
 function getBundle() {
-  bundlePromise ??= fetch(chrome.runtime.getURL('lists.json')).then((r) => r.json());
+  bundlePromise ??= fetch(chrome.runtime.getURL('modules/adblock/lists.json')).then((r) => r.json());
   return bundlePromise;
 }
 
@@ -146,13 +147,10 @@ async function applyBadge(settings) {
   await chrome.action.setBadgeBackgroundColor({ color: '#c62828' });
 }
 
-function applyMenu(settings) {
-  chrome.contextMenus.removeAll(() => {
-    if (settings.contextMenu) {
-      chrome.contextMenus.create({ id: MENU_ID, title: 'Blokir elemen…', contexts: ['page', 'image', 'link', 'frame', 'video'] });
-    }
-  });
-}
+// The shared menu (core/menus.js) asks for our items on every rebuild.
+registerMenuProvider('adblock', async () => ((await getSettings()).contextMenu
+  ? [{ id: MENU_ID, title: 'Blokir elemen…', contexts: ['page', 'image', 'link', 'frame', 'video'] }]
+  : []));
 
 // YouTube video ads ride inside the player data, so they need page scripts
 // (youtube-main.js) rather than network rules. Registered only while active.
@@ -166,8 +164,8 @@ async function applyYoutube(settings) {
   if (existing.length) await chrome.scripting.unregisterContentScripts({ ids: existing });
   if (!active) return;
   await chrome.scripting.registerContentScripts([
-    { id: YT_IDS[0], matches: YT_MATCHES, js: ['youtube-main.js'], world: 'MAIN', runAt: 'document_start', allFrames: true },
-    { id: YT_IDS[1], matches: YT_MATCHES, css: ['youtube.css'], runAt: 'document_start', allFrames: true },
+    { id: YT_IDS[0], matches: YT_MATCHES, js: ['modules/adblock/youtube-main.js'], world: 'MAIN', runAt: 'document_start', allFrames: true },
+    { id: YT_IDS[1], matches: YT_MATCHES, css: ['modules/adblock/youtube.css'], runAt: 'document_start', allFrames: true },
   ]);
 }
 
@@ -179,7 +177,7 @@ async function getEngine(settings) {
   if (engineCache.key === key) return engineCache.engine;
   // Prefer element-hiding data from the daily feed over the bundled copy.
   const parts = await Promise.all(settings.enabledLists.map(async (id) => (await feedCosmetic(id))
-    ?? fetch(chrome.runtime.getURL(`cosmetic/${id}.json`)).then((r) => r.json()).catch(() => ({}))));
+    ?? fetch(chrome.runtime.getURL(`modules/adblock/cosmetic/${id}.json`)).then((r) => r.json()).catch(() => ({}))));
   parts.push(convertCustom(settings.customFilters).cosmetic);
   engineCache = { key, engine: createEngine(parts) };
   return engineCache.engine;
@@ -192,7 +190,7 @@ async function applyAll() {
   const failed = await applyDynamicRules(settings);
   await applyBadge(settings);
   await applyYoutube(settings);
-  applyMenu(settings);
+  await rebuildMenus();
   return { settings, failed };
 }
 
@@ -260,7 +258,6 @@ chrome.webNavigation.onCommitted.addListener((details) => {
   injectCosmetics(details);
   if (details.frameId === 0) {
     resetTabCount(details.tabId);
-    refreshIcon(details.tabId, details.url);
   }
 });
 
@@ -308,28 +305,10 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   scheduleFlush();
 });
 
-// ---------- Toolbar icon state ----------
-
-const ICONS = {
-  on: { 16: 'icons/icon16.png', 32: 'icons/icon32.png', 48: 'icons/icon48.png' },
-  off: { 16: 'icons/icon16-off.png', 32: 'icons/icon32-off.png', 48: 'icons/icon48-off.png' },
-};
-
-async function refreshIcon(tabId, url) {
-  const settings = await getSettings();
-  const host = hostOf(url);
-  const off = settings.paused || (host && isAllowlisted(settings, host));
-  await chrome.action.setIcon({ tabId, path: off ? ICONS.off : ICONS.on }).catch(() => {});
-}
-
-async function refreshAllIcons() {
-  for (const tab of await chrome.tabs.query({})) refreshIcon(tab.id, tab.url);
-}
-
 // ---------- Block element (picker) ----------
 
 async function startPicker(tabId, frameId = 0) {
-  await chrome.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, files: ['picker.js'] });
+  await chrome.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, files: ['modules/adblock/picker.js'] });
 }
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -367,7 +346,6 @@ const handlers = {
     await saveSettings({ allowlist });
     await applyAll();
     if (tabId >= 0) chrome.tabs.reload(tabId);
-    refreshAllIcons();
     return { ok: true, allowlist };
   },
 
@@ -375,7 +353,6 @@ const handlers = {
     await saveSettings({ paused: Boolean(paused) });
     await applyAll();
     if (tabId >= 0) chrome.tabs.reload(tabId);
-    refreshAllIcons();
     return { ok: true };
   },
 
@@ -470,7 +447,6 @@ const handlers = {
     const settings = await getSettings();
     await saveSettings({ allowlist: settings.allowlist.filter((d) => d !== domain) });
     await applyAll();
-    refreshAllIcons();
     return { ok: true };
   },
 };
@@ -495,7 +471,6 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await applyAll();
   await ensureUpdateAlarm();
   runUpdate(false);
-  if (reason === 'install') chrome.runtime.openOptionsPage();
 });
 
 chrome.runtime.onStartup.addListener(async () => {

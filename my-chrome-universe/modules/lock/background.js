@@ -1,7 +1,7 @@
 import { createPasswordRecord, verifyPassword } from './crypto.js';
 
-const LOCK_URL = chrome.runtime.getURL('lock.html');
-const SETUP_URL = chrome.runtime.getURL('setup.html');
+const LOCK_URL = chrome.runtime.getURL('modules/lock/lock.html');
+const SETUP_URL = chrome.runtime.getURL('modules/lock/setup.html');
 const EXTENSION_ORIGIN = chrome.runtime.getURL('');
 
 const MIN_PASSWORD_LENGTH = 4;

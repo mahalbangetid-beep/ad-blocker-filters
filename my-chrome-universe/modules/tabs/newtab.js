@@ -2,7 +2,7 @@ import { search, isSavableUrl } from './store.js';
 import { send, runOp, loadData, onDataChanged, faviconUrl, hostname, h, applyTheme } from './common.js';
 
 const $ = (id) => document.getElementById(id);
-const DASHBOARD_URL = chrome.runtime.getURL('newtab.html');
+const DASHBOARD_URL = chrome.runtime.getURL('modules/tabs/newtab.html');
 const THEMES = { auto: ['◐', 'Ikuti sistem'], light: ['☀', 'Terang'], dark: ['☾', 'Gelap'] };
 const GROUP_COLORS = {
   grey: '#9aa0a6', blue: '#1a73e8', red: '#d93025', yellow: '#f9ab00', green: '#188038',

@@ -1,4 +1,4 @@
-// Manual live check (needs internet; not part of the normal suite): loads ad-blocker/
+// Manual live check (needs internet; not part of the normal suite): loads my-chrome-universe/
 // into Playwright's Chromium and runs "update now" against the real GitHub Pages
 // feed, then prints what the updater applied.
 //
@@ -10,7 +10,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findChrome, platformArgs } from './chromium.mjs';
 
-const extDir = join(resolve(dirname(fileURLToPath(import.meta.url)), '..'), 'my-chrome-universe/modules/adblock');
+const extDir = join(resolve(dirname(fileURLToPath(import.meta.url)), '..'), 'my-chrome-universe');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const exe = findChrome();
 if (!exe) throw new Error('Chromium (Playwright) tidak ditemukan');
@@ -54,7 +54,7 @@ try {
     const { targetInfos } = await send('Target.getTargets');
     for (const t of targetInfos.filter((x) => x.type === 'service_worker')) {
       const { sessionId } = await send('Target.attachToTarget', { targetId: t.targetId, flatten: true });
-      if ((await evaluate(sessionId, 'chrome.runtime.getManifest().name').catch(() => '')).startsWith('Ad Blocker')) {
+      if ((await evaluate(sessionId, 'chrome.runtime.getManifest().name').catch(() => '')) === 'My Chrome Universe') {
         extId = new URL(t.url).host;
         swSession = sessionId;
       }
@@ -62,7 +62,7 @@ try {
     if (!extId) await sleep(200);
   }
   await sleep(3000); // let the install-time update finish
-  const { targetId } = await send('Target.createTarget', { url: `chrome-extension://${extId}/popup.html` });
+  const { targetId } = await send('Target.createTarget', { url: `chrome-extension://${extId}/modules/adblock/popup.html` });
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
   await sleep(800);
   const result = await evaluate(sessionId, `chrome.runtime.sendMessage({ type: 'ab:updateFilters' })`);

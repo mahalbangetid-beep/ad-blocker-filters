@@ -1,7 +1,7 @@
 // Filter bot: collects filter lists from several projects (EasyList, Adblock Plus /
 // AdBlock, uBlock Origin, AdGuard, ABPindo, AdBlockID …), merges them per category,
-// compiles them with ad-blocker/filters.js and publishes one feed that the
-// ad-blocker extension can use.
+// compiles them with my-chrome-universe/modules/adblock/filters.js and publishes
+// one feed that the ad blocker module of My Chrome Universe can use.
 //
 // Output (--out, default ./feed):
 //   index.json               feed metadata: version, categories, per-source status
@@ -13,7 +13,7 @@
 // Usage:
 //   node filter-bot/bot.mjs                         fetch, build and write ./feed
 //   node filter-bot/bot.mjs --out <dir>             write the feed elsewhere
-//   node filter-bot/bot.mjs --update-extension      also copy the result into ad-blocker/
+//   node filter-bot/bot.mjs --update-extension      also copy the result into the extension
 //   node filter-bot/bot.mjs --offline               rebuild from raw/ without fetching
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -32,7 +32,8 @@ const arg = (name) => {
 const flag = (name) => process.argv.includes(name);
 
 const OUT = resolve(arg('--out') || join(root, 'feed'));
-const EXT_DIR = join(root, 'my-chrome-universe/modules/adblock');
+const EXT_ROOT = join(root, 'my-chrome-universe');
+const EXT_DIR = join(EXT_ROOT, 'modules/adblock');
 const OFFLINE = flag('--offline');
 const USER_AGENT = 'ad-blocker-filter-bot/1.0 (+https://github.com/)';
 
@@ -271,10 +272,11 @@ if (flag('--update-extension')) {
   const bundle = { builtAt: now.toISOString(), feedVersion: version, feedUrl: config.feedUrl || null, lists };
   await writeFile(join(EXT_DIR, 'lists.json'), `${JSON.stringify(bundle, null, 2)}\n`);
 
-  const manifestPath = join(EXT_DIR, 'manifest.json');
+  // The manifest is shared by every module: only declarative_net_request is ours to rewrite.
+  const manifestPath = join(EXT_ROOT, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   manifest.declarative_net_request = {
-    rule_resources: categories.map((c) => ({ id: c.id, enabled: c.defaultEnabled, path: `rules/${c.id}.json` })),
+    rule_resources: categories.map((c) => ({ id: c.id, enabled: c.defaultEnabled, path: `modules/adblock/rules/${c.id}.json` })),
   };
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }

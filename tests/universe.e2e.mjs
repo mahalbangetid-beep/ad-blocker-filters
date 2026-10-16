@@ -1,8 +1,9 @@
-// End-to-end test: loads ad-blocker/ into a real Chromium (Playwright's build, which
-// still honours --load-extension), serves a local page full of "ads", and checks
-// what actually got blocked or hidden. Drives the browser over the DevTools Protocol.
+// End-to-end test: loads my-chrome-universe/ into a real Chromium (Playwright's build,
+// which still honours --load-extension), serves a local page full of "ads", and checks
+// what the ad blocker module actually blocked or hid. Drives the browser over the
+// DevTools Protocol.
 //
-// Run: node --test tests/ad-blocker.e2e.mjs   (CHROME_PATH=... to pick a browser)
+// Run: node --test tests/universe.e2e.mjs   (CHROME_PATH=... to pick a browser)
 import { test, after, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
@@ -16,7 +17,8 @@ import { createHash } from 'node:crypto';
 import { findChrome, platformArgs } from './chromium.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const extDir = join(root, 'my-chrome-universe/modules/adblock');
+const extDir = join(root, 'my-chrome-universe');
+const adblockDir = join(extDir, 'modules/adblock');
 const PORT = 8766;
 // YouTube is HSTS-preloaded in newer Chromium builds, so its mock must be served over HTTPS.
 const TLS_PORT = 8767;
@@ -139,7 +141,7 @@ async function waitFor(sessionId, expression, timeoutMs = 5000) {
 
 // Sends a message to the extension's background, like the popup would.
 async function bg(message) {
-  const pageSession = await openPage(`chrome-extension://${extId}/popup.html`, false);
+  const pageSession = await openPage(`chrome-extension://${extId}/modules/adblock/popup.html`, false);
   const value = await evaluate(pageSession, `chrome.runtime.sendMessage(${JSON.stringify(message)})`);
   return value;
 }
@@ -209,7 +211,7 @@ before(async () => {
     for (const t of targetInfos.filter((x) => x.type === 'service_worker' && x.url.startsWith('chrome-extension://'))) {
       const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: t.targetId, flatten: true });
       const name = await evaluate(sessionId, 'chrome.runtime.getManifest().name').catch(() => null);
-      if (name?.startsWith('Ad Blocker')) {
+      if (name === 'My Chrome Universe') {
         swSession = sessionId;
         extId = new URL(t.url).host;
         break;
@@ -403,8 +405,8 @@ function publishFeed({ version, rules, cosmetic, corruptChecksum = false }) {
   }));
 }
 
-const bundledRules = () => JSON.parse(readFileSync(join(extDir, 'rules', 'ads.json'), 'utf8'));
-const bundledCosmetic = () => JSON.parse(readFileSync(join(extDir, 'cosmetic', 'ads.json'), 'utf8'));
+const bundledRules = () => JSON.parse(readFileSync(join(adblockDir, 'rules', 'ads.json'), 'utf8'));
+const bundledCosmetic = () => JSON.parse(readFileSync(join(adblockDir, 'cosmetic', 'ads.json'), 'utf8'));
 const disabledIds = () => evaluate(swSession, "chrome.declarativeNetRequest.getDisabledRuleIds({ rulesetId: 'ads' })");
 let removedRule;
 
@@ -459,10 +461,10 @@ test('a feed older than the bundled rules clears downloaded updates', async () =
 });
 
 test('extension pages render without errors', async () => {
-  for (const page of ['options.html', 'popup.html']) {
+  for (const page of ['modules/adblock/options.html', 'modules/adblock/popup.html']) {
     const s = await openPage(`chrome-extension://${extId}/${page}`);
     const text = await evaluate(s, 'document.body.innerText');
     assert.ok(text.length > 50, `${page} looks empty`);
-    await screenshot(s, page.replace('.html', ''));
+    await screenshot(s, page.split('/').pop().replace('.html', ''));
   }
 });

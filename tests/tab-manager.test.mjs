@@ -83,6 +83,8 @@ function event() {
 }
 
 let nextId = 1;
+const DASHBOARD = BASE + 'modules/tabs/newtab.html';
+const menuItems = [];
 const tabs = [];
 const groups = [];
 let store = {};
@@ -95,6 +97,7 @@ const chrome = {
       async get(key) { return key in store ? { [key]: structuredClone(store[key]) } : {}; },
       async set(obj) { Object.assign(store, structuredClone(obj)); },
     },
+    onChanged: event(),
   },
   tabs: {
     async query(q = {}) {
@@ -123,7 +126,7 @@ const chrome = {
       return { id: windowId, tabs: created };
     },
   },
-  contextMenus: { removeAll: (cb) => cb?.(), create() {}, onClicked: event() },
+  contextMenus: { removeAll: (cb) => { menuItems.length = 0; cb?.(); }, create(props) { menuItems.push(props); }, onClicked: event() },
   commands: { onCommand: event() },
   omnibox: { setDefaultSuggestion() {}, onInputChanged: event(), onInputEntered: event() },
 };
@@ -154,18 +157,18 @@ test('save session keeps tabs open by default', async () => {
 });
 
 test('save session with close keeps pinned tabs and the dashboard', async () => {
-  const dash = await chrome.tabs.create({ url: BASE + 'newtab.html' });
+  const dash = await chrome.tabs.create({ url: DASHBOARD });
   const r = await send({ type: 'tm:saveSession', windowId: 1, close: true, keepTabId: dash.id, name: 'Riset' });
   assert.equal(r.ok, true);
   assert.equal(collections()[0].name, 'Riset');
-  assert.deepEqual(urls(), ['https://two.com/', 'chrome://settings/', BASE + 'newtab.html']);
+  assert.deepEqual(urls(), ['https://two.com/', 'chrome://settings/', DASHBOARD]);
 });
 
 test('closing every tab leaves a dashboard so the window survives', async () => {
   tabs.length = 0;
   tabs.push({ id: nextId++, url: 'https://solo.com/', title: 'Solo', windowId: 5, pinned: false });
   await send({ type: 'tm:saveSession', windowId: 5, close: true });
-  assert.deepEqual(urls(), [BASE + 'newtab.html']);
+  assert.deepEqual(urls(), [DASHBOARD]);
 });
 
 test('saving with nothing savable reports an error', async () => {
@@ -227,4 +230,10 @@ test('context menu and shortcut save the session', async () => {
   await chrome.commands.onCommand.fire('save-session', { windowId: 1 });
   await settle();
   assert.equal(collections().length, before + 2);
+});
+
+test('context menu items come from the shared core menu', async () => {
+  const { rebuildMenus } = await import('../my-chrome-universe/core/menus.js');
+  await rebuildMenus();
+  assert.deepEqual(menuItems.map((m) => m.id), ['tm-root', 'tm-save-tab', 'tm-save-session', 'tm-open']);
 });

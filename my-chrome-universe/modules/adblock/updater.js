@@ -166,7 +166,7 @@ export async function checkForUpdates({ feedUrl, bundle, enabled, userRules = 0,
       validateRules(rules);
       validateCosmetic(cosmetic);
 
-      const bundled = await fetch(chrome.runtime.getURL(`rules/${id}.json`)).then((r) => r.json());
+      const bundled = await fetch(chrome.runtime.getURL(`modules/adblock/rules/${id}.json`)).then((r) => r.json());
       const bundledKeys = new Map(bundled.map((r) => [ruleKey(r), r.id]));
       const remoteKeys = new Set(rules.map(ruleKey));
       let added = rules.filter((r) => !bundledKeys.has(ruleKey(r))).map(({ id: _, ...r }) => r);

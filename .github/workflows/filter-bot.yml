@@ -38,7 +38,7 @@ jobs:
           fi
 
       - name: Unit tests
-        run: node --test tests/ad-blocker.test.mjs
+        run: node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs
 
       - name: Build feed
         run: node filter-bot/bot.mjs --out feed --update-extension
@@ -49,7 +49,7 @@ jobs:
         run: npx --yes playwright@1 install --with-deps chromium
 
       - name: Verify in Chromium
-        run: node --test tests/ad-blocker.e2e.mjs
+        run: node --test tests/universe.e2e.mjs
 
       - name: Publish feed
         run: |

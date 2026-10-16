@@ -1,6 +1,7 @@
 import { STORAGE_KEY, INBOX_NAME, applyOp, normalize, emptyData, findCollection, findSpace, isSavableUrl, search, sessionName } from './store.js';
+import { registerMenuProvider } from '../../core/menus.js';
 
-const DASHBOARD_PATH = 'newtab.html';
+const DASHBOARD_PATH = 'modules/tabs/newtab.html';
 const DASHBOARD_URL = chrome.runtime.getURL(DASHBOARD_PATH);
 
 // --- Storage: the service worker is the only writer, so concurrent edits from
@@ -158,22 +159,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 const MENU = { root: 'tm-root', saveTab: 'tm-save-tab', saveSession: 'tm-save-session', open: 'tm-open' };
 
-function createMenus() {
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: MENU.root, title: 'Tab Manager', contexts: ['page', 'action'] });
-    chrome.contextMenus.create({ id: MENU.saveTab, parentId: MENU.root, title: 'Simpan tab ini', contexts: ['page', 'action'] });
-    chrome.contextMenus.create({ id: MENU.saveSession, parentId: MENU.root, title: 'Simpan semua tab (sesi)', contexts: ['page', 'action'] });
-    chrome.contextMenus.create({ id: MENU.open, parentId: MENU.root, title: 'Buka Tab Manager', contexts: ['page', 'action'] });
-  });
-}
+// The shared menu (core/menus.js) asks for our items on every rebuild.
+registerMenuProvider('tabs', async () => [
+  { id: MENU.root, title: 'Tab Manager', contexts: ['page', 'action'] },
+  { id: MENU.saveTab, parentId: MENU.root, title: 'Simpan tab ini', contexts: ['page', 'action'] },
+  { id: MENU.saveSession, parentId: MENU.root, title: 'Simpan semua tab (sesi)', contexts: ['page', 'action'] },
+  { id: MENU.open, parentId: MENU.root, title: 'Buka Tab Manager', contexts: ['page', 'action'] },
+]);
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === MENU.saveTab && tab) await saveToInbox(tab);
   if (info.menuItemId === MENU.saveSession) await saveSession({ windowId: tab?.windowId });
   if (info.menuItemId === MENU.open) await openDashboard();
 });
-
-chrome.runtime.onInstalled.addListener(createMenus);
 
 // --- Keyboard shortcuts ---
 

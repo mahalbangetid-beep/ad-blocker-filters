@@ -1,0 +1,106 @@
+{
+  "manifest_version": 3,
+  "name": "My Chrome Universe",
+  "short_name": "Universe",
+  "version": "1.0.0",
+  "description": "Satu extension untuk Ad Blocker, Tab Manager, dan Browser Lock. Semua data lokal, tanpa akun, tanpa telemetri, tanpa iklan yang diizinkan.",
+  "minimum_chrome_version": "121",
+  "permissions": [
+    "declarativeNetRequest",
+    "storage",
+    "unlimitedStorage",
+    "tabs",
+    "tabGroups",
+    "scripting",
+    "webNavigation",
+    "webRequest",
+    "contextMenus",
+    "alarms",
+    "idle",
+    "favicon"
+  ],
+  "optional_permissions": [
+    "bookmarks"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "My Chrome Universe",
+    "default_popup": "modules/adblock/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "options_ui": {
+    "page": "modules/adblock/options.html",
+    "open_in_tab": true
+  },
+  "chrome_url_overrides": {
+    "newtab": "modules/tabs/newtab.html"
+  },
+  "omnibox": {
+    "keyword": "tm"
+  },
+  "commands": {
+    "lock-browser": {
+      "suggested_key": {
+        "default": "Alt+Shift+L"
+      },
+      "description": "Kunci browser sekarang"
+    },
+    "save-session": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Simpan semua tab di jendela ini sebagai koleksi"
+    },
+    "save-tab": {
+      "suggested_key": {
+        "default": "Alt+Shift+D"
+      },
+      "description": "Simpan tab aktif ke koleksi \"Disimpan\""
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ads",
+        "enabled": true,
+        "path": "modules/adblock/rules/ads.json"
+      },
+      {
+        "id": "indonesia",
+        "enabled": false,
+        "path": "modules/adblock/rules/indonesia.json"
+      },
+      {
+        "id": "security",
+        "enabled": true,
+        "path": "modules/adblock/rules/security.json"
+      },
+      {
+        "id": "privacy",
+        "enabled": false,
+        "path": "modules/adblock/rules/privacy.json"
+      },
+      {
+        "id": "annoyances",
+        "enabled": false,
+        "path": "modules/adblock/rules/annoyances.json"
+      }
+    ]
+  }
+}
