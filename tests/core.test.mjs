@@ -87,6 +87,13 @@ test('module states default to enabled', async () => {
   assert.equal(await isModuleEnabled('lock'), true);
 });
 
+test('module icons are names from the shared icon set', async () => {
+  const { MODULES } = await import('../my-chrome-universe/core/modules.js');
+  const { ICONS } = await import('../my-chrome-universe/ui/icons.js');
+  assert.deepEqual(MODULES.map((m) => m.icon), ['shield', 'layers', 'lock']);
+  for (const m of MODULES) assert.ok(m.icon in ICONS, `${m.id}: unknown icon ${m.icon}`);
+});
+
 test('onModuleStatesChanged reports full states', async () => {
   const seen = [];
   onModuleStatesChanged((s) => seen.push(s));

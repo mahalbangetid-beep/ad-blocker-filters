@@ -2,9 +2,9 @@
 export const MODULES_KEY = 'core:modules';
 
 export const MODULES = [
-  { id: 'adblock', name: 'Ad Blocker', icon: '🛡', panel: 'modules/adblock/panel.js', options: 'modules/adblock/options.html' },
-  { id: 'tabs', name: 'Tab Manager', icon: '🗂', panel: 'modules/tabs/panel.js', options: null },
-  { id: 'lock', name: 'Browser Lock', icon: '🔒', panel: 'modules/lock/panel.js', options: 'modules/lock/options.html' },
+  { id: 'adblock', name: 'Ad Blocker', icon: 'shield', panel: 'modules/adblock/panel.js', options: 'modules/adblock/options.html' },
+  { id: 'tabs', name: 'Tab Manager', icon: 'layers', panel: 'modules/tabs/panel.js', options: null },
+  { id: 'lock', name: 'Browser Lock', icon: 'lock', panel: 'modules/lock/panel.js', options: 'modules/lock/options.html' },
 ];
 
 async function readStored() {

@@ -1,0 +1,9 @@
+/* Tab Manager panel inside the toolbar popup (loaded while the panel is open). */
+.cur-tab { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: rgb(var(--tint) / .03); border: 1px solid var(--line); }
+.cur-tab .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cur-tab b { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cur-tab span:not(.fav) { font: 400 11.5px/1.4 var(--f-mono); color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cur-tab + .lbl-sm { margin-top: 4px; }
+.tm-new-name { height: 40px; border-radius: 12px; }
+.mcu-panel-root .check { padding: 2px 0; }
+.mcu-panel-root .btn span { overflow: hidden; text-overflow: ellipsis; }

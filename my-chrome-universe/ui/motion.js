@@ -23,7 +23,8 @@ export function animate(el, keyframes, opts = {}) {
 
 export function countUp(el, to, ms = 1100) {
   if (!el) return;
-  if (motionLevel() === 'minimal') { el.textContent = NF.format(to); return; }
+  // Hidden pages get no animation frames: show the final value at once.
+  if (motionLevel() === 'minimal' || document.hidden) { el.textContent = NF.format(to); return; }
   const start = performance.now();
   const step = (t) => {
     const k = Math.min(1, (t - start) / ms);

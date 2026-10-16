@@ -1,0 +1,20 @@
+/* Browser Lock panel inside the toolbar popup (loaded while the panel is open). */
+.lock-hero { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 10px 0 4px; }
+.lock-hero svg.big { width: 74px; height: 74px; color: var(--ok-text); filter: drop-shadow(0 0 18px color-mix(in srgb, var(--ok) 45%, transparent)); }
+.lock-hero svg.big .ic-body { stroke-width: 1.4; }
+.lock-hero .shackle { transform-box: fill-box; transform-origin: 100% 100%; transform: translateY(-2px) rotate(26deg); transition: transform 520ms var(--spring); }
+.lock-hero.locking .shackle { transform: none; }
+.lock-hero.locking svg.big { color: var(--accent-text); animation: pop 600ms var(--spring); }
+.lock-hero b { font: 700 17px/1.2 var(--f-display); }
+.lock-hero span { font-size: 12.5px; color: var(--dust); }
+.facts { display: grid; gap: 2px; }
+.facts li { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font-size: 13px; color: var(--dust); }
+.facts li:nth-child(odd) { background: rgb(var(--tint) / .03); }
+.facts li b, .facts li .k { margin-left: auto; color: var(--star); }
+.facts .k.keys { display: inline-flex; align-items: center; gap: 3px; color: var(--faint); }
+.facts .ic { width: 16px; height: 16px; color: var(--faint); }
+.off-form { display: grid; gap: 8px; padding: 12px; border-radius: 14px; border: 1px solid var(--line-strong); background: var(--raise); }
+.off-form:not([hidden]) { animation: rise 420ms var(--ease-out); }
+.off-row { display: flex; gap: 6px; }
+.off-row .input { height: 36px; flex: 1; min-width: 0; border-radius: 11px; }
+.off-row .btn { height: 36px; padding: 0 10px; }

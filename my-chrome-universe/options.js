@@ -2,6 +2,7 @@
 import { guardPage } from './core/page-guard.js';
 import { MODULES, onModuleStatesChanged } from './core/modules.js';
 import { moduleSwitch, messageLine } from './core/panel.js';
+import { icon } from './ui/icons.js';
 
 await guardPage('tab');
 
@@ -20,7 +21,7 @@ const currentModule = () => MODULES.find((m) => m.id === location.hash.slice(1))
 function renderMenu(active) {
   for (const a of side.querySelectorAll('a')) a.remove();
   for (const m of MODULES) {
-    const a = el('a', { href: `#${m.id}` }, el('span', { textContent: m.icon }), m.name);
+    const a = el('a', { href: `#${m.id}` }, icon(m.icon), m.name);
     if (m.id === active.id) a.setAttribute('aria-current', 'page');
     side.append(a);
   }
@@ -99,7 +100,7 @@ async function render() {
       onclick: () => chrome.tabs.create({ url: chrome.runtime.getURL('modules/tabs/newtab.html') }),
     }, 'Buka dashboard'));
   }
-  main.replaceChildren(el('h2', {}, `${mod.icon} ${mod.name}`), ...controls, msg, ...body);
+  main.replaceChildren(el('h2', {}, icon(mod.icon), ` ${mod.name}`), ...controls, msg, ...body);
 }
 
 addEventListener('hashchange', render);

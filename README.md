@@ -97,10 +97,12 @@ UI Tab Manager bisa dicoba di browser biasa dengan API `chrome` tiruan:
 ## Menambah modul baru
 
 1. Buat folder `my-chrome-universe/modules/<id>/` berisi `background.js` (opsional), `panel.js`, dan halaman/aset modul.
-2. Daftarkan di `MODULES` (`core/modules.js`): `id`, `name`, `icon`, `panel`, `options` (path halaman opsi atau `null`).
-   Sakelar aktif/nonaktif, grid popup, dan menu samping halaman pengaturan otomatis mengikuti daftar ini.
-3. `panel.js` mengekspor `render(root)` (isi panel di popup; helper `moduleSwitch`/`offNotice`/`loadStyles` ada di
-   `core/panel.js`) dan `status()` (teks kecil di ubin grid, mis. "aktif").
+2. Daftarkan di `MODULES` (`core/modules.js`): `id`, `name`, `icon` (nama ikon dari `ui/icons.js`), `panel`, `options`
+   (path halaman opsi atau `null`). Kartu modul di popup (dengan sakelar aktif/nonaktif) dan menu samping halaman
+   pengaturan otomatis mengikuti daftar ini.
+3. `panel.js` mengekspor `render(root, opts)` (isi panel di popup; helper `offNotice`/`messageLine`/`loadStyles`/`favTile`
+   ada di `core/panel.js`; gaya panel di `panel.css` modul lewat `loadStyles`), `status()` (teks kecil di kartu, mis.
+   "aktif"), dan opsional `hero()` (`{ title, subtitle, value, favUrl? }` atau `null`) untuk kartu situs di beranda popup.
 4. Pakai awalan sendiri untuk tipe pesan dan kunci storage (`lock:`, `tm:`, `ab:`; `core:` milik core).
 5. Di `background.js` modul: daftarkan listener di top level, jangan top-level await, simpan state di `chrome.storage`.
    Handler pesan memanggil `messageAllowed(type)` (`core/gate.js`) sehingga tertolak (`{ok:false,error:'locked'}`)

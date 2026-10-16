@@ -1,0 +1,22 @@
+/* Ad Blocker panel inside the toolbar popup (loaded while the panel is open). */
+.ab-hero { display: flex; align-items: center; gap: 14px; padding: 6px 2px; }
+.ab-hero .grow { flex: 1; min-width: 0; display: grid; gap: 10px; }
+.ring-stat { position: relative; width: 112px; height: 112px; flex: none; }
+.ring-stat svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-stat circle { fill: none; stroke-width: 9; }
+.ring-stat .bg { stroke: rgb(var(--tint) / .07); }
+.ring-stat .fg { stroke: var(--ion); stroke-linecap: round; stroke-dasharray: 327; stroke-dashoffset: 327; transition: stroke-dashoffset 1200ms var(--ease-out), stroke 300ms; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--ion) 50%, transparent)); }
+.ring-stat > div { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+.ring-stat b { font: 700 28px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.ring-stat span { font-size: 11px; color: var(--dust); }
+.site-row { display: flex; align-items: center; gap: 10px; }
+.site-row .grow2 { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.site-row .grow2 b { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.site-row .grow2 span { font-size: 12px; color: var(--dust); transition: color var(--d2); }
+.ab-unsupported { font-size: 12.5px; color: var(--dust); }
+.ab-off-state .ring-stat .fg { stroke: var(--faint); filter: none; }
+.ab-off-state #state { color: var(--nova-text); }
+.stats2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0; }
+.stats2 div { min-width: 0; padding: 10px 12px; border-radius: 12px; background: rgb(var(--tint) / .03); border: 1px solid var(--line); }
+.stats2 dt { font-size: 11.5px; color: var(--faint); white-space: nowrap; }
+.stats2 dd { margin: 2px 0 0; font: 500 16px/1.2 var(--f-mono); overflow: hidden; text-overflow: ellipsis; }

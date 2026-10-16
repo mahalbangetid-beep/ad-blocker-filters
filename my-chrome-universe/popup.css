@@ -1,128 +1,88 @@
-/* Toolbar popup frame (grid + panel header). A panel's module stylesheet is loaded on top
-   while it is open, so the frame's own controls reset what element selectors could leak in. */
-:root {
-  --bg: #f5f5f7;
-  --surface: #ffffff;
-  --text: #1c1d21;
-  --muted: #62666f;
-  --border: #dfe1e6;
-  --accent: #2f5bea;
-  --accent-text: #ffffff;
-  --danger: #c62828;
-  --track: #c9ccd3;
-  color-scheme: light;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17181b;
-    --surface: #222327;
-    --text: #eceef2;
-    --muted: #a3a8b3;
-    --border: #383b42;
-    --accent: #6d8dff;
-    --accent-text: #0d1020;
-    --danger: #ff7b72;
-    --track: #4a4e57;
-    color-scheme: dark;
-  }
-}
-
-* { box-sizing: border-box; }
+/* Toolbar popup (370 px wide, Chrome caps popups at 800 x 600): header, home view (site hero +
+   module cards + footer) and the module panel view. Module panels add their own stylesheet
+   while open; shared panel pieces (labels, messages, off notice, select, stats) live here. */
 [hidden] { display: none !important; }
 
-body {
-  width: 320px;
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-}
+body { width: 370px; overflow: hidden; background: var(--panel-solid); font-size: 14px; }
 
-/* Header: "<logo> My Chrome Universe ⚙" on the grid, "← <icon> <name> ⚙" in a panel */
-.mcu-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 46px;
-  padding: 10px 12px 10px 14px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-.mcu-head img { flex: none; }
-.mcu-head-icon { font-size: 18px; line-height: 1; }
-.mcu-title { flex: 1; min-width: 0; font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp { display: flex; flex-direction: column; height: 500px; opacity: 0; clip-path: circle(0px at calc(100% - 30px) -16px); }
+.pp.open { opacity: 1; clip-path: circle(170% at calc(100% - 30px) -16px); transition: clip-path 720ms var(--ease-out), opacity 160ms; }
 
-.mcu-icon-btn {
-  all: unset;
-  flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  color: var(--muted);
-  font: 16px/1 system-ui, sans-serif;
-  cursor: pointer;
-}
-.mcu-icon-btn:hover { background: var(--bg); color: var(--text); }
-.mcu-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-#mcu-back { margin-left: -6px; font-size: 18px; }
+/* ---------- header ---------- */
+.pp-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 12px; border-bottom: 1px solid var(--line); flex: none; }
+.pp-back { width: 0; overflow: hidden; opacity: 0; margin-right: -10px; transition: width 360ms var(--ease-out), opacity 200ms, margin 360ms var(--ease-out); }
+.pp-head.sub .pp-back { width: 32px; opacity: 1; margin-right: 0; }
+.pp-back:hover .ic { transform: translateX(-3px); }
+.pp-head .logo { width: 30px; height: 30px; }
+.pp-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pp-title b { font: 700 14px/1.2 var(--f-display); letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-title b.swap { animation: rise 420ms var(--ease-out); }
+.pp-title .status { display: block; min-height: 18px; font-size: 12px; color: var(--dust); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status .live { display: inline-block; vertical-align: middle; margin: -2px 6px 0 0; }
+.live { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); animation: live 2s ease-out infinite; }
+.live.off { background: var(--faint); animation: none; }
+@keyframes live { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 60%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--ok) 0%, transparent); } }
 
-/* Grid of module tiles */
-.mcu-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  padding: 14px;
-}
+/* ---------- views ---------- */
+.pp-views { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.pv { position: absolute; inset: 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-x: hidden; overflow-y: auto; transform: translateX(44px); opacity: 0; visibility: hidden; transition: transform 460ms var(--ease-out), opacity 260ms, visibility 0s 460ms; }
+.pv.is-left { transform: translateX(-44px); }
+.pv.is-on { transform: none; opacity: 1; visibility: visible; transition: transform 520ms var(--ease-out), opacity 300ms 60ms, visibility 0s; }
+.pp.open #mcu-home.is-on > *, .mcu-panel-root > * { animation: rise 520ms var(--ease-out) backwards; animation-delay: calc(140ms + var(--i, 0) * 55ms); }
+.mcu-panel-root { display: flex; flex-direction: column; gap: 10px; }
+.pv > *, .mcu-panel-root > * { flex: none; }
+#mcu-panel { padding-bottom: 16px; }
 
-.mcu-tile {
-  all: unset;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-  padding: 12px 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text);
-  text-align: center;
-  cursor: pointer;
-}
-.mcu-tile:hover { border-color: var(--accent); }
-.mcu-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.mcu-tile-icon { font-size: 24px; line-height: 1.2; }
-.mcu-tile-name { font-size: 12px; font-weight: 600; line-height: 1.3; }
-.mcu-tile-status { min-height: 1.4em; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* ---------- home: hero ---------- */
+.mcu-hero { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 15px; background: linear-gradient(120deg, color-mix(in srgb, var(--ion) 10%, transparent), color-mix(in srgb, var(--ion) 2%, transparent)); border: 1px solid color-mix(in srgb, var(--ion) 22%, transparent); }
+.mcu-hero .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mcu-hero .grow b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcu-hero .grow span { color: var(--dust); font-size: 12px; }
+.mcu-hero-n { font: 700 26px/1 var(--f-display); color: var(--ion-text); font-variant-numeric: tabular-nums; }
+.fav img { width: 18px; height: 18px; border-radius: 4px; }
 
-/* "Aktif" switch row at the top of every panel */
-.mcu-module-switch {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 14px 14px 0;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface);
-}
-.mcu-switch-label { flex: 1; font-weight: 600; }
+/* ---------- home: module cards ---------- */
+.mcu-cards { display: flex; flex-direction: column; gap: 8px; }
+.mcu-card { --tc: var(--accent); --tct: var(--accent-text); display: flex; align-items: center; gap: 4px; padding: 4px 10px 4px 4px; border-radius: 16px; border: 1px solid var(--line); background: rgb(var(--tint) / .025); transition: border-color var(--d2), background var(--d2), opacity var(--d2), transform 300ms var(--ease-out); transform: perspective(600px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+.mcu-card[data-id="adblock"] { --tc: var(--ion); --tct: var(--ion-text); }
+.mcu-card[data-id="tabs"] { --tc: var(--solar); --tct: var(--solar-text); }
+.mcu-card[data-id="lock"] { --tc: var(--nova); --tct: var(--nova-text); }
+.mcu-card:hover { border-color: var(--line-strong); background: rgb(var(--tint) / .05); }
+.mcu-card.off .mcu-card-open { opacity: .55; }
+.mcu-card-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 12px; text-align: left; }
+.mcu-card-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; background: color-mix(in srgb, var(--tc) 14%, transparent); color: var(--tct); border: 1px solid color-mix(in srgb, var(--tc) 28%, transparent); transition: transform 500ms var(--spring), box-shadow var(--d2); }
+.mcu-card-ic .ic { width: 21px; height: 21px; }
+.mcu-card:hover .mcu-card-ic { transform: rotate(-8deg) scale(1.08); box-shadow: 0 0 22px -6px var(--tc); }
+.mcu-card-ic .l2, .mcu-card-ic .l3 { transition: transform 420ms var(--spring); }
+.mcu-card:hover .mcu-card-ic .l2 { transform: translateY(1.5px); }
+.mcu-card:hover .mcu-card-ic .l3 { transform: translateY(3px); }
+.mcu-card-ic .shackle { transition: transform 400ms var(--spring); transform-box: fill-box; transform-origin: 100% 100%; }
+.mcu-card:hover .mcu-card-ic .shackle { transform: translateY(-2px) rotate(20deg); }
+.mcu-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mcu-card-name { font-size: 14px; }
+.mcu-card-status { min-height: 18px; font-size: 12px; color: var(--dust); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcu-card-go { color: var(--faint); transition: transform 360ms var(--spring), color var(--d2); }
+.mcu-card:hover .mcu-card-go { transform: translateX(4px); color: var(--star); }
 
-.mcu-switch { position: relative; display: inline-block; width: 42px; height: 24px; flex: none; }
-.mcu-switch input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
-.mcu-switch i { position: absolute; inset: 0; border-radius: 99px; background: var(--track); transition: background .15s; pointer-events: none; }
-.mcu-switch i::after {
-  content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
-  background: #fff; transition: transform .15s;
-}
-.mcu-switch input:checked + i { background: var(--accent); }
-.mcu-switch input:checked + i::after { transform: translateX(18px); }
-.mcu-switch input:focus-visible + i { outline: 2px solid var(--accent); outline-offset: 2px; }
-.mcu-switch input:disabled + i { opacity: .45; }
+/* ---------- home: footer ---------- */
+.pv > .pp-foot { margin-top: auto; display: flex; gap: 8px; }
+.pp-foot .btn { flex: 1; }
 
-.mcu-off { margin: 14px; color: var(--muted); font-size: 13px; text-align: center; }
-.mcu-msg { margin: 6px 14px 0; font-size: 13px; color: var(--danger); }
+/* ---------- shared panel pieces ---------- */
+.lbl-sm { font-size: 12.5px; font-weight: 600; color: var(--dust); }
+.mcu-msg { margin: 0; font-size: 13px; color: var(--danger-text); }
 .mcu-msg:empty { display: none; }
+.mcu-status { min-height: 20px; margin: 0; font-size: 13px; color: var(--dust); }
+.mcu-off { display: grid; justify-items: center; gap: 6px; padding: 26px 16px; border-radius: 15px; border: 1px dashed var(--line-strong); text-align: center; color: var(--dust); font-size: 12.5px; }
+.mcu-off .ic { width: 26px; height: 26px; color: var(--faint); }
+.mcu-off p { color: var(--star); font-size: 14px; font-weight: 600; }
+.select-wrap { position: relative; }
+.select-wrap select { appearance: none; width: 100%; height: 42px; padding: 0 38px 0 12px; border-radius: 12px; border: 1px solid var(--line-strong); background: rgb(var(--tint) / .04); color: var(--star); cursor: pointer; transition: border-color var(--d2); }
+.select-wrap select:focus { outline: none; border-color: var(--accent-text); }
+.select-wrap select:disabled { opacity: .55; cursor: not-allowed; }
+.select-wrap select option, .select-wrap select optgroup { background: var(--panel-solid); color: var(--star); }
+.select-wrap .ic { position: absolute; right: 12px; top: 12px; pointer-events: none; color: var(--dust); }
+.btn.done-state { background: color-mix(in srgb, var(--ok) 18%, transparent); border-color: color-mix(in srgb, var(--ok) 45%, transparent); color: var(--ok-text); box-shadow: none; }
+.btn.done-state .ic { animation: pop 500ms var(--spring); }
+
+.toasts { bottom: 14px; }

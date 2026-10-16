@@ -1,42 +1,27 @@
-// Tab Manager panel in the toolbar popup (formerly this module's own popup).
+// Tab Manager panel in the toolbar popup: save the current tab to a collection (or a new
+// one), save the whole window, close after saving, open the dashboard.
 import { isSavableUrl, INBOX_NAME } from './store.js';
-import { send, runOp, loadData, faviconUrl, h } from './common.js';
+import { send, runOp, loadData, h } from './common.js';
 import { getModuleStates } from '../../core/modules.js';
-import { addStyle, moduleSwitch, offNotice, messageLine } from '../../core/panel.js';
+import { loadStyles, offNotice, favTile } from '../../core/panel.js';
+import { hydrateIcons, ic } from '../../ui/icons.js';
 
 const NEW_COLLECTION = '__new__';
 
-// Self-contained until the popup redesign: the dashboard stylesheet no longer suits the popup.
-const CSS = `
-  .tm-panel .primary-btn, .tm-panel .ghost-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 10px; white-space: nowrap; }
-  .tm-panel .primary-btn { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
-  .tm-panel .ghost-btn { background: transparent; }
-  .tm-panel .check { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
-  .tm-panel { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-  .tm-panel .current { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); min-width: 0; }
-  .tm-panel .current img { width: 16px; height: 16px; flex: none; }
-  .tm-panel .current span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tm-panel select, .tm-panel input[type="text"] { width: 100%; padding: 7px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-  .tm-panel hr { border: 0; border-top: 1px solid var(--border); margin: 2px 0; width: 100%; }
-  .tm-panel .status { min-height: 1.3em; margin: 0; font-size: 13px; color: var(--muted); }
-  .tm-panel button:disabled, .tm-panel select:disabled { opacity: .5; cursor: not-allowed; }
-`;
-
 const MARKUP = `
-  <div class="current" id="current"></div>
-  <label class="check" for="target">Simpan tab ini ke:</label>
-  <select id="target"></select>
-  <input type="text" id="new-name" placeholder="Nama koleksi baru" hidden>
-  <button class="primary-btn" id="save-tab">Simpan tab ini</button>
-
-  <hr>
-  <button class="ghost-btn" id="save-session">Simpan semua tab di jendela ini</button>
-  <label class="check"><input type="checkbox" id="close-after"> Tutup tab setelah disimpan</label>
-
-  <hr>
-  <button class="ghost-btn" id="open-dashboard">Buka Tab Manager</button>
-  <p class="status" id="status" role="status"></p>
+  <div class="cur-tab" style="--i:0"><span id="cur-fav"></span><div class="grow"><b id="cur-title"></b><span id="cur-url"></span></div></div>
+  <label class="lbl-sm" for="target" style="--i:1">Simpan ke koleksi</label>
+  <div class="select-wrap" style="--i:1"><select id="target"></select><i data-ic="chevronDown"></i></div>
+  <input class="input tm-new-name" type="text" id="new-name" placeholder="Nama koleksi baru" maxlength="120" style="--i:1" hidden>
+  <button class="btn primary block rp" type="button" id="save-tab" style="--i:2"><i data-ic="download"></i><span>Simpan tab ini</span></button>
+  <button class="btn ghost block rp" type="button" id="save-session" style="--i:3"><i data-ic="layers"></i><span>Simpan semua tab di jendela ini</span></button>
+  <label class="check" style="--i:4"><input type="checkbox" id="close-after"><span class="box"></span>Tutup tab setelah disimpan</label>
+  <button class="btn ghost block sm rp" type="button" id="open-dashboard" style="--i:5"><i data-ic="external"></i>Buka Tab Manager</button>
+  <p class="mcu-status" id="status" role="status" style="--i:6"></p>
 `;
+
+const shortUrl = (url) => url.replace(/^[a-z]+:\/\/(www\.)?/i, '');
+const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
 
 export async function status() {
   if (!(await getModuleStates()).tabs) return 'nonaktif';
@@ -45,38 +30,37 @@ export async function status() {
 }
 
 export async function render(root) {
-  addStyle('tabs', CSS);
-  const enabled = (await getModuleStates()).tabs;
+  await loadStyles(new URL('./panel.css', import.meta.url).href);
+  if (!(await getModuleStates()).tabs) return void root.replaceChildren(offNotice());
 
-  const { row } = moduleSwitch(enabled, async (on) => {
-    const result = await send('core:setModule', { id: 'tabs', enabled: on });
-    if (!root.isConnected) return; // panel closed meanwhile
-    root.replaceChildren();
-    await render(root);
-    if (!result?.ok) root.querySelector('.mcu-msg').textContent = result?.error || 'Gagal menyimpan';
-  });
-  root.replaceChildren(row, messageLine());
-  if (!enabled) return void root.append(offNotice());
+  const [data, [tab]] = await Promise.all([loadData(), chrome.tabs.query({ active: true, currentWindow: true })]);
+  const windowTabs = tab ? await chrome.tabs.query({ windowId: tab.windowId }) : [];
+  if (!root.isConnected) return;
 
-  const main = document.createElement('div');
-  main.className = 'tm-panel';
-  main.innerHTML = MARKUP;
-  root.append(main);
-
-  const $ = (id) => main.querySelector(`#${id}`);
-  const data = await loadData();
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
+  const template = document.createElement('template');
+  template.innerHTML = MARKUP;
+  hydrateIcons(template.content);
+  root.replaceChildren(template.content);
+  const $ = (id) => root.querySelector(`#${id}`);
   const showStatus = (text) => { $('status').textContent = text; };
 
   const url = tab?.url || '';
-  $('current').append(h('img', { src: faviconUrl(url), alt: '' }), h('span', { title: url }, tab?.title || url));
+  $('cur-fav').replaceWith(favTile(url, hostOf(url) || tab?.title || '?'));
+  $('cur-title').textContent = tab?.title || url;
+  $('cur-title').title = tab?.title || '';
+  $('cur-url').textContent = shortUrl(url);
+  $('cur-url').title = url;
+
+  const savable = windowTabs.filter((t) => isSavableUrl(t.url || '')).length;
+  $('save-session').querySelector('span').textContent = `Simpan semua tab di jendela ini (${savable})`;
 
   // Collection picker: inbox of the active space first, then every collection grouped by space.
   const select = $('target');
   select.append(h('option', { value: '' }, `${INBOX_NAME} (ruang aktif)`));
+  const names = new Map();
   for (const space of data.spaces) {
     if (!space.collections.length) continue;
+    for (const c of space.collections) names.set(c.id, c.name);
     select.append(h('optgroup', { label: space.name },
       space.collections.map((c) => h('option', { value: c.id }, `${c.starred ? '★ ' : ''}${c.name}`))));
   }
@@ -96,26 +80,41 @@ export async function render(root) {
   $('close-after').checked = data.settings.closeAfterSave;
   $('close-after').addEventListener('change', (e) => runOp({ type: 'settings/update', settings: { closeAfterSave: e.target.checked } }));
 
+  // Success: the button itself says where the tab went, then the popup closes.
+  const done = (button, text) => {
+    button.classList.add('done-state');
+    button.classList.remove('primary', 'ghost');
+    button.innerHTML = `${ic('check')}<span></span>`;
+    button.querySelector('span').textContent = text;
+    setTimeout(() => window.close(), 1100);
+  };
+
   $('save-tab').addEventListener('click', async () => {
+    const button = $('save-tab');
+    if (button.classList.contains('done-state')) return;
     const info = { url, title: tab.title };
     let result;
+    let target;
     if (select.value === NEW_COLLECTION) {
-      const name = $('new-name').value.trim() || 'Koleksi baru';
-      result = await runOp({ type: 'collection/create', name, tabs: [info], index: 0 });
+      target = $('new-name').value.trim() || 'Koleksi baru';
+      result = await runOp({ type: 'collection/create', name: target, tabs: [info], index: 0 });
     } else {
+      target = names.get(select.value) || INBOX_NAME;
       result = await send('tm:saveTab', { tab: info, collectionId: select.value || undefined });
     }
     if (!result?.ok) return showStatus(result?.error || 'Gagal menyimpan');
     if ($('close-after').checked) await chrome.tabs.remove(tab.id);
-    showStatus('Tab disimpan ✓');
-    setTimeout(() => window.close(), 700);
+    showStatus('Tab disimpan');
+    done(button, `Tersimpan di “${target}”`);
   });
 
   $('save-session').addEventListener('click', async () => {
+    const button = $('save-session');
+    if (button.classList.contains('done-state')) return;
     const result = await send('tm:saveSession', { windowId: tab?.windowId, close: $('close-after').checked });
     if (!result?.ok) return showStatus(result?.error || 'Gagal menyimpan');
-    showStatus(`${result.saved} tab disimpan ✓`);
-    setTimeout(() => window.close(), 700);
+    showStatus(`${result.saved} tab disimpan`);
+    done(button, `${result.saved} tab tersimpan`);
   });
 
   $('open-dashboard').addEventListener('click', async () => {

@@ -3,18 +3,32 @@
 <head>
   <meta charset="utf-8">
   <title>My Chrome Universe</title>
+  <script src="ui/boot.js"></script>
+  <link rel="stylesheet" href="ui/tokens.css">
+  <link rel="stylesheet" href="ui/components.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header class="mcu-head">
-    <button type="button" class="mcu-icon-btn" id="mcu-back" title="Kembali" aria-label="Kembali" hidden>←</button>
-    <img id="mcu-logo" src="icons/icon32.png" alt="" width="20" height="20">
-    <span class="mcu-head-icon" id="mcu-icon" hidden></span>
-    <span class="mcu-title" id="mcu-title">My Chrome Universe</span>
-    <button type="button" class="mcu-icon-btn" id="mcu-options" title="Pengaturan" aria-label="Pengaturan">⚙</button>
-  </header>
-  <main class="mcu-grid" id="mcu-grid"></main>
-  <div class="mcu-panel" id="mcu-panel" hidden></div>
+  <!-- Revealed (circular, from the toolbar icon) once the lock gate is open and the home view is filled. -->
+  <div class="pp" id="mcu-pop">
+    <header class="pp-head" id="mcu-head">
+      <button class="icon-btn sm pp-back rp" type="button" id="mcu-back" aria-label="Kembali" title="Kembali" inert><i data-ic="arrowLeft"></i></button>
+      <svg class="logo" viewBox="0 0 40 40" data-logo></svg>
+      <div class="pp-title"><b id="mcu-title">My Chrome Universe</b><span class="status" id="mcu-status"></span></div>
+      <button class="icon-btn sm rp spin-hover" type="button" id="mcu-options" aria-label="Pengaturan" title="Pengaturan"><i data-ic="settings"></i></button>
+    </header>
+    <div class="pp-views">
+      <section class="pv is-on" id="mcu-home" aria-label="Modul">
+        <div class="mcu-hero" id="mcu-hero" style="--i:0" hidden></div>
+        <div class="mcu-cards" id="mcu-cards" style="--i:1"></div>
+        <div class="pp-foot" style="--i:2">
+          <button class="btn ghost sm rp" type="button" id="mcu-open-tabs" hidden><i data-ic="layers"></i>Tab Manager</button>
+          <button class="btn sm rp" type="button" id="mcu-lock-now" hidden><i data-ic="lock"></i>Kunci sekarang</button>
+        </div>
+      </section>
+      <section class="pv" id="mcu-panel" inert></section>
+    </div>
+  </div>
   <script type="module" src="popup.js"></script>
 </body>
 </html>

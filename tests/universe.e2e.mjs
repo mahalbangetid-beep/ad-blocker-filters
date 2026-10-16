@@ -387,7 +387,7 @@ async function click(sessionId, x, y) {
   }
 }
 
-// With `selector`, only that element is captured (e.g. the 320 px popup body).
+// With `selector`, only that element is captured (e.g. the 370 px popup body).
 async function screenshot(sessionId, name, selector) {
   if (!process.env.SHOT_DIR) return;
   const clip = selector && await evaluate(sessionId, `(() => {
@@ -574,39 +574,84 @@ test('extension pages render without errors', async () => {
 
 // ---------- Toolbar popup ----------
 
-const tileNames = (s) => evaluate(s, "[...document.querySelectorAll('.mcu-tile .mcu-tile-name')].map((n) => n.textContent)");
-const tileStatus = (s, id) => evaluate(s, `document.querySelector('.mcu-tile[data-id="${id}"] .mcu-tile-status')?.textContent`);
-const openTile = (s, id) => evaluate(s, `document.querySelector('.mcu-tile[data-id="${id}"]').click()`);
+const cardNames = (s) => evaluate(s, "[...document.querySelectorAll('.mcu-card .mcu-card-name')].map((n) => n.textContent)");
+const cardStatus = (s, id) => evaluate(s, `document.querySelector('.mcu-card[data-id="${id}"] .mcu-card-status')?.textContent`);
+const openCard = (s, id) => evaluate(s, `document.querySelector('.mcu-card[data-id="${id}"] .mcu-card-open').click()`);
+const modSwitch = (id) => `document.querySelector('#mcu-home input[data-mod="${id}"]')`;
+const onHome = "document.getElementById('mcu-home').classList.contains('is-on')";
+const heroShown = "!document.getElementById('mcu-hero').hidden";
 const bodyText = (s) => evaluate(s, 'document.body.innerText');
 const panelLinks = (s) => evaluate(s, "[...document.querySelectorAll('head link[rel=stylesheet]')].map((l) => l.getAttribute('href')).filter((h) => h.includes('modules/'))");
 
-test('popup shows the module grid and opens a panel', async () => {
+test('popup shows the module cards and opens a panel', async () => {
   const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/popup.html`);
-  await waitFor(s, "document.querySelectorAll('.mcu-tile').length === 3");
-  assert.deepEqual(await tileNames(s), ['Ad Blocker', 'Tab Manager', 'Browser Lock']);
-  await waitFor(s, `document.querySelector('.mcu-tile[data-id="tabs"] .mcu-tile-status')?.textContent.endsWith(' koleksi')`);
-  assert.equal(await tileStatus(s, 'lock'), 'aktif');
-  assert.equal(await evaluate(s, 'document.body.getBoundingClientRect().width'), 320);
-  await screenshot(s, 'popup-grid', 'body');
+  await waitFor(s, "document.querySelectorAll('.mcu-card').length === 3");
+  assert.deepEqual(await cardNames(s), ['Ad Blocker', 'Tab Manager', 'Browser Lock']);
+  await waitFor(s, `document.querySelector('.mcu-card[data-id="tabs"] .mcu-card-status')?.textContent.endsWith(' koleksi')`);
+  assert.equal(await cardStatus(s, 'lock'), 'aktif');
+  assert.equal(await evaluate(s, 'document.body.getBoundingClientRect().width'), 370);
+  assert.ok(await evaluate(s, 'document.body.getBoundingClientRect().height') <= 600, 'popup fits Chrome\'s 600 px limit');
+  for (const id of ['adblock', 'tabs', 'lock']) assert.equal(await evaluate(s, `${modSwitch(id)}.checked`), true, `${id} switch on the card`);
+  // The popup's own tab is the active one: no website, so no hero.
+  assert.equal(await evaluate(s, heroShown), false);
+  assert.ok(await evaluate(s, "!!document.getElementById('mcu-lock-now')"));
+  await sleep(900); // reveal
+  await screenshot(s, 'popup-home', 'body');
 
-  await openTile(s, 'adblock');
+  await openCard(s, 'adblock');
   await waitFor(s, "document.body.innerText.includes('Blokir elemen di halaman ini')");
   assert.match(await evaluate(s, "document.getElementById('mcu-title').textContent"), /Ad Blocker/);
-  assert.equal(await evaluate(s, "document.getElementById('mcu-grid').hidden"), true, 'grid hidden while a panel is open');
+  assert.equal(await evaluate(s, onHome), false, 'home hidden while a panel is open');
+  assert.equal(await evaluate(s, "document.getElementById('mcu-back').inert"), false, 'back button usable in a panel');
   assert.ok((await panelLinks(s)).length > 0, 'the panel loads its module stylesheet');
+  await sleep(700);
   await screenshot(s, 'popup-adblock', 'body');
 
   await evaluate(s, "document.getElementById('mcu-back').click()");
-  await waitFor(s, "!document.getElementById('mcu-grid').hidden && document.querySelectorAll('.mcu-tile').length === 3");
+  await waitFor(s, `${onHome} && document.querySelectorAll('.mcu-panel-root').length === 0`);
+  assert.match(await evaluate(s, "document.getElementById('mcu-title').textContent"), /My Chrome Universe/);
   assert.ok(!(await bodyText(s)).includes('Blokir elemen di halaman ini'), 'panel removed after ←');
   assert.deepEqual(await panelLinks(s), [], 'module stylesheet removed after ←');
 
   // Only one panel at a time: switching modules replaces the previous one.
-  await openTile(s, 'tabs');
+  await openCard(s, 'tabs');
   await waitFor(s, "document.body.innerText.includes('Simpan tab ini')");
   assert.equal(await evaluate(s, "document.querySelectorAll('.mcu-panel-root').length"), 1);
   assert.deepEqual(errors, []);
   await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+});
+
+test('popup hero shows the active site and its blocked count', async () => {
+  const site = await openWatched(`${SITE}/page.html`);
+  await sleep(800);
+  const tabId = await evaluate(swSession, `chrome.tabs.query({}).then(t => t.filter(x => x.url && x.url.startsWith(${JSON.stringify(SITE)})).at(-1).id)`);
+  const popup = await openWatched(`chrome-extension://${extId}/popup.html`, { background: true });
+  const s = popup.sessionId;
+  await waitFor(s, heroShown);
+  const { pageBlocked } = await bg({ type: 'ab:getPopupState', tabId });
+  assert.ok(pageBlocked >= 3, `pageBlocked = ${pageBlocked}`);
+  assert.match(await evaluate(s, "document.getElementById('mcu-hero').innerText"), /site\.test/);
+  await waitFor(s, `document.querySelector('#mcu-hero .mcu-hero-n').textContent === ${JSON.stringify(String(pageBlocked))}`);
+  await sleep(600);
+  await screenshot(s, 'popup-home-hero', 'body');
+
+  // The Ad Blocker switch on its card turns the module off: no hero, status "nonaktif".
+  await evaluate(s, `${modSwitch('adblock')}.click()`);
+  await waitFor(s, `document.querySelector('.mcu-card[data-id="adblock"] .mcu-card-status')?.textContent === 'nonaktif'`);
+  assert.equal((await bg({ type: 'core:getModules' })).modules.adblock, false);
+  await waitFor(s, `!(${heroShown})`);
+  assert.equal(await evaluate(s, `document.querySelector('.mcu-card[data-id="adblock"]').classList.contains('off')`), true);
+  await openCard(s, 'adblock');
+  await waitFor(s, "document.body.innerText.includes('Fitur ini sedang nonaktif.')");
+  assert.ok(!(await bodyText(s)).includes('Blokir elemen di halaman ini'), 'controls hidden while off');
+  await evaluate(s, "document.getElementById('mcu-back').click()");
+  await waitFor(s, onHome);
+  await evaluate(s, `${modSwitch('adblock')}.click()`);
+  await waitFor(s, `document.querySelector('.mcu-card[data-id="adblock"] .mcu-card-status')?.textContent.startsWith('aktif')`);
+  assert.equal((await bg({ type: 'core:getModules' })).modules.adblock, true);
+  await waitFor(s, heroShown);
+  assert.deepEqual(popup.errors, []);
+  for (const id of [popup.targetId, site.targetId]) await cdp.send('Target.closeTarget', { targetId: id }).catch(() => {});
 });
 
 test('popup works when the active tab is not a website', async () => {
@@ -616,59 +661,70 @@ test('popup works when the active tab is not a website', async () => {
   const active = await evaluate(s, 'chrome.tabs.query({ active: true, currentWindow: true }).then(([t]) => t.url)');
   assert.equal(active, 'about:blank', 'the popup sees about:blank as the active tab');
 
-  await waitFor(s, `document.querySelector('.mcu-tile[data-id="adblock"] .mcu-tile-status')?.textContent === 'aktif'`);
-  await openTile(s, 'adblock');
+  await waitFor(s, `document.querySelector('.mcu-card[data-id="adblock"] .mcu-card-status')?.textContent === 'aktif'`);
+  assert.equal(await evaluate(s, heroShown), false, 'no hero without a website');
+  await openCard(s, 'adblock');
   await waitFor(s, "document.body.innerText.includes('Pemblokiran tidak berlaku di halaman ini.')");
   await sleep(1200); // one live refresh
   assert.deepEqual(popup.errors, []);
   for (const id of [popup.targetId, blank]) await cdp.send('Target.closeTarget', { targetId: id }).catch(() => {});
 });
 
-test('popup panel switches turn modules off and on', async () => {
+test('popup card switches turn modules off and on', async () => {
   const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/popup.html`);
-  await waitFor(s, "document.querySelectorAll('.mcu-tile').length === 3");
-  const sw = "document.querySelector('.mcu-module-switch input')";
+  await waitFor(s, "document.querySelectorAll('.mcu-card').length === 3");
 
-  // Tab Manager: off leaves only the switch and the notice.
-  await openTile(s, 'tabs');
+  // Tab Manager: the card switch turns it off; its panel then shows only the notice.
+  await openCard(s, 'tabs');
   await waitFor(s, "document.body.innerText.includes('Simpan tab ini')");
+  await sleep(700);
   await screenshot(s, 'popup-tabs', 'body');
-  await evaluate(s, `${sw}.click()`);
-  await waitFor(s, "document.body.innerText.includes('Fitur ini sedang nonaktif.')");
+  await evaluate(s, "document.getElementById('mcu-back').click()");
+  await waitFor(s, onHome);
+  await evaluate(s, `${modSwitch('tabs')}.click()`);
+  await waitFor(s, `document.querySelector('.mcu-card[data-id="tabs"] .mcu-card-status')?.textContent === 'nonaktif'`);
   assert.equal((await bg({ type: 'core:getModules' })).modules.tabs, false);
+  await openCard(s, 'tabs');
+  await waitFor(s, "document.body.innerText.includes('Fitur ini sedang nonaktif.')");
   assert.ok(!(await bodyText(s)).includes('Simpan tab ini'), 'save controls hidden while off');
   await evaluate(s, "document.getElementById('mcu-back').click()");
-  await waitFor(s, `document.querySelector('.mcu-tile[data-id="tabs"] .mcu-tile-status')?.textContent === 'nonaktif'`);
-  await openTile(s, 'tabs');
-  await waitFor(s, "document.body.innerText.includes('Fitur ini sedang nonaktif.')");
-  await evaluate(s, `${sw}.click()`);
-  await waitFor(s, "document.body.innerText.includes('Simpan tab ini')");
+  await waitFor(s, onHome);
+  await evaluate(s, `${modSwitch('tabs')}.click()`);
+  await waitFor(s, `document.querySelector('.mcu-card[data-id="tabs"] .mcu-card-status')?.textContent.endsWith(' koleksi')`);
   assert.equal((await bg({ type: 'core:getModules' })).modules.tabs, true);
+  await openCard(s, 'tabs');
+  await waitFor(s, "document.body.innerText.includes('Simpan tab ini')");
   await evaluate(s, "document.getElementById('mcu-back').click()");
+  await waitFor(s, onHome);
 
-  // Browser Lock: turning off asks for the current password inline.
-  await openTile(s, 'lock');
-  await waitFor(s, "document.body.innerText.includes('Kunci sekarang')");
-  await evaluate(s, `${sw}.click()`);
-  await waitFor(s, "!!document.querySelector('.mcu-panel-root input[type=password]')");
-  assert.equal(await evaluate(s, `${sw}.checked`), true, 'stays on until the password is confirmed');
+  // Browser Lock: turning its card switch off opens the lock panel with the password form.
+  await evaluate(s, `${modSwitch('lock')}.click()`);
+  await waitFor(s, "document.querySelector('.mcu-panel-root')?.dataset.module === 'lock' && !!document.getElementById('disable-current') && !document.getElementById('disable-current').form.hidden");
+  assert.match(await evaluate(s, "document.getElementById('mcu-title').textContent"), /Browser Lock/);
+  assert.equal(await evaluate(s, `${modSwitch('lock')}.checked`), true, 'stays on until the password is confirmed');
   const confirmOff = (pw) => evaluate(s, `(() => {
-    const input = document.querySelector('.mcu-panel-root input[type=password]');
+    const input = document.getElementById('disable-current');
     input.value = ${JSON.stringify(pw)};
     input.form.requestSubmit();
   })()`);
   await confirmOff('salah-sekali');
   await waitFor(s, "document.body.innerText.includes('Password saat ini salah.')");
+  await sleep(500);
   await screenshot(s, 'popup-lock', 'body');
   assert.equal((await bg({ type: 'lock:getState' })).enabled, true);
+  assert.equal(await evaluate(s, `${modSwitch('lock')}.checked`), true, 'wrong password keeps the switch on');
   await confirmOff(PASSWORD);
   await waitFor(s, "document.body.innerText.includes('Fitur ini sedang nonaktif.')");
   assert.equal((await bg({ type: 'lock:getState' })).enabled, false);
-  await evaluate(s, `${sw}.click()`);
-  await waitFor(s, "document.body.innerText.includes('Kunci sekarang')");
+  await waitFor(s, `!${modSwitch('lock')}.checked`);
+  await evaluate(s, "document.getElementById('mcu-back').click()");
+  await waitFor(s, `${onHome} && document.querySelector('.mcu-card[data-id="lock"] .mcu-card-status')?.textContent === 'nonaktif'`);
+  await evaluate(s, `${modSwitch('lock')}.click()`);
+  await waitFor(s, `document.querySelector('.mcu-card[data-id="lock"] .mcu-card-status')?.textContent === 'aktif'`);
   const state = await bg({ type: 'lock:getState' });
   assert.equal(state.enabled, true);
   assert.equal(state.locked, false);
+  assert.equal(await evaluate(s, `${modSwitch('lock')}.checked`), true);
   assert.deepEqual(errors, []);
   await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
 });
