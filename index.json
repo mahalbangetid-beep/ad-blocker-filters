@@ -1,0 +1,643 @@
+{
+  "schema": 1,
+  "version": "202610160856",
+  "generatedAt": "2026-10-16T08:56:46.971Z",
+  "totals": {
+    "rules": 39591,
+    "defaultRules": 18061,
+    "guaranteedStaticRules": 30000
+  },
+  "problems": [],
+  "categories": [
+    {
+      "id": "ads",
+      "title": "Iklan",
+      "description": "Iklan di seluruh web (gabungan EasyList, uBlock Origin, AdGuard, dan daftar Adblock Plus/AdBlock)",
+      "defaultEnabled": true,
+      "language": null,
+      "ruleCount": 16875,
+      "networkFilters": 85336,
+      "cosmeticFilters": 55716,
+      "files": {
+        "rules": {
+          "path": "rules/ads.json",
+          "sha256": "171d1c09c679cdafbf8da16c27b767db98045c17c9f411852b07f0abd66e291f",
+          "bytes": 4545523
+        },
+        "cosmetic": {
+          "path": "cosmetic/ads.json",
+          "sha256": "e91290afd14673b461d6d2999eb63240fde985a173c96dc7b8635049792f9e0e",
+          "bytes": 3303145
+        }
+      },
+      "sources": [
+        {
+          "id": "easylist",
+          "title": "EasyList",
+          "url": "https://easylist.to/easylist/easylist.txt",
+          "homepage": "https://easylist.to/",
+          "license": "GPLv3 / CC BY-SA 3.0",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "202610160845",
+          "expires": "4 days (update frequency)",
+          "sha256": "e6476f1337ba844221690e6247698c12b11f6206e9d36b2b2d6ea40de6eb5b27",
+          "networkFilters": 54912,
+          "cosmeticFilters": 24276,
+          "skipped": {
+            "popup": 2962,
+            "badfilter": 26,
+            "regex": 22,
+            "option:rewrite": 7,
+            "option:csp": 2,
+            "procedural": 333,
+            "domain": 230
+          }
+        },
+        {
+          "id": "abp-anticv",
+          "title": "ABP Anti-Circumvention",
+          "url": "https://easylist-downloads.adblockplus.org/abp-filters-anti-cv.txt",
+          "homepage": "https://github.com/abp-filters/abp-filters-anti-cv",
+          "license": "CC BY-SA 3.0",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "202610160851",
+          "expires": "1 hours (update frequency)",
+          "sha256": "5fa7fc0f80fd2a2e1082b8ec1759452c6a9bd6138bd07ea2e66a48da0e0d50f8",
+          "networkFilters": 1885,
+          "cosmeticFilters": 458,
+          "skipped": {
+            "snippet": 1970,
+            "popup": 11,
+            "procedural": 50,
+            "option:rewrite": 46,
+            "option:csp": 40,
+            "regex": 21,
+            "option:addheader": 5,
+            "domain": 15,
+            "option:header": 1
+          }
+        },
+        {
+          "id": "adblock-warning-removal",
+          "title": "Adblock Warning Removal List",
+          "url": "https://easylist-downloads.adblockplus.org/antiadblockfilters.txt",
+          "homepage": "https://easylist.to/",
+          "license": "GPLv3 / CC BY-SA 3.0",
+          "from": "AdBlock",
+          "status": "fresh",
+          "error": null,
+          "version": "202610160851",
+          "expires": "1 days (update frequency)",
+          "sha256": "be54f69a093874185bd571da616ca9d7ab93049e23150b41ca052d00288982f1",
+          "networkFilters": 2514,
+          "cosmeticFilters": 459,
+          "skipped": {
+            "procedural": 1,
+            "regex": 1
+          }
+        },
+        {
+          "id": "ubo-filters",
+          "title": "uBlock filters",
+          "url": "https://ublockorigin.github.io/uAssets/filters/filters.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "Tue, 13 Oct 2026 17:49:24 +0000",
+          "expires": "5 days",
+          "sha256": "6020017540d4fd8d778d85dfdde4d47745fc5cb6b7b6bc99378ab8db83b16aa1",
+          "networkFilters": 3794,
+          "cosmeticFilters": 6086,
+          "skipped": {
+            "scriptlet": 9474,
+            "procedural": 1201,
+            "option:replace": 10,
+            "option:redirect": 637,
+            "domain": 985,
+            "option:redirect-rule": 369,
+            "unsupported-cosmetic": 132,
+            "badfilter": 34,
+            "popup": 123,
+            "option:csp": 65,
+            "regex": 258,
+            "option:removeparam": 42,
+            "html-filter": 2,
+            "option:header": 12,
+            "option:strict1p": 7,
+            "option:uritransform": 5,
+            "option:urlskip": 25,
+            "option:cname": 2,
+            "option:strict3p": 1,
+            "option:ipaddress": 1,
+            "option:inline-script": 1,
+            "option:requestheader": 1
+          }
+        },
+        {
+          "id": "ubo-quick-fixes",
+          "title": "uBlock filters – Quick fixes",
+          "url": "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "Thu, 15 Oct 2026 18:42:02 +0000",
+          "expires": "8 hours",
+          "sha256": "65cdd45ec71e63c5fc5c5988e0faaaba760a5c7557e8e64837ffad5209f2a966",
+          "networkFilters": 115,
+          "cosmeticFilters": 69,
+          "skipped": {
+            "procedural": 34,
+            "scriptlet": 159,
+            "regex": 12,
+            "badfilter": 5,
+            "option:replace": 3,
+            "option:redirect": 8,
+            "domain": 3,
+            "option:redirect-rule": 2,
+            "unsupported-cosmetic": 3,
+            "popup": 5,
+            "option:uritransform": 3
+          }
+        },
+        {
+          "id": "ubo-unbreak",
+          "title": "uBlock filters – Unbreak",
+          "url": "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "Tue, 13 Oct 2026 08:48:49 +0000",
+          "expires": "5 days",
+          "sha256": "e9d95cbb61cc83990e75104a4103585af146c6c6e8dfda07cad6c9713ddbb632",
+          "networkFilters": 1289,
+          "cosmeticFilters": 215,
+          "skipped": {
+            "popup": 27,
+            "option:removeparam": 10,
+            "option:redirect": 238,
+            "badfilter": 199,
+            "scriptlet": 303,
+            "procedural": 85,
+            "domain": 17,
+            "option:redirect-rule": 99,
+            "option:cname": 27,
+            "option:csp": 4,
+            "regex": 4,
+            "unsupported-cosmetic": 16,
+            "html-filter": 1,
+            "option:inline-script": 1,
+            "option:permissions": 1,
+            "option:replace": 1,
+            "option:rewrite": 2,
+            "option:strict1p": 2,
+            "option:strict3p": 1
+          }
+        },
+        {
+          "id": "adguard-base",
+          "title": "AdGuard Base (tanpa EasyList)",
+          "url": "https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt",
+          "homepage": "https://github.com/AdguardTeam/AdguardFilters",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "2.4.97.67",
+          "expires": "5 days (update frequency)",
+          "sha256": "f7e5d61e2218b4e843868ca5c4724e85341bf16bf1a8490560b3f2b2789bb839",
+          "networkFilters": 20827,
+          "cosmeticFilters": 24153,
+          "skipped": {
+            "popup": 104,
+            "option:redirect-rule": 44,
+            "regex": 203,
+            "option:redirect": 685,
+            "badfilter": 74,
+            "non-ascii": 5,
+            "scriptlet": 4347,
+            "procedural": 3116,
+            "domain": 459,
+            "option:csp": 24,
+            "option:removeparam": 20,
+            "option:header": 9
+          }
+        },
+        {
+          "id": "adblock-custom",
+          "title": "Chrome AdBlock auxiliary filters",
+          "url": "https://cdn.adblockcdn.com/filters/adblock_custom.txt",
+          "homepage": "https://getadblock.com/",
+          "license": "tidak dicantumkan",
+          "from": "AdBlock",
+          "status": "disabled",
+          "note": "Nonaktif: list tidak mencantumkan lisensi."
+        }
+      ]
+    },
+    {
+      "id": "indonesia",
+      "title": "Indonesia",
+      "description": "Iklan di situs berbahasa Indonesia (ABPindo + AdBlockID)",
+      "defaultEnabled": false,
+      "language": "id",
+      "ruleCount": 2800,
+      "networkFilters": 5059,
+      "cosmeticFilters": 10794,
+      "files": {
+        "rules": {
+          "path": "rules/indonesia.json",
+          "sha256": "d6c16fd94677bc425be4be1285503682497cf715f0b90312b8d1d3af901796cd",
+          "bytes": 470004
+        },
+        "cosmetic": {
+          "path": "cosmetic/indonesia.json",
+          "sha256": "a8cc7c16c8d026bfeca360ee6d164b3bc5cd43609cc34d67c6dbc9cc86277bfa",
+          "bytes": 588518
+        }
+      },
+      "sources": [
+        {
+          "id": "abpindo",
+          "title": "ABPindo",
+          "url": "https://raw.githubusercontent.com/ABPindo/indonesianadblockrules/master/subscriptions/abpindo.txt",
+          "homepage": "https://github.com/ABPindo/indonesianadblockrules",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "202610141429",
+          "expires": "4 days (update frequency)",
+          "sha256": "d09622c1e4c72833f06114338879c6030357f5bc4cfbf311e6583658967bdec3",
+          "networkFilters": 3581,
+          "cosmeticFilters": 5787,
+          "skipped": {
+            "popup": 637,
+            "scriptlet": 44,
+            "unsupported-cosmetic": 1,
+            "option:redirect": 7,
+            "option:rewrite": 6,
+            "procedural": 35,
+            "domain": 126
+          }
+        },
+        {
+          "id": "adblockid",
+          "title": "AdBlockID",
+          "url": "https://raw.githubusercontent.com/realodix/AdBlockID/main/dist/adblockid.adfl.txt",
+          "homepage": "https://github.com/realodix/AdBlockID",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "Wed, 14 Oct 2026 18:53:27 GMT",
+          "expires": "1 days",
+          "sha256": "2f24d1a9e295cc6bb5509af8225dbf9c4ee0243a996f748241c49b205c9151fb",
+          "networkFilters": 1478,
+          "cosmeticFilters": 5007,
+          "skipped": {
+            "regex": 10,
+            "procedural": 215,
+            "scriptlet": 97,
+            "popup": 26,
+            "option:redirect": 29,
+            "domain": 107,
+            "option:redirect-rule": 11,
+            "unsupported-cosmetic": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "security",
+      "title": "Keamanan",
+      "description": "Situs berbahaya, penipuan, dan penambang kripto",
+      "defaultEnabled": true,
+      "language": null,
+      "ruleCount": 1186,
+      "networkFilters": 4365,
+      "cosmeticFilters": 99,
+      "files": {
+        "rules": {
+          "path": "rules/security.json",
+          "sha256": "ef993dfb13ad9c9f6dca6fb305592159d6692444c8bfc6dcbdb2346a99ace540",
+          "bytes": 281508
+        },
+        "cosmetic": {
+          "path": "cosmetic/security.json",
+          "sha256": "3529b8e71e4b3a952e97df08671b38c644d192d66f1789a088f306955c629097",
+          "bytes": 24248
+        }
+      },
+      "sources": [
+        {
+          "id": "ubo-badware",
+          "title": "uBlock filters – Badware risks",
+          "url": "https://ublockorigin.github.io/uAssets/filters/badware.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "Tue, 13 Oct 2026 12:37:28 +0000",
+          "expires": "5 days",
+          "sha256": "dbb7b3a6e20266b92fb35e940a4ace8e023259078a3d6a2f716eaebc9b653d0f",
+          "networkFilters": 4037,
+          "cosmeticFilters": 99,
+          "skipped": {
+            "procedural": 14,
+            "popup": 8,
+            "regex": 160,
+            "scriptlet": 24,
+            "option:ipaddress": 31,
+            "option:redirect": 2,
+            "to-conflict": 8,
+            "domain": 8,
+            "non-ascii": 5
+          }
+        },
+        {
+          "id": "ubo-resource-abuse",
+          "title": "uBlock filters – Resource abuse",
+          "url": "https://ublockorigin.github.io/uAssets/filters/resource-abuse.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "Fri, 02 Oct 2026 05:29:20 +0000",
+          "expires": "7 days",
+          "sha256": "e77991b337dad1ef43ea181b36504fc9ff9bfa549eb2b9a9aec47181339e8584",
+          "networkFilters": 20,
+          "cosmeticFilters": 0,
+          "skipped": {
+            "option:csp": 16,
+            "scriptlet": 39,
+            "procedural": 2,
+            "option:redirect": 1
+          }
+        },
+        {
+          "id": "nocoin",
+          "title": "NoCoin Filter List",
+          "url": "https://raw.githubusercontent.com/hoshsadiq/adblock-nocoin-list/master/nocoin.txt",
+          "homepage": "https://github.com/hoshsadiq/adblock-nocoin-list",
+          "license": "MIT",
+          "from": "AdBlock",
+          "status": "fresh",
+          "error": null,
+          "version": "228",
+          "expires": "7 days (update frequency)",
+          "sha256": "a30ab9a3cd9d193111c6fd57084878a0997285f0e1eb480a1c1d388d5f3672d3",
+          "networkFilters": 308,
+          "cosmeticFilters": 0,
+          "skipped": {
+            "regex": 5,
+            "option:csp": 3,
+            "scriptlet": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "privacy",
+      "title": "Privasi",
+      "description": "Pelacak dan analitik (EasyPrivacy, uBlock Privacy, AdGuard Tracking Protection)",
+      "defaultEnabled": false,
+      "language": null,
+      "ruleCount": 9881,
+      "networkFilters": 57145,
+      "cosmeticFilters": 7,
+      "files": {
+        "rules": {
+          "path": "rules/privacy.json",
+          "sha256": "37ef2e308cd1f7b4d2405eb8e7b0b1cd9ff2f7f3771305b73650fc12263cab8f",
+          "bytes": 2558793
+        },
+        "cosmetic": {
+          "path": "cosmetic/privacy.json",
+          "sha256": "275b5b56ac122334cbfc2e4ad217d9c9241f10de3a8f777d15e9c4b57b80c4f6",
+          "bytes": 333
+        }
+      },
+      "sources": [
+        {
+          "id": "easyprivacy",
+          "title": "EasyPrivacy",
+          "url": "https://easylist.to/easylist/easyprivacy.txt",
+          "homepage": "https://easylist.to/",
+          "license": "GPLv3 / CC BY-SA 3.0",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "202610160845",
+          "expires": "4 days (update frequency)",
+          "sha256": "d85168a7daec074d1d08a847d08ecc3d57a7e4b766c2d6820d06a62a3bb6a1ac",
+          "networkFilters": 56233,
+          "cosmeticFilters": 2,
+          "skipped": {
+            "badfilter": 20,
+            "too-generic": 1,
+            "regex": 7,
+            "option:rewrite": 1,
+            "non-ascii": 1,
+            "option:csp": 2,
+            "option:redirect": 29,
+            "scriptlet": 30,
+            "procedural": 4,
+            "unsupported-cosmetic": 1,
+            "option:redirect-rule": 1
+          }
+        },
+        {
+          "id": "ubo-privacy",
+          "title": "uBlock filters – Privacy",
+          "url": "https://ublockorigin.github.io/uAssets/filters/privacy.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "Mon, 12 Oct 2026 20:02:16 +0000",
+          "expires": "7 days",
+          "sha256": "d893719d5c86d70bfe6a33d1785733f3e5f091fe2285f24215059f31264d08f9",
+          "networkFilters": 912,
+          "cosmeticFilters": 5,
+          "skipped": {
+            "option:redirect": 37,
+            "option:removeparam": 217,
+            "procedural": 11,
+            "scriptlet": 328,
+            "option:urlskip": 208,
+            "badfilter": 6,
+            "option:redirect-rule": 1,
+            "regex": 34,
+            "domain": 1,
+            "unsupported-cosmetic": 6,
+            "option:strict3p": 3,
+            "option:permissions": 10,
+            "popup": 2,
+            "option:uritransform": 8,
+            "option:csp": 17,
+            "option:replace": 1
+          }
+        },
+        {
+          "id": "adguard-tracking",
+          "title": "AdGuard Tracking Protection",
+          "url": "https://filters.adtidy.org/extension/ublock/filters/3.txt",
+          "homepage": "https://github.com/AdguardTeam/AdguardFilters",
+          "license": "GPLv3",
+          "from": null,
+          "status": "disabled",
+          "note": "Nonaktif: menghasilkan ~240.000 aturan, melebihi batas aturan Chrome."
+        }
+      ]
+    },
+    {
+      "id": "annoyances",
+      "title": "Gangguan",
+      "description": "Pop-up cookie, widget media sosial, notifikasi, dan gangguan lain",
+      "defaultEnabled": false,
+      "language": null,
+      "ruleCount": 8849,
+      "networkFilters": 10860,
+      "cosmeticFilters": 87353,
+      "files": {
+        "rules": {
+          "path": "rules/annoyances.json",
+          "sha256": "89c3be881dc4a91b226eaf1ae2a908fc5a0d20eadeda636a89bba6704c227da3",
+          "bytes": 1577930
+        },
+        "cosmetic": {
+          "path": "cosmetic/annoyances.json",
+          "sha256": "2e73072d2a19e900fa49155bd1a968536322119e1678012d9d2a27b57b806454",
+          "bytes": 4848788
+        }
+      },
+      "sources": [
+        {
+          "id": "fanboy-annoyance",
+          "title": "Fanboy's Annoyance List",
+          "url": "https://secure.fanboy.co.nz/fanboy-annoyance.txt",
+          "homepage": "https://easylist.to/",
+          "license": "CC BY 3.0",
+          "from": "AdBlock",
+          "status": "fresh",
+          "error": null,
+          "version": "202610160650",
+          "expires": "9 days (update frequency)",
+          "sha256": "cf5ae4bb42b6043f16f2d303ff43cc82cf46f5e382be10f61fde253219248a8b",
+          "networkFilters": 4146,
+          "cosmeticFilters": 46550,
+          "skipped": {
+            "domain": 42,
+            "procedural": 1384,
+            "scriptlet": 5480,
+            "popup": 1,
+            "badfilter": 1,
+            "regex": 1
+          }
+        },
+        {
+          "id": "ubo-annoyances",
+          "title": "uBlock filters – Other Annoyances",
+          "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "Thu, 15 Oct 2026 16:18:19 +0000",
+          "expires": "7 days",
+          "sha256": "c1abc87ad49d0576c39864a6d19c96f7ba8e0541e803d820a49fbaaf81ec7a55",
+          "networkFilters": 159,
+          "cosmeticFilters": 519,
+          "skipped": {
+            "scriptlet": 2095,
+            "procedural": 644,
+            "option:csp": 7,
+            "unsupported-cosmetic": 32,
+            "option:urlskip": 3,
+            "regex": 3,
+            "option:redirect-rule": 24,
+            "option:redirect": 22,
+            "domain": 17,
+            "badfilter": 1,
+            "option:uritransform": 3,
+            "option:replace": 3,
+            "option:removeparam": 2
+          }
+        },
+        {
+          "id": "ubo-cookies",
+          "title": "uBlock filters – Cookie Notices",
+          "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-cookies.txt",
+          "homepage": "https://github.com/uBlockOrigin/uAssets",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "Fri, 16 Oct 2026 06:10:36 +0000",
+          "expires": "7 days",
+          "sha256": "14ec224f133dbbb39d8c76db2f730ca3661fe48e2981bef97355482fb5cfa5a7",
+          "networkFilters": 58,
+          "cosmeticFilters": 97,
+          "skipped": {
+            "domain": 6,
+            "procedural": 50,
+            "badfilter": 2,
+            "scriptlet": 2157
+          }
+        },
+        {
+          "id": "adguard-annoyances",
+          "title": "AdGuard Annoyances",
+          "url": "https://filters.adtidy.org/extension/ublock/filters/14.txt",
+          "homepage": "https://github.com/AdguardTeam/AdguardFilters",
+          "license": "GPLv3",
+          "from": null,
+          "status": "fresh",
+          "error": null,
+          "version": "2.2.83.2",
+          "expires": "5 days (update frequency)",
+          "sha256": "77628dd2f4867102864dbe15a025046c7eb3b0ee3b4a8d1da629228350aca812",
+          "networkFilters": 6497,
+          "cosmeticFilters": 40187,
+          "skipped": {
+            "regex": 13,
+            "domain": 363,
+            "procedural": 8637,
+            "scriptlet": 3510,
+            "option:redirect": 82,
+            "badfilter": 5,
+            "option:redirect-rule": 1,
+            "option:removeparam": 7,
+            "popup": 2,
+            "option:permissions": 8,
+            "non-ascii": 1
+          }
+        },
+        {
+          "id": "adblock-distraction-control",
+          "title": "AdBlock Distraction Control (Free)",
+          "url": "https://cdn.adblockcdn.com/filters/distraction-control-free.txt",
+          "homepage": "https://getadblock.com/",
+          "license": "tidak dicantumkan",
+          "from": "AdBlock",
+          "status": "disabled",
+          "note": "Nonaktif: list tidak mencantumkan lisensi."
+        }
+      ]
+    }
+  ]
+}
