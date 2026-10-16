@@ -4,3 +4,5 @@ node_modules/
 *.log
 # Indexed rulesets Chrome writes next to an unpacked extension.
 _metadata/
+# Local brainstorm and workflow scratch, never committed.
+.superpowers/

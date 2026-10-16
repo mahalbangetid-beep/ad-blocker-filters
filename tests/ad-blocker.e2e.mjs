@@ -126,6 +126,17 @@ async function evaluate(sessionId, expression) {
   return result.value;
 }
 
+// Polls `expression` in the page every 100 ms until it is truthy.
+async function waitFor(sessionId, expression, timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const value = await evaluate(sessionId, expression);
+    if (value) return value;
+    if (Date.now() >= deadline) throw new Error(`waitFor timed out after ${timeoutMs} ms: ${expression}`);
+    await sleep(100);
+  }
+}
+
 // Sends a message to the extension's background, like the popup would.
 async function bg(message) {
   const pageSession = await openPage(`chrome-extension://${extId}/popup.html`, false);
@@ -311,7 +322,7 @@ test('block element picker hides the clicked element and saves a filter', async 
   const session = await openPage(`${SITE}/page.html`);
   const tabId = await evaluate(swSession, `chrome.tabs.query({}).then(t => t.filter(x => x.url && x.url.startsWith(${JSON.stringify(SITE)})).at(-1).id)`);
   await bg({ type: 'ab:startPicker', tabId });
-  await sleep(300);
+  await waitFor(session, "!!document.querySelector('ab-picker')");
 
   const box = await evaluate(session, `(() => { const r = document.getElementById('content').getBoundingClientRect(); return { x: r.left + 20, y: r.top + r.height / 2, w: innerWidth, h: innerHeight }; })()`);
   await click(session, box.x, box.y);
@@ -321,10 +332,9 @@ test('block element picker hides the clicked element and saves a filter', async 
   // Panel is fixed at bottom-right (16px margin, 14px padding); "Blokir" is the last of three buttons.
   const panelWidth = Math.min(380, box.w - 32);
   await click(session, box.w - 16 - 14 - (panelWidth - 28) / 6, box.h - 16 - 14 - 17);
-  await sleep(600);
-
-  const display = await evaluate(session, `getComputedStyle(document.getElementById('content')).display`);
-  assert.equal(display, 'none', 'clicked element should be hidden');
+  // The picker closes itself only once ab:addFilter succeeded.
+  await waitFor(session, "!document.querySelector('ab-picker')");
+  await waitFor(session, "getComputedStyle(document.getElementById('content')).display === 'none'");
   const options = await bg({ type: 'ab:getOptions' });
   assert.match(options.settings.customFilters, /site\.test###content/);
 });
