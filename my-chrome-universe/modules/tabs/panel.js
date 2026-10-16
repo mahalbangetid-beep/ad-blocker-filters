@@ -1,14 +1,17 @@
 // Tab Manager panel in the toolbar popup (formerly this module's own popup).
 import { isSavableUrl, INBOX_NAME } from './store.js';
-import { send, runOp, loadData, faviconUrl, h, applyTheme } from './common.js';
+import { send, runOp, loadData, faviconUrl, h } from './common.js';
 import { getModuleStates } from '../../core/modules.js';
-import { loadStyles, addStyle, moduleSwitch, offNotice, messageLine } from '../../core/panel.js';
+import { addStyle, moduleSwitch, offNotice, messageLine } from '../../core/panel.js';
 
 const NEW_COLLECTION = '__new__';
 
+// Self-contained until the popup redesign: the dashboard stylesheet no longer suits the popup.
 const CSS = `
-  html, body { height: auto; }
-  body { display: block; }
+  .tm-panel .primary-btn, .tm-panel .ghost-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 10px; white-space: nowrap; }
+  .tm-panel .primary-btn { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+  .tm-panel .ghost-btn { background: transparent; }
+  .tm-panel .check { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
   .tm-panel { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
   .tm-panel .current { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); min-width: 0; }
   .tm-panel .current img { width: 16px; height: 16px; flex: none; }
@@ -42,7 +45,6 @@ export async function status() {
 }
 
 export async function render(root) {
-  await loadStyles(new URL('./newtab.css', import.meta.url).href);
   addStyle('tabs', CSS);
   const enabled = (await getModuleStates()).tabs;
 
@@ -64,7 +66,6 @@ export async function render(root) {
   const $ = (id) => main.querySelector(`#${id}`);
   const data = await loadData();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  applyTheme(data.settings.theme);
 
   const showStatus = (text) => { $('status').textContent = text; };
 

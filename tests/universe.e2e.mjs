@@ -377,7 +377,7 @@ test('turning Tab Manager off replaces the dashboard', async () => {
 
   assert.equal((await bg({ type: 'core:setModule', id: 'tabs', enabled: true })).ok, true);
   const dash = await openPage('chrome://newtab/');
-  await waitFor(dash, "document.querySelectorAll('#space-list li').length > 0");
+  await waitFor(dash, "document.querySelectorAll('#space-list .space').length > 0");
   assert.match(await evaluate(dash, 'location.href'), /\/modules\/tabs\/newtab\.html$/);
 });
 
@@ -728,6 +728,157 @@ test('options page lists every module', async () => {
   await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
 });
 
+// ---------- Tab Manager dashboard ----------
+
+const dashboardUrl = () => `chrome-extension://${extId}/modules/tabs/newtab.html`;
+const tmData = () => bg({ type: 'tm:getData' });
+const findCol = (data, name) => {
+  for (const space of data.spaces) {
+    const col = space.collections.find((c) => c.name === name);
+    if (col) return { space, col };
+  }
+  return null;
+};
+
+// Imports `spaces` next to the existing data; returns them (with ids) in the same order.
+async function addSpaces(spaces) {
+  assert.equal((await bg({ type: 'tm:op', op: { type: 'import', mode: 'merge', data: { spaces } } })).ok, true);
+  const data = await tmData();
+  return spaces.map((s) => data.spaces.filter((x) => x.name === s.name).at(-1));
+}
+
+async function removeSpaces(ids, activeId) {
+  for (const spaceId of ids) await bg({ type: 'tm:op', op: { type: 'space/delete', spaceId } });
+  if (activeId) await bg({ type: 'tm:op', op: { type: 'space/activate', spaceId: activeId } });
+}
+
+// Opens a collection's ⋯ menu and clicks the item whose label starts with `label`.
+async function colMenu(s, colId, label) {
+  const item = `[...document.querySelectorAll('.menu .menu-item')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(label)}))`;
+  await evaluate(s, `document.querySelector('.col[data-id="${colId}"] .col-more').click()`);
+  await waitFor(s, `!!${item}`);
+  await evaluate(s, `${item}.click()`);
+}
+
+test('dashboard keeps every collection action', async () => {
+  const { activeSpaceId: prevActive } = await tmData();
+  const A = 'https://a.test/', B = 'https://b.test/';
+  const [src, dst] = await addSpaces([
+    { name: 'Uji Aksi', collections: [{ name: 'Aksi', cards: [{ url: A, title: 'A' }, { url: B, title: 'B' }, { url: A, title: 'A lagi' }] }] },
+    { name: 'Tujuan', collections: [] },
+  ]);
+  const colId = src.collections[0].id;
+  await bg({ type: 'tm:op', op: { type: 'space/activate', spaceId: src.id } });
+  const { sessionId: s, targetId, errors } = await openWatched(dashboardUrl());
+  try {
+    const col = `document.querySelector('#cols .col[data-id="${colId}"]')`;
+    await waitFor(s, `!!${col}`);
+    assert.equal(await evaluate(s, `${col}.querySelectorAll('.row[data-id]').length`), 3);
+    assert.equal(await evaluate(s, "document.querySelector('#space-list .space.on')?.dataset.id"), src.id);
+
+    // Ganti nama: inline on the collection title, Enter saves.
+    await colMenu(s, colId, 'Ganti nama');
+    await waitFor(s, `${col}.querySelector('.col-name').isContentEditable`);
+    await evaluate(s, `(() => {
+      const n = ${col}.querySelector('.col-name');
+      n.textContent = 'Aksi Baru';
+      n.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    })()`);
+    await until(async () => findCol(await tmData(), 'Aksi Baru'), 'collection renamed');
+    await waitFor(s, `${col}?.querySelector('.col-name').textContent === 'Aksi Baru'`);
+
+    // Pindah ke ruang lain: dialog with a space picker.
+    await colMenu(s, colId, 'Pindah ke ruang lain');
+    await waitFor(s, "document.getElementById('dialog').open");
+    await evaluate(s, `(() => {
+      const f = document.getElementById('dialog-form');
+      f.elements.spaceId.value = ${JSON.stringify(dst.id)};
+      f.requestSubmit(f.querySelector('button[value="ok"]'));
+    })()`);
+    await until(async () => findCol(await tmData(), 'Aksi Baru')?.space.id === dst.id, 'collection moved');
+    await waitFor(s, `!${col}`);
+    await evaluate(s, `document.querySelector('#space-list .space[data-id="${dst.id}"]').click()`);
+    await waitFor(s, `!!${col} && document.querySelector('#space-list .space.on')?.dataset.id === ${JSON.stringify(dst.id)}`);
+
+    // Hapus tab ganda di koleksi ini.
+    await colMenu(s, colId, 'Hapus tab ganda');
+    await until(async () => findCol(await tmData(), 'Aksi Baru')?.col.cards.length === 2, 'duplicates removed');
+    await waitFor(s, `${col}?.querySelectorAll('.row').length === 2`);
+
+    // Hapus koleksi, then Urungkan from the toast.
+    await colMenu(s, colId, 'Hapus koleksi');
+    await until(async () => !findCol(await tmData(), 'Aksi Baru'), 'collection deleted');
+    const undo = "[...document.querySelectorAll('.toast button')].find((b) => b.textContent.includes('Urungkan'))";
+    await waitFor(s, `!!${undo}`);
+    await evaluate(s, `${undo}.click()`);
+    const restored = await until(async () => findCol(await tmData(), 'Aksi Baru'), 'collection restored');
+    assert.equal(restored.space.id, dst.id);
+    assert.deepEqual(restored.col.cards.map((c) => c.url), [A, B]);
+    await waitFor(s, "document.querySelectorAll('#cols .col').length === 1");
+    assert.deepEqual(errors, [], 'dashboard logged errors');
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+    await removeSpaces([src.id, dst.id], prevActive);
+  }
+});
+
+test('big spaces stay fast and narrow screens do not scroll sideways', async (t) => {
+  const { activeSpaceId: prevActive } = await tmData();
+  const title = (i, j) => `${`Judul tab yang sangat panjang nomor ${i}-${j} `.repeat(12)}`.slice(0, 300);
+  const [big] = await addSpaces([{
+    name: 'Ruang besar',
+    collections: Array.from({ length: 20 }, (_, i) => ({
+      name: `Koleksi besar ${i + 1} ${'panjang'.repeat(20)}`,
+      cards: Array.from({ length: 20 }, (_, j) => ({ url: `https://situs-${i}-${j}.test/${'jalur-panjang/'.repeat(20)}`, title: title(i, j) })),
+    })),
+  }]);
+  await bg({ type: 'tm:op', op: { type: 'space/activate', spaceId: big.id } });
+  const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
+  const { sessionId: s } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+  await cdp.send('Runtime.enable', {}, s);
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 400, height: 800, deviceScaleFactor: 1, mobile: false }, s);
+  const measure = async () => {
+    await waitFor(s, "performance.getEntriesByName('tm:rendered').length > 0", 10000);
+    return evaluate(s, `(() => {
+      const main = document.getElementById('tm-main');
+      return {
+        renderedAt: performance.getEntriesByName('tm:rendered')[0].startTime,
+        scrollWidth: document.documentElement.scrollWidth, innerWidth,
+        mainOverflow: main.scrollWidth - main.clientWidth,
+        cols: document.querySelectorAll('#cols .col').length,
+        rows: document.querySelectorAll('#cols .row').length,
+        entering: document.querySelectorAll('.col.enter').length,
+      };
+    })()`);
+  };
+  try {
+    await cdp.send('Page.navigate', { url: dashboardUrl() }, s);
+    const m = await measure();
+    assert.equal(m.cols, 20);
+    assert.equal(m.rows, 400);
+    assert.equal(m.innerWidth, 400);
+    assert.ok(m.scrollWidth <= m.innerWidth, `page scrolls sideways: ${m.scrollWidth} > ${m.innerWidth}`);
+    assert.ok(m.mainOverflow <= 0, `collections overflow sideways by ${m.mainOverflow} px`);
+    assert.ok(m.renderedAt < 1500, `render took ${Math.round(m.renderedAt)} ms`);
+    assert.ok(m.entering > 0 && m.entering <= 24, `${m.entering} collections animate in`);
+    t.diagnostic(`400 cards rendered ${Math.round(m.renderedAt)} ms after navigation`);
+    if (process.env.SHOT_DIR) await sleep(1800); // let the entrance finish
+    await screenshot(s, 'dashboard-big-400');
+
+    // More collections than the stagger cap: exactly the first 24 animate in.
+    for (let i = 0; i < 8; i++) {
+      await bg({ type: 'tm:op', op: { type: 'collection/create', spaceId: big.id, name: `Tambahan ${i}`, tabs: [{ url: 'https://tambahan.test/', title: 'Tambahan' }], index: 20 } });
+    }
+    await cdp.send('Page.navigate', { url: dashboardUrl() }, s);
+    await waitFor(s, "document.querySelectorAll('#cols .col').length === 28");
+    const m2 = await measure();
+    assert.equal(m2.entering, 24);
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+    await removeSpaces([big.id], prevActive);
+  }
+});
+
 // ---------- Lock gate (keep these last: they lock the browser) ----------
 
 const extUrl = (path) => `chrome-extension://${extId}/${path}`;
@@ -781,7 +932,7 @@ const SECRET_SPACE = 'Ruang saat terkunci';
 
 test('locking closes every extension page and refuses module messages', async () => {
   const dash = await openPage('chrome://newtab/');
-  await waitFor(dash, "document.querySelectorAll('#space-list li').length > 0");
+  await waitFor(dash, "document.querySelectorAll('#space-list .space').length > 0");
   const options = await openPage(extUrl('modules/adblock/options.html'));
   assert.ok((await evaluate(options, 'document.body.innerText')).length > 50, 'options page did not render');
   // A website tab to be remembered and restored.
@@ -835,7 +986,7 @@ test('unlock restores tabs and shows the dashboard', async () => {
   assert.ok(dashTarget, 'dashboard target not found');
   const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: dashTarget.targetId, flatten: true });
   await cdp.send('Runtime.enable', {}, sessionId);
-  await waitFor(sessionId, "document.querySelectorAll('#space-list li').length > 0");
+  await waitFor(sessionId, "document.querySelectorAll('#space-list .space').length > 0");
   const data = await bg({ type: 'tm:getData' });
   assert.ok(Array.isArray(data.spaces), `tm:getData: ${JSON.stringify(data)}`);
   assert.ok(!data.spaces.some((s) => s.name === SECRET_SPACE), 'tm:op sent while locked was applied');
@@ -924,7 +1075,7 @@ test('unlocking from the form turns the lock tab into the dashboard', async () =
 
   const { sessionId } = await cdp.send('Target.attachToTarget', { targetId: lockTarget.targetId, flatten: true });
   await cdp.send('Runtime.enable', {}, sessionId);
-  await waitFor(sessionId, "document.querySelectorAll('#space-list li').length > 0");
+  await waitFor(sessionId, "document.querySelectorAll('#space-list .space').length > 0");
   assert.equal((await bg({ type: 'lock:getState' })).locked, false);
 });
 

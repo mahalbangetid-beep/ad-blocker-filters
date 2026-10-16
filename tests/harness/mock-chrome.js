@@ -33,6 +33,18 @@
 
   window.__mock = { tabs, local, session };
 
+  // Shared appearance (theme/motion/accent) is written by core/background.js, which the harness
+  // does not load; this stands in for its core:setAppearance handler. ?theme=light|dark presets it.
+  const preset = new URLSearchParams(location.search).get('theme');
+  if (preset) local['core:appearance'] = { theme: preset };
+  const coreHandlers = {
+    async 'core:setAppearance'({ patch }) {
+      const next = { ...(local['core:appearance'] || {}), ...patch };
+      await chrome.storage.local.set({ 'core:appearance': next });
+      return { ok: true, appearance: next };
+    },
+  };
+
   function storageArea(store, areaName) {
     return {
       async get(key) {
@@ -47,19 +59,39 @@
         }
         onChanged.fire(changes, areaName);
       },
+      async remove(keys) {
+        const changes = {};
+        for (const k of [].concat(keys)) {
+          if (!(k in store)) continue;
+          changes[k] = { oldValue: store[k] };
+          delete store[k];
+        }
+        if (Object.keys(changes).length) onChanged.fire(changes, areaName);
+      },
     };
   }
 
   window.chrome = {
     runtime: {
+      id: 'harness',
       getURL: (p) => base + String(p).replace(/^\//, ''),
-      onMessage: event(),
+      onMessage: (() => {
+        const e = event();
+        e.addListener((message, sender, reply) => {
+          const fn = coreHandlers[message?.type];
+          if (!fn) return false;
+          fn(message).then(reply);
+          return true;
+        });
+        return e;
+      })(),
       onInstalled: event(),
       sendMessage(message) {
         return new Promise((resolve) => {
           let handled = false;
           for (const fn of chrome.runtime.onMessage.listeners) {
-            if (fn(message, {}, (r) => resolve(clone(r)))) handled = true;
+            // Sender as core/gate.js senderAllowed expects from one of the extension's own pages.
+            if (fn(message, { id: 'harness', url: location.href }, (r) => resolve(clone(r)))) handled = true;
           }
           if (!handled) resolve(undefined);
         });

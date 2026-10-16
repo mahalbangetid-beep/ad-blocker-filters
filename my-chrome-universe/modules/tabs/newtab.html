@@ -5,55 +5,67 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tab Manager</title>
   <link rel="icon" href="icons/icon32.png">
+  <script src="../../ui/boot.js"></script>
+  <link rel="stylesheet" href="../../ui/tokens.css">
+  <link rel="stylesheet" href="../../ui/components.css">
   <link rel="stylesheet" href="newtab.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><img src="icons/icon32.png" alt="" width="22" height="22"> Tab Manager</div>
-    <input id="search" type="search" placeholder="Cari koleksi dan tab…  ( / )" autocomplete="off">
-    <div class="top-actions">
-      <button class="icon-btn" id="theme-btn" title="Tema"></button>
-      <button class="icon-btn" id="menu-btn" title="Menu" aria-haspopup="menu">⋯</button>
-    </div>
-  </header>
+  <div class="nebula" aria-hidden="true"><i></i><i></i><i></i></div>
+  <canvas id="sky" aria-hidden="true"></canvas>
+  <canvas id="fx" aria-hidden="true"></canvas>
 
-  <div class="layout">
-    <aside class="sidebar" aria-label="Ruang">
-      <h3>Ruang</h3>
-      <ul id="space-list" class="nav-list"></ul>
-      <button class="ghost-btn" id="add-space">+ Ruang baru</button>
-      <h3>Berbintang</h3>
-      <ul id="starred-list" class="nav-list"></ul>
+  <!-- Hidden until the lock gate is open and the data is rendered. -->
+  <div class="tm" id="tm">
+    <header class="tm-top">
+      <div class="brand"><svg class="logo" viewBox="0 0 40 40" data-logo></svg><span class="brand-name"><b>My Chrome Universe</b><small>Tab Manager</small></span></div>
+      <label class="cmd search-box"><i data-ic="search"></i><input id="search" type="search" placeholder="Cari koleksi dan tab…" autocomplete="off" aria-label="Cari koleksi dan tab"><kbd>/</kbd></label>
+      <div class="top-right">
+        <button class="icon-btn rp" type="button" id="theme-btn" aria-label="Ganti tema" title="Ganti tema"><i data-ic="moon"></i></button>
+        <button class="icon-btn rp" type="button" id="menu-btn" aria-label="Menu" title="Menu" aria-haspopup="menu"><i data-ic="more"></i></button>
+        <button class="icon-btn rp only-narrow" type="button" id="open-drawer" aria-label="Tab terbuka" title="Tab terbuka"><i data-ic="window"></i></button>
+      </div>
+    </header>
+
+    <aside class="tm-rail" aria-label="Ruang">
+      <div class="greet"><p class="clock" id="clock">--.--</p><p class="greet-text" id="greet"></p></div>
+      <div class="rail-head"><h3 class="sec">Ruang</h3><button class="icon-btn sm rp" type="button" id="add-space" aria-label="Ruang baru" title="Ruang baru"><i data-ic="plus"></i></button></div>
+      <div class="space-list" id="space-list"><span class="space-ind" id="space-ind" hidden></span></div>
+      <h3 class="sec starred-head">Berbintang</h3>
+      <ul class="starred" id="starred"></ul>
     </aside>
 
-    <main id="main">
-      <div class="main-head">
-        <h1 id="main-title"></h1>
-        <div class="main-actions" id="main-actions">
-          <button class="ghost-btn" id="toggle-collapse"></button>
-          <button class="primary-btn" id="add-collection">+ Koleksi baru</button>
-          <button class="icon-btn" id="space-menu" title="Opsi ruang">⋯</button>
+    <main class="tm-main" id="tm-main">
+      <div class="tm-content" id="tm-content">
+        <div class="main-head" id="main-head">
+          <div class="main-title"><p class="eyebrow" id="space-meta"></p><h1 id="space-title"></h1></div>
+          <div class="main-actions" id="main-actions">
+            <button class="btn ghost sm rp" type="button" id="fold-all"><i data-ic="fold"></i><span>Lipat semua</span></button>
+            <button class="btn primary sm rp" type="button" id="add-col"><i data-ic="plus"></i>Koleksi baru</button>
+            <button class="icon-btn sm rp" type="button" id="space-menu" aria-label="Opsi ruang" title="Opsi ruang" aria-haspopup="menu"><i data-ic="more"></i></button>
+          </div>
         </div>
+        <div class="cols" id="cols"></div>
       </div>
-      <div id="collections"></div>
     </main>
 
-    <aside class="open-tabs" aria-label="Tab terbuka">
-      <div class="panel-head">
-        <h3>Tab terbuka <span id="open-count" class="count"></span></h3>
-        <button class="ghost-btn small" id="dedupe" title="Tutup tab yang URL-nya sama">Hapus duplikat</button>
+    <aside class="tm-open" id="tm-open" aria-label="Tab terbuka">
+      <div class="open-head">
+        <h3>Tab terbuka <span class="pill" id="open-count">0</span></h3>
+        <button class="btn ghost sm rp" type="button" id="dedupe" title="Tutup tab yang URL-nya sama"><i data-ic="copy"></i>Hapus duplikat</button>
       </div>
       <div class="save-box">
-        <button class="primary-btn" id="save-session">Simpan sesi</button>
-        <label class="check"><input type="checkbox" id="close-after"> Tutup tab setelah disimpan</label>
+        <button class="btn primary block rp" type="button" id="save-session"><i data-ic="download"></i>Simpan sesi</button>
+        <label class="check"><input type="checkbox" id="close-after"><span class="box"></span>Tutup tab setelah disimpan</label>
       </div>
-      <div id="window-list"></div>
+      <div id="windows"></div>
+      <p class="drag-hint"><i data-ic="hand"></i>Tarik tab ke koleksi untuk menyimpannya.</p>
     </aside>
+    <div class="drawer-scrim" id="drawer-scrim"></div>
   </div>
 
-  <dialog id="dialog"><form method="dialog" id="dialog-form"></form></dialog>
+  <dialog class="dialog" id="dialog"><form method="dialog" id="dialog-form"></form></dialog>
   <input type="file" id="import-file" accept="application/json,.json" hidden>
-  <div id="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="newtab.js"></script>
 </body>

@@ -52,8 +52,3 @@ export function h(tag, props = {}, ...children) {
   }
   return el;
 }
-
-export function applyTheme(theme) {
-  const dark = theme === 'dark' || (theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-}
