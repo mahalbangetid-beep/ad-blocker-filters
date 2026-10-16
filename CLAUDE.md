@@ -20,11 +20,12 @@ mengubah arsitektur.
 |---|---|
 | `my-chrome-universe/` | Extension tunggal (MV3): `manifest.json`, `background.js` (meng-import core + modul), `popup.*` (grid modul), `options.*` (pengaturan bersama) |
 | `my-chrome-universe/core/` | `modules.js` (registry `MODULES` + status aktif), `gate.js` (status kunci, `messageAllowed`), `page-guard.js` (`guardPage`), `menus.js` (`registerMenuProvider`), `panel.js` (helper panel), `background.js` (`core:*`) |
+| `my-chrome-universe/ui/` | Fondasi visual bersama: `tokens.css` (tema gelap/terang, aksen), `components.css`, `icons.js`, `fonts/` (woff2 lokal + OFL) |
 | `my-chrome-universe/modules/lock/` | Browser Lock: kunci browser dengan password; **gerbang wajib** semua modul |
 | `my-chrome-universe/modules/tabs/` | Tab Manager: dashboard New Tab ala Toby (ruang → koleksi → kartu tab) |
 | `my-chrome-universe/modules/adblock/` | Ad Blocker ala Adblock Plus (declarativeNetRequest); `filters.js`, `updater.js`, ruleset bawaan |
 | `filter-bot/` | Bot yang menggabungkan filter list dari banyak sumber → feed harian di GitHub Pages |
-| `tests/` | Unit test (`core`, `browser-lock`, `tab-manager`, `ad-blocker` `.test.mjs`), E2E Chromium (`universe.e2e.mjs`), cek langsung (`*.live.mjs`), harness UI |
+| `tests/` | Unit test (`core`, `browser-lock`, `tab-manager`, `ad-blocker`, `ui` `.test.mjs`), E2E Chromium (`universe.e2e.mjs`), cek langsung (`*.live.mjs`), harness UI |
 | `docs/superpowers/` | Spesifikasi desain penyatuan dan rencana |
 | `.github/workflows/filter-bot.yml` | CI harian 01:17 UTC: unit test → bangun feed → verifikasi di Chromium → terbitkan ke `gh-pages` |
 
@@ -34,7 +35,7 @@ Satu extension, Manifest V3, JavaScript murni (ES module), **tanpa build step da
 
 ```bash
 # Unit test (Node 24; tidak butuh browser)
-node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs
+node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs
 
 # E2E seluruh extension di Chromium sungguhan (butuh Chromium Playwright + openssl)
 npx playwright@1 install chromium        # sekali; di Linux tanpa GUI tambahkan --with-deps

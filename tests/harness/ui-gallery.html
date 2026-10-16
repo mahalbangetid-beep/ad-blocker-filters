@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Galeri UI Universe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/my-chrome-universe/ui/tokens.css">
+<link rel="stylesheet" href="/my-chrome-universe/ui/components.css">
+<style>
+  body { padding: 28px; max-width: 980px; margin: 0 auto; position: relative; }
+  main { position: relative; z-index: 1; display: grid; gap: 26px; }
+  section { padding: 18px; border-radius: 18px; background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(10px); }
+  section h2 { font: 500 11px/1 var(--f-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--faint); margin-bottom: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 10px; }
+  .icons div { display: grid; justify-items: center; gap: 6px; font: 400 10.5px var(--f-mono); color: var(--faint); }
+  .title { font: 700 40px/1.1 var(--f-display); background: var(--title-grad); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 7s linear infinite; }
+  .ctl { position: fixed; right: 14px; top: 14px; z-index: 50; display: flex; gap: 8px; padding: 8px; border-radius: 14px; background: var(--panel-solid); border: 1px solid var(--line-strong); }
+  .menu.static { position: static; display: inline-block; }
+</style>
+</head>
+<body data-motion="full">
+<div class="nebula" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="ctl">
+  <button class="btn sm" id="t-ui">Tema: gelap</button>
+  <button class="btn sm" id="t-acc">Aksen: solar</button>
+  <button class="btn sm" id="t-mo">Gerak: full</button>
+</div>
+<main>
+  <section><h2>Tipografi</h2>
+    <div class="title">My Chrome Universe</div>
+    <p>Teks isi Plus Jakarta Sans 400, <b>tebal 700</b>, <span class="faint">teks redup</span>, <span class="mono">mono 0123</span> <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>L</kbd></p>
+    <div class="row" style="margin-top:10px"><svg class="logo" viewBox="0 0 40 40" data-logo></svg><span class="eyebrow">Eyebrow label</span><span class="pill">12</span><span class="fav" style="--h:210">G</span><span class="fav" style="--h:20">Y</span></div>
+  </section>
+  <section><h2>Tombol</h2>
+    <div class="row">
+      <button class="btn primary"><i data-ic="lock"></i>Utama</button>
+      <button class="btn">Biasa</button>
+      <button class="btn ghost">Ghost</button>
+      <button class="btn danger"><i data-ic="trash"></i>Bahaya</button>
+      <button class="btn sm">Kecil</button>
+      <button class="btn" disabled>Nonaktif</button>
+      <button class="icon-btn"><i data-ic="settings"></i></button>
+      <button class="icon-btn sm spin-hover"><i data-ic="settings"></i></button>
+      <button class="icon-btn xs"><i data-ic="x"></i></button>
+    </div>
+    <div style="margin-top:12px"><button class="btn primary block rp" id="rp">Blok dengan ripple</button></div>
+  </section>
+  <section><h2>Kontrol</h2>
+    <div class="row">
+      <label class="sw"><input type="checkbox" checked><span class="track"><span class="knob"></span></span></label>
+      <label class="sw"><input type="checkbox"><span class="track"><span class="knob"></span></span></label>
+      <label class="sw"><input type="checkbox" checked disabled><span class="track"><span class="knob"></span></span></label>
+      <label class="check"><input type="checkbox" checked><span class="box"></span>Tercentang</label>
+      <label class="check"><input type="checkbox"><span class="box"></span>Kosong</label>
+    </div>
+    <div class="row" style="margin-top:12px"><input class="input" placeholder="Kolom isian" style="max-width:260px"><input class="input err" value="Kolom salah" style="max-width:260px"></div>
+  </section>
+  <section><h2>Menu, toast, dialog</h2>
+    <div class="row" style="align-items:flex-start">
+      <div class="menu static"><button class="menu-item" style="--i:0"><i data-ic="edit"></i>Ubah nama</button><button class="menu-item" style="--i:1"><i data-ic="copy"></i>Salin</button><button class="menu-item danger" style="--i:2"><i data-ic="trash"></i>Hapus</button></div>
+      <div class="toasts" style="position:static;transform:none;width:360px"><div class="toast"><span class="t-ic"><i data-ic="check"></i></span><span class="t-text">Tersimpan.</span><button class="btn sm">Urungkan</button></div></div>
+      <button class="btn" id="dlg-open">Buka dialog</button>
+    </div>
+    <dialog class="dialog" id="dlg"><h2>Hapus koleksi?</h2><p>Tindakan ini tidak bisa dibatalkan.</p><div class="actions"><button class="btn ghost" id="dlg-x">Batal</button><button class="btn primary">Hapus</button></div></dialog>
+  </section>
+  <section><h2>Teks aksen</h2>
+    <div class="row"><b style="color:var(--solar-text)">solar-text</b><b style="color:var(--ion-text)">ion-text</b><b style="color:var(--nova-text)">nova-text</b><b style="color:var(--danger-text)">danger-text</b><b style="color:var(--accent-text)">accent-text</b></div>
+  </section>
+  <section><h2>Ikon</h2><div class="icons" id="icons"></div></section>
+</main>
+<script type="module">
+import { ICONS, ic, hydrateIcons } from '/my-chrome-universe/ui/icons.js';
+document.getElementById('icons').innerHTML = Object.keys(ICONS).map((n) => `<div>${ic(n)}${n}</div>`).join('');
+hydrateIcons();
+const root = document.documentElement;
+const cyc = (id, list, apply) => { let i = 0; document.getElementById(id).onclick = (e) => { i = (i + 1) % list.length; apply(list[i], e.target); }; };
+cyc('t-ui', ['dark', 'light'], (v, b) => { v === 'light' ? root.dataset.ui = 'light' : delete root.dataset.ui; b.textContent = 'Tema: ' + (v === 'light' ? 'terang' : 'gelap'); });
+cyc('t-acc', ['solar', 'ion', 'nova'], (v, b) => { v === 'solar' ? delete root.dataset.accent : root.dataset.accent = v; b.textContent = 'Aksen: ' + v; });
+cyc('t-mo', ['full', 'balanced', 'minimal'], (v, b) => { document.body.dataset.motion = v; b.textContent = 'Gerak: ' + v; });
+const dlg = document.getElementById('dlg');
+document.getElementById('dlg-open').onclick = () => dlg.showModal();
+document.getElementById('dlg-x').onclick = () => dlg.close();
+document.getElementById('rp').addEventListener('pointerdown', (e) => {
+  const b = e.currentTarget, r = b.getBoundingClientRect(), s = Math.max(r.width, r.height) * 2;
+  const i = document.createElement('span'); i.className = 'ripple';
+  i.style.cssText = `width:${s}px;height:${s}px;left:${e.clientX - r.left - s / 2}px;top:${e.clientY - r.top - s / 2}px`;
+  b.append(i); i.addEventListener('animationend', () => i.remove());
+});
+</script>
+</body>
+</html>
