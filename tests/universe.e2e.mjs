@@ -673,6 +673,30 @@ test('popup panel switches turn modules off and on', async () => {
   await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
 });
 
+test('options page lists every module', async () => {
+  const frameUrl = (s) => evaluate(s, "document.getElementById('frame')?.src || ''");
+  const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/options.html#lock`);
+  await waitFor(s, "document.querySelectorAll('#side a').length === 3");
+  const names = await evaluate(s, "[...document.querySelectorAll('#side a')].map((a) => a.textContent.trim())");
+  for (const name of ['Ad Blocker', 'Tab Manager', 'Browser Lock']) {
+    assert.ok(names.some((n) => n.includes(name)), `menu lacks ${name}: ${names}`);
+  }
+  await waitFor(s, "document.getElementById('frame')?.src.endsWith('/modules/lock/options.html')");
+  await waitFor(s, "(document.getElementById('frame')?.contentDocument?.body?.innerText || '').includes('Pengaturan Browser Lock')");
+
+  await evaluate(s, "location.hash = '#adblock'");
+  await waitFor(s, "document.getElementById('frame')?.src.endsWith('/modules/adblock/options.html')");
+  await waitFor(s, "(document.getElementById('frame')?.contentDocument?.body?.innerText || '').length > 50");
+  assert.match(await frameUrl(s), /modules\/adblock\/options\.html$/);
+
+  // Tab Manager has no options page: switch + dashboard button instead of an iframe.
+  await evaluate(s, "location.hash = '#tabs'");
+  await waitFor(s, "!document.getElementById('frame') && document.body.innerText.includes('Buka dashboard')");
+  assert.equal(await evaluate(s, "document.querySelector('.mcu-module-switch input').checked"), true);
+  assert.deepEqual(errors, [], 'options page logged errors');
+  await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+});
+
 // ---------- Lock gate (keep these last: they lock the browser) ----------
 
 const extUrl = (path) => `chrome-extension://${extId}/${path}`;

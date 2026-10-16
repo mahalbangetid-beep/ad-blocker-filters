@@ -39,7 +39,7 @@
     }
   },
   "options_ui": {
-    "page": "modules/adblock/options.html",
+    "page": "options.html",
     "open_in_tab": true
   },
   "chrome_url_overrides": {

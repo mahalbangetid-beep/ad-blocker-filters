@@ -6,7 +6,10 @@ mengapa keputusan diambil, dan kesalahan yang sudah pernah terjadi. Extension as
 Chrome di Windows (`%LOCALAPPDATA%\Google\Chrome\User Data\Default\Extensions\<id>\<versi>`); di Linux lokasinya
 `~/.config/google-chrome/Default/Extensions/<id>/<versi>`. ABP dan Toby sudah dicopot pengguna setelah dianalisis.
 
-Urutan kerja: Browser Lock → Tab Manager → Ad Blocker → iklan video YouTube → filter bot + GitHub → update harian.
+Urutan kerja: Browser Lock → Tab Manager → Ad Blocker → iklan video YouTube → filter bot + GitHub → update harian → penyatuan.
+
+Catatan path: §1-§6 ditulis saat ketiga extension masih folder terpisah (`browser-lock/`, `tab-manager/`, `ad-blocker/`).
+Setelah §7 isinya ada di `my-chrome-universe/modules/lock|tabs|adblock/`; nama file di dalamnya tidak berubah.
 
 ---
 
@@ -139,6 +142,55 @@ Pelajaran: pengelompokan domain berurutan (1000/aturan) membuat satu perubahan m
 bucket hash FNV-1a (maks 700) → 1 tambah + 1 hapus di EasyList = 1 aturan berubah. `runUpdate` semula berbagi promise
 yang sedang berjalan (update manual setelah ganti URL feed bisa memakai pengaturan lama) → antrean berurutan.
 Uji langsung ke feed asli: bundel `202610160902`, feed `202610160904` → status `updated`, 0 perubahan (sumber belum berubah).
+
+## 7. Penyatuan My Chrome Universe (`my-chrome-universe/`)
+
+Desain lengkap: `docs/superpowers/specs/2026-10-16-my-chrome-universe-design.md`. Dikerjakan di branch `my-chrome-universe`
+(belum di-merge/push saat dokumen ini ditulis), satu commit per tugas.
+
+**Keputusan**
+- **Satu extension**, tiga modul di `modules/{lock,tabs,adblock}/`, satu service worker (`background.js` meng-import core
+  lalu tiap modul). Modul tidak saling mengimpor; yang dipakai bersama ada di `core/`.
+- **Registry `MODULES`** (`core/modules.js`) menjadi sumber tunggal untuk popup, halaman pengaturan, sakelar, dan menu klik kanan.
+  Menambah fitur = folder modul + satu entri (lihat README "Menambah modul baru").
+- **Popup berupa grid modul** → ketuk satu ubin → panel modul (isi/kontrol popup lama, kini `panel.js` per modul dengan `render`/`status`).
+- **Sakelar Aktif per modul** (`core:modules` di storage; default semua aktif). Ad Blocker nonaktif terpisah dari "jeda";
+  Tab Manager nonaktif mengembalikan New Tab bawaan Chrome. Browser Lock hanya bisa dimatikan lewat `lock:setEnabled`
+  dan **wajib password saat ini** (kolom inline, bukan `prompt()`); tombol "Hapus password" diganti sakelar ini.
+- **Browser Lock = gerbang wajib** dengan status baru `setup`: sebelum password dibuat, dashboard/popup/pengaturan/menu/omnibox/shortcut
+  hanya mengarah ke halaman "Buat password". Status dibaca dari storage setiap kali (`lockStatus`), tanpa cache. Pengaman dua lapis:
+  `messageAllowed` di service worker (pesan modul ditolak `{ok:false,error:'locked'}`) dan `guardPage` di setiap halaman extension.
+- **Kode pemulihan** sekali pakai (hash PBKDF2 di `lock:recovery`, jeda bertingkat sama dengan password) — satu-satunya fitur tambahan,
+  karena lupa password tanpa itu berarti mencopot seluruh extension dan kehilangan koleksi/filter.
+- **Pengelola menu klik kanan** di `core/menus.js`: modul mendaftar lewat `registerMenuProvider`; satu pembangunan ulang berurutan.
+- **Ikon toolbar tidak lagi diganti** per tab (dulu Ad Blocker mengabukan ikon saat situs diizinkan/dijeda); status Ad Blocker
+  tampil di ubin dan panel. Badge hitungan tetap.
+- **Halaman pengaturan bersama** `options.html#<id>`: menu samping dari `MODULES`, sakelar, dan halaman opsi modul dalam `<iframe>`
+  (halaman itu memanggil `guardPage('frame')`); Tab Manager tanpa halaman opsi → sakelar + tombol "Buka dashboard".
+- Awalan: `lock:` (Browser Lock, dulu tanpa awalan), `tm:`, `ab:`, `core:`. Maksimal 4 shortcut ber-`suggested_key`; terpakai 3.
+
+**Bentrokan yang ditemukan**
+- `chrome.contextMenus.removeAll()` dipanggil Ad Blocker dan Tab Manager → menu saling menghapus → pengelola menu bersama; hanya `core/menus.js` yang boleh memanggilnya.
+- **Pengecualian origin extension di Browser Lock**: `INTERNAL_URL`/`isWorthRestoring` memperlakukan `chrome-extension:` sebagai miliknya
+  sendiri. Aman saat extension hanya berisi layar kunci, tidak aman setelah satu origin berisi dashboard, popup, dan pengaturan →
+  saat terkunci hanya layar kunci (dan setup) yang boleh terbuka; halaman extension lain ditutup dan tidak dipulihkan setelah buka kunci.
+- **Halaman opsi Ad Blocker terbuka saat install** (`openOptionsPage` di `onInstalled`) → akan tampil sebelum password ada; dihapus,
+  yang terbuka saat install hanya halaman setup password.
+- Dashboard/popup Tab Manager membaca `chrome.storage.local` langsung (bukan lewat pesan) → penolakan di service worker saja tidak cukup,
+  maka `guardPage` memeriksa status sebelum merender dan mengosongkan halaman bila status berubah (`storage.onChanged`).
+
+**Spike New Tab (Tab Manager nonaktif)** — cara mengembalikan New Tab bawaan Chrome dari halaman `chrome_url_overrides`:
+- `chrome.tabs.update(ownTab, { url: 'chrome://new-tab-page/' })` **berhasil**.
+- `location.replace('chrome://…')` dari halaman extension **diblokir**.
+- `chrome.tabs.update` ke `chrome://newtab/` **berulang** (loop ±100–170 kali reload) karena URL itu kembali ke override.
+- Cadangan tetap ada: halaman pemberitahuan dengan tautan "Aktifkan Tab Manager" bila pembaruan tab gagal.
+
+**Pelajaran**
+- Penyapuan Browser Lock menutup halaman extension yang sedang dipakai E2E (`bg()`), sehingga balasan `lock:lock` tidak pernah tiba →
+  di E2E kirim `lock:lock` fire-and-forget dan lupakan halaman `bg()` (buka yang baru pada panggilan berikutnya).
+- Tes picker "Blokir elemen" tidak stabil tanpa menunggu kondisi (`waitFor`) → semua langkah kini menunggu kondisi, bukan `sleep`.
+- Tes gerbang kunci mengunci browser sungguhan, jadi harus tetap **terakhir** di `tests/universe.e2e.mjs`; tes baru ditaruh sebelum bagian itu.
+- Pesan yang boleh dilayani saat terkunci didaftar eksplisit (`PUBLIC_MESSAGES`); default menolak (fail closed).
 
 ## Kebiasaan lingkungan Windows yang tidak berlaku di Linux
 

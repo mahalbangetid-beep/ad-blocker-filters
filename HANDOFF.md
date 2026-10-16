@@ -1,47 +1,61 @@
 # Handoff
 
-> Generated: 2026-10-16 (Windows → Linux)
+> Diperbarui: 2026-10-16 (penyatuan selesai)
 > Project: E:\AI\ext → https://github.com/mahalbangetid-beep/ad-blocker-filters
-> Session summary: tiga tiruan extension Chrome (Browser Lock, Tab Manager, Ad Blocker) dibangun dan dites, plus
-> filter bot harian di GitHub Actions/Pages dan update otomatis di Ad Blocker. Semua selesai; tidak ada yang rusak.
+> Session summary: tiga tiruan extension (Browser Lock, Tab Manager, Ad Blocker) kini disatukan menjadi satu extension
+> **My Chrome Universe** (`my-chrome-universe/`), lengkap dengan popup grid modul dan halaman pengaturan bersama.
+> Pekerjaan ada di branch `my-chrome-universe` yang **belum di-merge dan belum di-push**.
 
 ## Goal
 
-Pengguna (berbahasa Indonesia) mengumpulkan tiruan extension Chrome yang ia pakai, versi yang lebih aman/lokal,
-untuk akhirnya **disatukan** menjadi satu extension. Fokus saat ini: **Ad Blocker** yang setara Adblock Plus/AdBlock,
-dengan filter list gabungan banyak sumber yang diperbarui otomatis setiap hari lewat bot di GitHub.
+Pengguna (berbahasa Indonesia) mengumpulkan tiruan extension Chrome yang ia pakai, versi yang lebih aman/lokal, dan
+menyatukannya menjadi satu extension. Penyatuan sudah selesai (desain: `docs/superpowers/specs/2026-10-16-my-chrome-universe-design.md`).
+Filter list Ad Blocker tetap digabung dari banyak sumber dan diperbarui otomatis setiap hari lewat bot di GitHub.
 
 ## Current State
 
-**Working (terverifikasi):**
-- 38 unit test lolos (`node --test tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs`).
-- 13 E2E di Chromium sungguhan lolos (`node --test tests/ad-blocker.e2e.mjs`): blokir jaringan, sembunyikan elemen,
-  hitungan, filter saya, allowlist, jeda, semua kategori, picker, YouTube (tiruan), update feed, checksum palsu, feed lama.
-- CI `.github/workflows/filter-bot.yml` lolos di GitHub (run terakhir 38877944650); feed terbit di
-  https://mahalbangetid-beep.github.io/ad-blocker-filters/index.json (versi 202610160904, `problems: []`).
-- `node tests/feed.live.mjs`: extension mengambil feed asli → status `updated`.
-- `node tests/youtube.live.mjs`: di YouTube asli iklan video hilang dengan modul aktif.
-- Ruleset bawaan di `ad-blocker/` = feed `202610160902` (Iklan 16.942, Indonesia 2.802, Keamanan 1.188,
-  Privasi 9.905, Gangguan 8.850 aturan; bawaan aktif ±18.130 dari batas aman 30.000).
+**Working (terverifikasi di branch `my-chrome-universe`):**
+- 62 unit test lolos: `node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs`
+  (core 9, browser-lock 21, tab-manager 19, ad-blocker 13).
+- 22 E2E di Chromium sungguhan lolos (`node --test tests/universe.e2e.mjs`): blokir/sembunyikan iklan, hitungan, filter
+  saya, allowlist, jeda, sakelar modul, picker, YouTube (tiruan), update feed (+ checksum palsu, feed lama), popup grid,
+  halaman pengaturan bersama, dan gerbang kunci (kunci menutup halaman extension, buka kunci memulihkan tab, kode pemulihan).
+- Satu extension: popup = grid modul → panel; sakelar Aktif per modul; Browser Lock jadi gerbang wajib (status `setup`
+  sampai password dibuat) dengan kode pemulihan; menu klik kanan bersama; halaman `options.html#<id>` dengan menu samping.
+- Bot memakai `my-chrome-universe/modules/adblock/` sebagai tujuan `--update-extension`; ruleset bawaan = feed
+  `202610160902` (aturan dari run bot terbaru identik, jadi tidak ada perubahan bundel); bawaan aktif ±18.130 dari batas 30.000.
+- CI `.github/workflows/filter-bot.yml` sudah memakai path dan berkas tes baru, **tetapi belum dijalankan** untuk branch ini
+  (belum di-push). Feed publik: https://mahalbangetid-beep.github.io/ad-blocker-filters/index.json.
+- `node tests/feed.live.mjs` dan `node tests/youtube.live.mjs` (butuh internet) belum dijalankan ulang setelah penyatuan.
 
-**Broken:** tidak ada yang diketahui. Belum diuji di Chrome milik pengguna setelah update terakhir (ia harus reload extension).
+**Belum dilakukan / perlu pengguna:**
+- Branch `my-chrome-universe` belum di-merge ke `main` dan belum di-push; push + `gh workflow run filter-bot.yml --ref main`
+  hanya setelah pengguna setuju.
+- Uji manual di Chrome pengguna: **hapus dulu ketiga extension lama** di `chrome://extensions` (Browser Lock, Tab Manager,
+  Ad Blocker) agar shortcut/New Tab/menu tidak bentrok, lalu Load unpacked `my-chrome-universe/`, buat password, simpan
+  kode pemulihan, restart Chrome. Data lama tidak dimigrasi.
+- Catatan New Tab: bila Tab Manager dimatikan, extension membuka `chrome://new-tab-page/` lewat `chrome.tabs.update`
+  (lihat `docs/PROJECT_HISTORY.md` §7); halaman pemberitahuan tetap ada sebagai cadangan.
+
+**Broken:** tidak ada yang diketahui.
 
 ## Files in Play
 
 | File | Why It Matters |
 |------|---------------|
 | `CLAUDE.md` | Aturan kerja, perintah, konvensi (dibaca otomatis) |
-| `docs/PROJECT_HISTORY.md` | Temuan reverse-engineering ABP/AdBlock/Toby/Chrome Lock + alasan keputusan + pelajaran |
-| `README.md` | Dokumentasi pengguna, tabel sumber filter, catatan penggabungan extension |
-| `ad-blocker/filters.js` | Konverter filter → DNR (dipakai bot & extension); bucket hash domain |
-| `ad-blocker/updater.js` | Update harian: unduh, cek SHA-256, validasi, diff vs bundel |
-| `ad-blocker/background.js` | Service worker: settings, rulesets, aturan dinamis, kosmetik, hitungan, YouTube, alarm |
-| `ad-blocker/cosmetic.js` | Mesin CSS penyembunyi elemen |
-| `ad-blocker/youtube-main.js` | Buang data iklan dari respons pemutar YouTube (MAIN world) |
-| `ad-blocker/lists.json` | Metadata bundel: `feedVersion`, `feedUrl`, kategori (ditulis bot) |
+| `docs/PROJECT_HISTORY.md` | Temuan reverse-engineering + alasan keputusan + pelajaran (§7 = penyatuan) |
+| `docs/superpowers/specs/2026-10-16-my-chrome-universe-design.md` | Desain penyatuan (otoritas) |
+| `README.md` | Dokumentasi pengguna, sumber filter, "Menambah modul baru" |
+| `my-chrome-universe/core/` | Registry `MODULES`, gerbang kunci (`gate.js`, `page-guard.js`), menu bersama, helper panel |
+| `my-chrome-universe/modules/adblock/filters.js` | Konverter filter → DNR (dipakai bot & extension); bucket hash domain |
+| `my-chrome-universe/modules/adblock/updater.js` | Update harian: unduh, cek SHA-256, validasi, diff vs bundel |
+| `my-chrome-universe/modules/adblock/background.js` | Settings, rulesets, aturan dinamis, kosmetik, hitungan, YouTube, alarm |
+| `my-chrome-universe/modules/lock/background.js` | Kunci, setup, kode pemulihan, penyapuan tab |
+| `my-chrome-universe/modules/tabs/` | Dashboard Tab Manager (satu penulis data: service worker) |
 | `filter-bot/bot.mjs`, `filter-bot/sources.json` | Bot penggabung + daftar sumber/kategori |
 | `.github/workflows/filter-bot.yml` | CI harian → branch `gh-pages` |
-| `tests/ad-blocker.e2e.mjs`, `tests/chromium.mjs` | E2E Chromium + pencari Chromium lintas OS |
+| `tests/universe.e2e.mjs`, `tests/chromium.mjs` | E2E Chromium (tes gerbang kunci harus tetap terakhir) + pencari Chromium lintas OS |
 
 ## What Has Been Tried (and Why It Failed)
 
@@ -55,32 +69,33 @@ Semuanya sudah diperbaiki; jangan diulangi:
 - **`runUpdate` berbagi promise berjalan** → update manual bisa memakai feedUrl lama; diganti antrean.
 - **Push file workflow dengan token tanpa scope `workflow`** → ditolak; perlu `gh auth refresh -s workflow`.
 - **Heredoc ber-kutip berisi kode di shell** → error parsing; tulis skrip ke file lalu jalankan.
+- **`chrome.contextMenus.removeAll` di tiap modul** → saling menghapus menu; sekarang hanya `core/menus.js`.
+- **`location.replace`/`tabs.update` ke `chrome://newtab/` untuk New Tab bawaan** → diblokir / loop reload; yang berhasil
+  `chrome.tabs.update(tabId, {url:'chrome://new-tab-page/'})`.
+- **Ad Blocker membuka halaman opsinya saat install** (`openOptionsPage`) → di extension gabungan halaman itu muncul sebelum password ada; dihapus, yang terbuka saat install adalah halaman setup password.
 - **Simulasi drag dari tool browser** → tidak andal; uji DnD dengan `DragEvent` sintetis.
 
 ## Current Best Theory
 
 Arsitektur sudah benar dan setara ABP: ruleset bawaan statis + diff harian dari feed (aturan dinamis +
 `updateStaticRules`). Risiko utama jangka panjang: bundel makin tertinggal dari feed → diff mendekati batas
-(30.000 dinamis / 5.000 dinonaktifkan). Jawabannya: memperbarui bundel secara berkala (lihat langkah 2).
+(30.000 dinamis / 5.000 dinonaktifkan). Jawabannya: memperbarui bundel secara berkala (lihat langkah 4).
 
 ## Next Steps
 
-1. Siapkan lingkungan Linux: Node 24, `git clone https://github.com/mahalbangetid-beep/ad-blocker-filters`,
-   `npx playwright@1 install --with-deps chromium`, pastikan `openssl` ada, `gh auth login` (scope `repo`, `workflow`).
-   Jalankan unit test + E2E dari `CLAUDE.md` untuk memastikan semuanya hijau di Linux.
-2. (Disarankan) Otomatiskan penyegaran bundel: workflow mingguan yang menjalankan
-   `node filter-bot/bot.mjs --update-extension`, menaikkan `version` di `ad-blocker/manifest.json`, menjalankan E2E,
-   lalu membuat commit/PR (atau rilis zip untuk Chrome Web Store). Saat ini bundel hanya diperbarui manual.
-3. Tanyakan pengguna langkah berikutnya untuk Ad Blocker; kandidat yang sudah teridentifikasi:
-   - dukung `$redirect`/`$redirect-rule` dengan resource netral bawaan (±2.500 filter dilewati sekarang);
-   - domain wildcard `example.*` (±2.400 filter dilewati) dengan memperluas ke TLD umum;
-   - subset scriptlet aman (`set-constant`, `json-prune`) dengan kode dibundel dan parameter dari feed (data, bukan kode);
-   - pengemasan & penerbitan ke Chrome Web Store.
-4. Bila pengguna menyebut extension baru untuk ditiru: baca folder instalasinya
-   (`~/.config/google-chrome/Default/Extensions/<id>/<versi>`), jelaskan temuan, bangun di folder baru dengan
-   awalan pesan/storage sendiri, tambahkan unit test, catat di `docs/PROJECT_HISTORY.md` dan README.
-5. Penggabungan extension (bila diminta): ikuti "Catatan untuk menyatukan" di README; beri awalan `lock:` pada Browser Lock;
-   satu `background.js` yang mengimpor modul tiap fitur; gabungkan manifest (maks 4 shortcut ber-`suggested_key`).
+1. **Redesign global** (proyek berikutnya): satukan tampilan popup, halaman pengaturan, dashboard New Tab, layar kunci, dan
+   halaman opsi tiap modul (kini masih tiga gaya visual berbeda, dibungkus iframe di `options.html`). Mulai dengan
+   `superpowers:brainstorming`; tanyakan arah visual kepada pengguna.
+2. Pengguna menguji manual: hapus tiga extension lama → Load unpacked `my-chrome-universe/` → buat password → simpan
+   kode pemulihan → restart Chrome. Laporkan bug ke sini.
+3. Bila pengguna setuju: merge branch `my-chrome-universe` ke `main`, push, jalankan CI
+   (`gh workflow run filter-bot.yml --ref main && gh run list --workflow filter-bot.yml --limit 1`) dan pastikan hijau.
+4. (Disarankan) Otomatiskan penyegaran bundel: workflow mingguan `node filter-bot/bot.mjs --update-extension`, naikkan
+   `version` di manifest, jalankan E2E, lalu commit/PR. Saat ini bundel hanya diperbarui manual.
+5. Kandidat peningkatan Ad Blocker: `$redirect`/`$redirect-rule` dengan resource netral (±2.500 filter dilewati), domain
+   wildcard `example.*` (±2.400), subset scriptlet aman (`set-constant`, `json-prune`), pengemasan Chrome Web Store.
+6. Bila pengguna menyebut extension baru untuk ditiru: baca folder instalasinya (`~/.config/google-chrome/Default/Extensions/<id>/<versi>`),
+   jelaskan temuan, bangun sebagai modul baru (`README.md` → "Menambah modul baru"), tambahkan tes, catat di `docs/PROJECT_HISTORY.md`.
 
 ## Key Constraints
 
