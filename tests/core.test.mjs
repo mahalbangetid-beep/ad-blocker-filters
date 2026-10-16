@@ -94,6 +94,17 @@ test('module icons are names from the shared icon set', async () => {
   for (const m of MODULES) assert.ok(m.icon in ICONS, `${m.id}: unknown icon ${m.icon}`);
 });
 
+test('every module has a settings section script instead of an options page', async () => {
+  const { existsSync } = await import('node:fs');
+  const { MODULES } = await import('../my-chrome-universe/core/modules.js');
+  const ext = new URL('../my-chrome-universe/', import.meta.url);
+  for (const m of MODULES) {
+    assert.equal('options' in m, false, `${m.id} still has options`);
+    assert.match(m.settings || '', /^modules\/[\w-]+\/settings\.js$/, `${m.id}: settings path`);
+    assert.ok(existsSync(new URL(m.settings, ext)), `${m.id}: ${m.settings} missing`);
+  }
+});
+
 test('onModuleStatesChanged reports full states', async () => {
   const seen = [];
   onModuleStatesChanged((s) => seen.push(s));

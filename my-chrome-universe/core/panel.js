@@ -21,24 +21,6 @@ export function addStyle(key, css) {
   document.head.append(style);
 }
 
-// The legacy "Aktif" switch row; only the settings page still uses it (the popup's switches
-// live on the module cards).
-export function moduleSwitch(checked, onChange) {
-  const input = Object.assign(document.createElement('input'), { type: 'checkbox', checked });
-  input.setAttribute('aria-label', 'Aktif');
-  input.addEventListener('change', () => onChange(input.checked));
-  const toggle = document.createElement('span');
-  toggle.className = 'mcu-switch';
-  toggle.append(input, document.createElement('i'));
-  const label = document.createElement('span');
-  label.className = 'mcu-switch-label';
-  label.textContent = 'Aktif';
-  const row = document.createElement('div');
-  row.className = 'mcu-module-switch';
-  row.append(label, toggle);
-  return { row, input };
-}
-
 // Shown instead of the panel's controls while the module is switched off.
 export function offNotice() {
   const box = document.createElement('div');

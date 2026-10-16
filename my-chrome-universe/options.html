@@ -5,33 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Pengaturan - My Chrome Universe</title>
   <link rel="icon" href="icons/icon32.png">
+  <script src="ui/boot.js"></script>
+  <link rel="stylesheet" href="ui/tokens.css">
+  <link rel="stylesheet" href="ui/components.css">
   <link rel="stylesheet" href="options.css">
-  <style>
-    body { width: auto; min-height: 100vh; display: flex; }
-    #side { width: 220px; flex: none; padding: 16px 10px; border-right: 1px solid var(--border); background: var(--surface); }
-    #side h1 { font-size: 15px; margin: 0 8px 14px; }
-    #side a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: var(--text); text-decoration: none; font-weight: 600; }
-    #side a:hover { background: var(--bg); }
-    #side a[aria-current="page"] { background: var(--accent); color: var(--accent-text); }
-    #main { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 20px 24px; gap: 14px; }
-    #main h2 { margin: 0; font-size: 20px; }
-    #main .mcu-module-switch { margin: 0; max-width: 520px; background: var(--surface); }
-    #main .mcu-msg { margin: 0; }
-    #main form { max-width: 520px; display: flex; flex-direction: column; gap: 8px; }
-    #main form .row { display: flex; gap: 8px; }
-    #main input[type=password] { padding: 7px 9px; font: inherit; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); }
-    #main button { padding: 7px 14px; font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); width: fit-content; }
-    #main button.danger { color: var(--danger); }
-    #frame { flex: 1; width: 100%; min-height: 70vh; border: 0; background: transparent; }
-    @media (max-width: 640px) {
-      body { flex-direction: column; }
-      #side { width: auto; border-right: 0; border-bottom: 1px solid var(--border); }
-    }
-  </style>
 </head>
 <body>
-  <nav id="side" aria-label="Modul"><h1>My Chrome Universe</h1></nav>
-  <main id="main"></main>
+  <div class="nebula" aria-hidden="true"><i></i><i></i><i></i></div>
+  <canvas id="sky" aria-hidden="true"></canvas>
+  <canvas id="fx" aria-hidden="true"></canvas>
+
+  <!-- Hidden until the lock gate is open and every section has rendered. -->
+  <div class="st" id="st">
+    <nav class="st-nav" data-in style="--in:from-left" aria-label="Bagian pengaturan">
+      <div class="st-brand"><svg class="logo" viewBox="0 0 40 40" data-logo></svg><b>Pengaturan<small>My Chrome Universe</small></b></div>
+      <div class="st-links" id="st-links"><span class="st-ind" id="st-ind"></span></div>
+      <button class="btn ghost sm rp st-back" type="button" id="st-back"><i data-ic="arrowLeft"></i>Kembali ke Tab Manager</button>
+    </nav>
+    <main class="st-main" id="st-main">
+      <div class="st-top" id="st-top" data-in style="--in:from-top;--base:100ms">
+        <div><h1>Pengaturan</h1><p>Semua modul diatur di satu tempat. Perubahan langsung tersimpan.</p></div>
+        <div class="st-search"><i data-ic="search"></i><input class="input" id="st-q" type="search" placeholder="Cari pengaturan, mis. password, YouTube, animasi" aria-label="Cari pengaturan" autocomplete="off"></div>
+        <span class="saved" id="saved" role="status"><i data-ic="check"></i><span id="saved-text">Tersimpan</span></span>
+      </div>
+      <div class="st-body" id="st-body"></div>
+    </main>
+  </div>
+
+  <dialog class="dialog" id="dialog"><form method="dialog" id="dialog-form"></form></dialog>
   <script type="module" src="options.js"></script>
 </body>
 </html>

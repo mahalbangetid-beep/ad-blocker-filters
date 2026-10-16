@@ -2,91 +2,9 @@
 <html lang="id">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pengaturan - Browser Lock</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Pengaturan - My Chrome Universe</title>
+  <!-- Old module settings page: the settings now live in one page. -->
+  <meta http-equiv="refresh" content="0;url=/options.html#lock">
 </head>
-<body>
-  <main class="page">
-    <div class="card wide">
-      <img class="icon" src="icons/lock128.png" alt="">
-      <h1>Pengaturan Browser Lock</h1>
-      <p class="sub" id="status"></p>
-
-      <section id="no-password" hidden>
-        <p>Belum ada password. Atur password dulu agar browser bisa dikunci.</p>
-        <button type="button" id="go-setup">Atur Password</button>
-      </section>
-
-      <div id="has-password" hidden>
-        <section id="enabled-section">
-          <h2>Aktif / nonaktif</h2>
-          <label class="check"><input type="checkbox" id="enabled"> Browser Lock aktif</label>
-          <p class="note">Saat nonaktif, browser tidak dikunci saat dibuka, saat tidak ada aktivitas, saat layar
-            dikunci, maupun lewat shortcut. Password tetap tersimpan, jadi mengaktifkan kembali tidak perlu password baru.</p>
-          <form id="disable-form" hidden>
-            <label for="disable-current">Password saat ini (wajib untuk mematikan)</label>
-            <input type="password" id="disable-current" autocomplete="current-password" required>
-            <button type="submit" class="danger">Matikan Browser Lock</button>
-            <button type="button" class="secondary" id="disable-cancel">Batal</button>
-          </form>
-          <p class="msg" id="enabled-msg" role="alert"></p>
-        </section>
-
-        <section>
-          <h2>Kunci otomatis</h2>
-          <label for="idle">Kunci saat tidak ada aktivitas selama</label>
-          <select id="idle">
-            <option value="0">Tidak pernah</option>
-            <option value="1">1 menit</option>
-            <option value="5">5 menit</option>
-            <option value="15">15 menit</option>
-            <option value="30">30 menit</option>
-            <option value="60">1 jam</option>
-          </select>
-          <label class="check"><input type="checkbox" id="screen-lock"> Kunci saat layar komputer dikunci</label>
-          <p class="msg" id="settings-msg" role="status"></p>
-          <button type="button" class="secondary" id="lock-now">Kunci Sekarang (Alt+Shift+L)</button>
-        </section>
-
-        <section>
-          <h2>Ganti password</h2>
-          <form id="change-form">
-            <label for="current">Password saat ini</label>
-            <input type="password" id="current" autocomplete="current-password" required>
-            <label for="new-password">Password baru</label>
-            <input type="password" id="new-password" autocomplete="new-password" required>
-            <label for="confirm">Ulangi password baru</label>
-            <input type="password" id="confirm" autocomplete="new-password" required>
-            <button type="submit">Ganti Password</button>
-            <p class="msg" id="change-msg" role="alert"></p>
-          </form>
-        </section>
-
-        <section>
-          <h2>Kode pemulihan</h2>
-          <p class="note">Kode pemulihan bisa membuka browser bila kamu lupa password. Membuat kode baru membuat kode
-            yang lama tidak berlaku.</p>
-          <form id="recovery-form">
-            <label for="recovery-current">Password saat ini</label>
-            <input type="password" id="recovery-current" autocomplete="current-password" required>
-            <button type="submit" class="secondary">Buat kode pemulihan baru</button>
-            <p class="msg" id="recovery-msg" role="alert"></p>
-          </form>
-          <div id="recovery-result" hidden>
-            <p class="code" id="recovery-code"></p>
-            <p class="note">Simpan kode pemulihan ini di tempat aman. Kode ini hanya ditampilkan sekali dan bisa membuka
-              browser bila kamu lupa password.</p>
-            <button type="button" id="recovery-noted">Saya sudah mencatatnya</button>
-          </div>
-        </section>
-      </div>
-
-      <p class="note">Catatan: kunci ini mencegah orang lain memakai browser secara langsung, tapi bukan
-        enkripsi. Agar mode Incognito juga terkunci, aktifkan "Izinkan dalam mode Incognito" di
-        chrome://extensions.</p>
-    </div>
-  </main>
-  <script type="module" src="options.js"></script>
-</body>
+<body></body>
 </html>

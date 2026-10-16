@@ -561,7 +561,7 @@ async function openWatched(url, { background = false } = {}) {
 }
 
 test('extension pages render without errors', async () => {
-  for (const page of ['popup.html', 'modules/adblock/options.html']) {
+  for (const page of ['popup.html', 'options.html']) {
     const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/${page}`);
     await sleep(500);
     const text = await evaluate(s, 'document.body.innerText');
@@ -726,61 +726,6 @@ test('popup card switches turn modules off and on', async () => {
   assert.equal(state.locked, false);
   assert.equal(await evaluate(s, `${modSwitch('lock')}.checked`), true);
   assert.deepEqual(errors, []);
-  await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
-});
-
-test('options page lists every module', async () => {
-  const frameUrl = (s) => evaluate(s, "document.getElementById('frame')?.src || ''");
-  const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/options.html#lock`);
-  await waitFor(s, "document.querySelectorAll('#side a').length === 3");
-  const names = await evaluate(s, "[...document.querySelectorAll('#side a')].map((a) => a.textContent.trim())");
-  for (const name of ['Ad Blocker', 'Tab Manager', 'Browser Lock']) {
-    assert.ok(names.some((n) => n.includes(name)), `menu lacks ${name}: ${names}`);
-  }
-  await waitFor(s, "document.getElementById('frame')?.src.endsWith('/modules/lock/options.html')");
-  await waitFor(s, "(document.getElementById('frame')?.contentDocument?.body?.innerText || '').includes('Pengaturan Browser Lock')");
-
-  // The parent "Aktif" switch is the only on/off control: the framed lock page hides its own.
-  const inFrame = (expr) => evaluate(s, `(() => { const d = document.getElementById('frame').contentDocument; return ${expr}; })()`);
-  await waitFor(s, "!document.getElementById('frame').contentDocument.getElementById('has-password').hidden");
-  assert.equal(await inFrame("d.getElementById('enabled').checkVisibility()"), false, 'lock page on/off switch is hidden in the frame');
-  assert.equal(await inFrame("d.getElementById('enabled-section').hidden"), true);
-  assert.equal(await inFrame("d.getElementById('change-form').checkVisibility()"), true, 'the rest of the lock settings stay');
-
-  const sw = "document.querySelector('.mcu-module-switch input')";
-  const confirmOff = (pw) => evaluate(s, `(() => {
-    const input = document.getElementById('disable-current');
-    input.value = ${JSON.stringify(pw)};
-    input.form.requestSubmit();
-  })()`);
-  assert.equal(await evaluate(s, `${sw}.checked`), true);
-  await evaluate(s, `${sw}.click()`);
-  await waitFor(s, "!!document.getElementById('disable-current') && !document.getElementById('disable-current').form.hidden");
-  assert.equal(await evaluate(s, `${sw}.checked`), true, 'stays on until the password is confirmed');
-  await confirmOff('salah-sekali');
-  await waitFor(s, "document.querySelector('.mcu-msg').textContent.includes('salah')");
-  assert.equal((await bg({ type: 'lock:getState' })).enabled, true, 'wrong password keeps the lock on');
-  assert.equal(await evaluate(s, `${sw}.checked`), true);
-  await confirmOff(PASSWORD);
-  await waitFor(s, `${sw} && !${sw}.checked`);
-  assert.equal((await bg({ type: 'lock:getState' })).enabled, false);
-  // Turned back on elsewhere (e.g. the popup): the parent switch follows the stored state.
-  assert.equal((await bg({ type: 'lock:setEnabled', enabled: true })).ok, true);
-  await waitFor(s, `${sw}.checked`);
-  const state = await bg({ type: 'lock:getState' });
-  assert.equal(state.enabled, true);
-  assert.equal(state.locked, false);
-
-  await evaluate(s, "location.hash = '#adblock'");
-  await waitFor(s, "document.getElementById('frame')?.src.endsWith('/modules/adblock/options.html')");
-  await waitFor(s, "(document.getElementById('frame')?.contentDocument?.body?.innerText || '').length > 50");
-  assert.match(await frameUrl(s), /modules\/adblock\/options\.html$/);
-
-  // Tab Manager has no options page: switch + dashboard button instead of an iframe.
-  await evaluate(s, "location.hash = '#tabs'");
-  await waitFor(s, "!document.getElementById('frame') && document.body.innerText.includes('Buka dashboard')");
-  assert.equal(await evaluate(s, "document.querySelector('.mcu-module-switch input').checked"), true);
-  assert.deepEqual(errors, [], 'options page logged errors');
   await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
 });
 
@@ -1116,6 +1061,188 @@ test('guide shows once', async () => {
   }
 });
 
+// ---------- Settings page ----------
+
+const SECTIONS = ['umum', 'lock', 'tabs', 'adblock', 'about'];
+const settingsUrl = (hash = '') => `chrome-extension://${extId}/options.html${hash}`;
+const settingsReady = "document.querySelector('.st')?.classList.contains('ready')";
+const activeLink = (s) => evaluate(s, "document.querySelector('#st-links .st-link.on')?.dataset.sec || ''");
+// The section's top edge sits just below the sticky top bar of the scroll container.
+const sectionAtTop = (id) => `(() => {
+  const bar = document.getElementById('st-top').getBoundingClientRect(), sec = document.getElementById('sec-${id}');
+  const gap = sec ? sec.getBoundingClientRect().top - bar.bottom : -1;
+  return gap >= -2 && gap < 40;
+})()`;
+const visibleItems = "[...document.querySelectorAll('#st-body .item')].filter((i) => i.checkVisibility()).length";
+const typeSearch = (s, q) => evaluate(s, `(() => {
+  const q = document.getElementById('st-q');
+  q.value = ${JSON.stringify(q)};
+  q.dispatchEvent(new Event('input', { bubbles: true }));
+})()`);
+
+test('shared settings page has every module setting on one page', async () => {
+  const { sessionId: s, targetId, errors } = await openWatched(settingsUrl('#lock'));
+  try {
+    await waitFor(s, settingsReady);
+    assert.equal(await evaluate(s, "document.getElementById('frame')"), null, 'no iframe any more');
+    assert.deepEqual(await evaluate(s, "[...document.querySelectorAll('#st-links .st-link')].map((l) => l.dataset.sec)"), SECTIONS);
+    assert.deepEqual(await evaluate(s, "[...document.querySelectorAll('#st-body > section.st-sec')].map((x) => x.id)"), SECTIONS.map((id) => `sec-${id}`));
+    assert.equal(await evaluate(s, "!!document.getElementById('st-ind') && !!document.getElementById('saved')"), true);
+    assert.equal(await evaluate(s, "document.querySelectorAll('#st-body .item[data-search]').length === document.querySelectorAll('#st-body .item').length"), true);
+
+    // #lock scrolls to the Browser Lock section and the nav follows.
+    await waitFor(s, sectionAtTop('lock'));
+    await waitFor(s, "document.querySelector('#st-links .st-link.on')?.dataset.sec === 'lock'");
+    await evaluate(s, "location.hash = '#adblock'");
+    await waitFor(s, sectionAtTop('adblock'));
+    await waitFor(s, "document.querySelector('#st-links .st-link.on')?.dataset.sec === 'adblock'");
+    await evaluate(s, "document.querySelector('#st-links .st-link[data-sec=\"tabs\"]').click()");
+    await waitFor(s, sectionAtTop('tabs'));
+    assert.equal(await activeLink(s), 'tabs');
+
+    // Turning Browser Lock off needs the current password; the switch stays on until then.
+    const sw = "document.getElementById('lock-enabled')";
+    const confirmOff = (pw) => evaluate(s, `(() => {
+      const input = document.getElementById('disable-current');
+      input.value = ${JSON.stringify(pw)};
+      input.form.requestSubmit();
+    })()`);
+    assert.equal(await evaluate(s, `${sw}.checked`), true);
+    await evaluate(s, `${sw}.click()`);
+    await waitFor(s, "document.getElementById('disable-form').closest('.item').classList.contains('open')");
+    assert.equal(await evaluate(s, `${sw}.checked`), true, 'stays on until the password is confirmed');
+    await confirmOff('salah-sekali');
+    await waitFor(s, "document.getElementById('disable-msg').textContent.includes('salah')");
+    assert.equal((await bg({ type: 'lock:getState' })).enabled, true, 'wrong password keeps the lock on');
+    assert.equal(await evaluate(s, `${sw}.checked`), true);
+    await confirmOff(PASSWORD);
+    await waitFor(s, `!${sw}.checked`);
+    assert.equal((await bg({ type: 'lock:getState' })).enabled, false);
+    // Turned back on elsewhere (e.g. the popup): the switch follows the stored state.
+    assert.equal((await bg({ type: 'lock:setEnabled', enabled: true })).ok, true);
+    await waitFor(s, `${sw}.checked`);
+    const lockState = await bg({ type: 'lock:getState' });
+    assert.equal(lockState.enabled, true);
+    assert.equal(lockState.locked, false);
+    // Every old Browser Lock control is here.
+    for (const id of ['idle', 'screen-lock', 'lock-now', 'change-form', 'current', 'new-password', 'confirm', 'recovery-form', 'recovery-current']) {
+      assert.equal(await evaluate(s, `!!document.querySelector('#sec-lock #${id}')`), true, `lock control #${id}`);
+    }
+    assert.deepEqual(await evaluate(s, "[document.getElementById('idle').min, document.getElementById('idle').max]"), ['0', '240']);
+
+    // Search keeps only the matching items.
+    await typeSearch(s, 'youtube');
+    await waitFor(s, `${visibleItems} === 1`);
+    assert.match(await evaluate(s, "[...document.querySelectorAll('#st-body .item')].find((i) => i.checkVisibility()).textContent"), /YouTube/);
+    await typeSearch(s, 'zzzz tidak ada');
+    await waitFor(s, "!document.getElementById('st-empty').hidden");
+    await typeSearch(s, '');
+    await waitFor(s, `${visibleItems} > 15`);
+
+    // A filter list switch saves through ab:saveSettings and moves the rule meter.
+    const lists = async () => (await bg({ type: 'ab:getOptions' })).settings.enabledLists;
+    const before = await lists();
+    const meter = () => evaluate(s, "document.getElementById('meter-fill').style.getPropertyValue('--f')");
+    const meterBefore = await meter();
+    assert.ok(Number(meterBefore) > 0, `meter ${meterBefore}`);
+    await evaluate(s, "document.querySelector('#lists input[data-list=\"privacy\"]').click()");
+    await until(async () => (await lists()).includes('privacy') !== before.includes('privacy'), 'privacy list switched');
+    await waitFor(s, `document.getElementById('meter-fill').style.getPropertyValue('--f') !== ${JSON.stringify(meterBefore)}`);
+    await evaluate(s, "document.querySelector('#lists input[data-list=\"privacy\"]').click()");
+    await until(async () => (await lists()).includes('privacy') === before.includes('privacy'), 'privacy list restored');
+
+    // Every control of the old modules/adblock/options.html is here.
+    assert.equal(await evaluate(s, "document.querySelectorAll('#lists input[data-list]').length"), 5);
+    for (const id of ['update-now', 'opt-autoupdate', 'update-status', 'update-source', 'allow-form', 'allow-input', 'allowlist',
+      'custom', 'save-custom', 'custom-msg', 'opt-badge', 'opt-youtube', 'opt-menu', 'credits', 'built', 'total']) {
+      assert.equal(await evaluate(s, `!!document.querySelector('#sec-adblock #${id}')`), true, `adblock control #${id}`);
+    }
+    await waitFor(s, "document.querySelectorAll('#credits .credit').length > 5");
+    assert.match(await evaluate(s, "document.getElementById('update-source').textContent"), /https?:\/\//);
+    // Allowlist chips: add and remove.
+    await evaluate(s, `(() => {
+      document.getElementById('allow-input').value = 'contoh-izin.test';
+      document.getElementById('allow-form').requestSubmit();
+    })()`);
+    await waitFor(s, "[...document.querySelectorAll('#allowlist .domain-chip')].some((c) => c.textContent.includes('contoh-izin.test'))");
+    assert.ok((await bg({ type: 'ab:getOptions' })).settings.allowlist.includes('contoh-izin.test'));
+    await evaluate(s, "[...document.querySelectorAll('#allowlist .domain-chip')].find((c) => c.textContent.includes('contoh-izin.test')).querySelector('button').click()");
+    await until(async () => !(await bg({ type: 'ab:getOptions' })).settings.allowlist.includes('contoh-izin.test'), 'allowlist entry removed');
+    await waitFor(s, "![...document.querySelectorAll('#allowlist .domain-chip')].some((c) => c.textContent.includes('contoh-izin.test'))");
+    // Custom filters keep their active/skipped counts.
+    const savedCustom = (await bg({ type: 'ab:getOptions' })).settings.customFilters;
+    await evaluate(s, `(() => {
+      document.getElementById('custom').value = ${JSON.stringify(`${savedCustom}\n||iklan-pengaturan.test^`)};
+      document.getElementById('save-custom').click();
+    })()`);
+    await waitFor(s, "/filter jaringan/.test(document.getElementById('custom-msg').textContent)");
+    assert.ok((await bg({ type: 'ab:getOptions' })).settings.customFilters.includes('iklan-pengaturan.test'));
+    assert.equal((await bg({ type: 'ab:saveCustomFilters', text: savedCustom })).ok, true);
+
+    // Tab Manager: close-after-save, backup and bookmarks.
+    for (const id of ['close-after-save', 'export-json', 'import-json', 'import-bookmarks']) {
+      assert.equal(await evaluate(s, `!!document.querySelector('#sec-tabs #${id}')`), true, `tabs control #${id}`);
+    }
+    const closeAfter = async () => (await tmData()).settings.closeAfterSave;
+    const closeBefore = await closeAfter();
+    await evaluate(s, "document.getElementById('close-after-save').click()");
+    await until(async () => (await closeAfter()) !== closeBefore, 'closeAfterSave saved');
+    await evaluate(s, "document.getElementById('close-after-save').click()");
+    await until(async () => (await closeAfter()) === closeBefore, 'closeAfterSave restored');
+
+    // Umum: module switches and appearance.
+    await evaluate(s, "document.querySelector('#sec-umum input[data-mod=\"tabs\"]').click()");
+    await until(async () => (await bg({ type: 'core:getModules' })).modules.tabs === false, 'Tab Manager off');
+    await evaluate(s, "document.querySelector('#sec-umum input[data-mod=\"tabs\"]').click()");
+    await until(async () => (await bg({ type: 'core:getModules' })).modules.tabs === true, 'Tab Manager on');
+    await waitFor(s, "document.getElementById('saved').classList.contains('pulse')");
+
+    // The theme follows changes made elsewhere without a reload (Ruling 3) and the segment writes it.
+    const appearanceBefore = await localValue('core:appearance');
+    await evaluate(s, 'window.notReloaded = true');
+    try {
+      assert.equal((await bg({ type: 'core:setAppearance', patch: { theme: 'light' } })).ok, true);
+      await waitFor(s, "document.documentElement.dataset.ui === 'light'");
+      await waitFor(s, "document.querySelector('.seg[data-seg=\"theme\"] [aria-checked=\"true\"]')?.dataset.v === 'light'");
+      const dash = await openWatched(dashboardUrl());
+      await waitFor(dash.sessionId, dashReady);
+      await evaluate(dash.sessionId, "document.getElementById('theme-btn').click()");
+      await waitFor(s, "document.documentElement.dataset.ui === 'dark'");
+      await cdp.send('Target.closeTarget', { targetId: dash.targetId }).catch(() => {});
+      await evaluate(s, "document.querySelector('.seg[data-seg=\"theme\"] button[data-v=\"light\"]').click()");
+      await until(async () => (await localValue('core:appearance'))?.theme === 'light', 'theme saved from the segment');
+      await waitFor(s, "document.documentElement.dataset.ui === 'light'");
+      await evaluate(s, "document.querySelector('.swatch[data-id=\"ion\"]').click()");
+      await until(async () => (await localValue('core:appearance'))?.accent === 'ion', 'accent saved');
+      await waitFor(s, "document.documentElement.dataset.accent === 'ion'");
+      assert.equal(await evaluate(s, 'window.notReloaded'), true, 'changed without a reload');
+    } finally {
+      await swSession_(appearanceBefore
+        ? `chrome.storage.local.set({ 'core:appearance': ${JSON.stringify(appearanceBefore)} })`
+        : "chrome.storage.local.remove('core:appearance')");
+    }
+    await screenshot(s, 'settings');
+    assert.deepEqual(errors, [], 'settings page logged errors');
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+  }
+});
+
+test('old module option pages redirect to their settings section', async () => {
+  for (const id of ['adblock', 'lock']) {
+    const { targetId } = await cdp.send('Target.createTarget', { url: `chrome-extension://${extId}/modules/${id}/options.html` });
+    const { sessionId: s } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
+    await cdp.send('Runtime.enable', {}, s);
+    try {
+      await until(async () => (await evaluate(s, 'location.href').catch(() => '')) === settingsUrl(`#${id}`), `${id} redirect`);
+      await waitFor(s, settingsReady);
+      await waitFor(s, `document.querySelector('#st-links .st-link.on')?.dataset.sec === ${JSON.stringify(id)}`);
+    } finally {
+      await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+    }
+  }
+});
+
 // ---------- Lock gate (keep these last: they lock the browser) ----------
 
 const extUrl = (path) => `chrome-extension://${extId}/${path}`;
@@ -1170,7 +1297,8 @@ const SECRET_SPACE = 'Ruang saat terkunci';
 test('locking closes every extension page and refuses module messages', async () => {
   const dash = await openPage('chrome://newtab/');
   await waitFor(dash, "document.querySelectorAll('#space-list .space').length > 0");
-  const options = await openPage(extUrl('modules/adblock/options.html'));
+  const options = await openPage(extUrl('options.html#adblock'));
+  await waitFor(options, "document.querySelector('.st')?.classList.contains('ready')");
   assert.ok((await evaluate(options, 'document.body.innerText')).length > 50, 'options page did not render');
   // A website tab to be remembered and restored.
   await openPage(`${SITE}/page.html`);

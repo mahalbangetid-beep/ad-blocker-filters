@@ -19,7 +19,7 @@ mengubah arsitektur.
 | Path | Isi |
 |---|---|
 | `my-chrome-universe/` | Extension tunggal (MV3): `manifest.json`, `background.js` (meng-import core + modul), `popup.*` (grid modul), `options.*` (pengaturan bersama) |
-| `my-chrome-universe/core/` | `modules.js` (registry `MODULES` + status aktif), `gate.js` (status kunci, `messageAllowed`), `page-guard.js` (`guardPage`), `menus.js` (`registerMenuProvider`), `panel.js` (helper panel), `background.js` (`core:*`) |
+| `my-chrome-universe/core/` | `modules.js` (registry `MODULES` + status aktif), `gate.js` (status kunci, `messageAllowed`), `page-guard.js` (`guardPage`), `menus.js` (`registerMenuProvider`), `panel.js` (helper panel), `settings-ui.js` (helper bagian pengaturan), `background.js` (`core:*`) |
 | `my-chrome-universe/ui/` | Fondasi visual bersama: `tokens.css` (tema gelap/terang, aksen), `components.css`, `icons.js`, `fonts/` (woff2 lokal + OFL) |
 | `my-chrome-universe/modules/lock/` | Browser Lock: kunci browser dengan password; **gerbang wajib** semua modul |
 | `my-chrome-universe/modules/tabs/` | Tab Manager: dashboard New Tab ala Toby (ruang → koleksi → kartu tab) |

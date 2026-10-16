@@ -15,7 +15,7 @@ Struktur folder:
 my-chrome-universe/
   manifest.json, background.js     satu service worker; meng-import core lalu tiap modul
   popup.html/.js/.css              popup toolbar: grid modul → panel modul
-  options.html/.js                 halaman pengaturan bersama (menu samping per modul)
+  options.html/.js/.css            halaman pengaturan tunggal (satu halaman gulir; settings-general.js = Umum + Tentang)
   core/                            registry modul, gerbang kunci, menu klik kanan bersama, helper panel
   modules/{lock,tabs,adblock}/     kode tiap modul (background, panel.js, halaman, aset)
 ```
@@ -28,8 +28,8 @@ shortcut, menu klik kanan, dan New Tab tidak bentrok. Data lama tidak ikut pinda
 meminta pembuatan password (Browser Lock) dan menampilkan kode pemulihan sekali; simpan kode itu.
 
 Ikon toolbar membuka popup berisi grid modul; ketuk satu modul untuk panelnya, sakelar "Aktif" di tiap panel
-mematikan/menyalakan modul itu. Tombol ⚙ membuka halaman pengaturan bersama (`options.html#<id>`): menu samping per
-modul, sakelar, dan pengaturan lengkap modul. Mematikan Browser Lock selalu meminta password saat ini.
+mematikan/menyalakan modul itu. Tombol ⚙ membuka halaman pengaturan (`options.html#<id>`): satu halaman gulir
+dengan bagian Umum (tema, animasi, aksen, sakelar modul), tiap modul, dan Tentang; perubahan langsung tersimpan. Mematikan Browser Lock selalu meminta password saat ini.
 
 ## Tes
 
@@ -97,9 +97,11 @@ UI Tab Manager bisa dicoba di browser biasa dengan API `chrome` tiruan:
 ## Menambah modul baru
 
 1. Buat folder `my-chrome-universe/modules/<id>/` berisi `background.js` (opsional), `panel.js`, dan halaman/aset modul.
-2. Daftarkan di `MODULES` (`core/modules.js`): `id`, `name`, `icon` (nama ikon dari `ui/icons.js`), `panel`, `options`
-   (path halaman opsi atau `null`). Kartu modul di popup (dengan sakelar aktif/nonaktif) dan menu samping halaman
-   pengaturan otomatis mengikuti daftar ini.
+2. Daftarkan di `MODULES` (`core/modules.js`): `id`, `name`, `icon` (nama ikon dari `ui/icons.js`), `panel`, `settings`
+   (path `modules/<id>/settings.js`). Kartu modul di popup (dengan sakelar aktif/nonaktif) dan bagian modul di halaman
+   pengaturan otomatis mengikuti daftar ini. `settings.js` mengekspor `summary` (`{ sub, desc }`) dan
+   `render(root, ctx)` yang mengisi kartu bagiannya dengan baris `.item` (helper di `core/settings-ui.js`; `ctx` berisi
+   `send`, `markSaved`, `toast`, `burst`, `goto`). Simpan langsung lalu panggil `ctx.markSaved()`; error tampil di dekat kontrolnya.
 3. `panel.js` mengekspor `render(root, opts)` (isi panel di popup; helper `offNotice`/`messageLine`/`loadStyles`/`favTile`
    ada di `core/panel.js`; gaya panel di `panel.css` modul lewat `loadStyles`), `status()` (teks kecil di kartu, mis.
    "aktif"), dan opsional `hero()` (`{ title, subtitle, value, favUrl? }` atau `null`) untuk kartu situs di beranda popup.
