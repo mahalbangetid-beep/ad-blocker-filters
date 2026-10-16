@@ -1,5 +1,7 @@
 import { STORAGE_KEY, INBOX_NAME, applyOp, normalize, emptyData, findCollection, findSpace, isSavableUrl, search, sessionName } from './store.js';
 import { registerMenuProvider } from '../../core/menus.js';
+import { guardAction, lockStatus, messageAllowed } from '../../core/gate.js';
+import { isModuleEnabled } from '../../core/modules.js';
 
 const DASHBOARD_PATH = 'modules/tabs/newtab.html';
 const DASHBOARD_URL = chrome.runtime.getURL(DASHBOARD_PATH);
@@ -25,6 +27,12 @@ function mutate(fn) {
 }
 
 const op = (operation) => mutate((data) => applyOp(data, operation));
+
+// Menus, shortcuts and the omnibox stay silent while the module is off; while the lock
+// is not open they do nothing either (before setup, guardAction steers to the setup page).
+async function mayAct() {
+  return (await isModuleEnabled('tabs')) && guardAction();
+}
 
 // --- Tabs helpers ---
 
@@ -145,11 +153,14 @@ const handlers = {
     collectionId ? op({ type: 'card/add', collectionId, tabs: [tab], index: 0 }) : saveToInbox(tab),
 };
 
+// Refused unless the lock is open (core/gate.js); the dashboard and popup are gated as pages too.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const handler = handlers[message?.type];
-  if (!handler) return false;
-  Promise.resolve()
-    .then(() => handler(message))
+  const type = message?.type;
+  if (typeof type !== 'string' || !Object.hasOwn(handlers, type)) return false;
+  (async () => {
+    if (!(await messageAllowed(type))) return { ok: false, error: 'locked' };
+    return handlers[type](message);
+  })()
     .then(sendResponse)
     .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
   return true;
@@ -168,6 +179,7 @@ registerMenuProvider('tabs', async () => [
 ]);
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (![MENU.saveTab, MENU.saveSession, MENU.open].includes(info.menuItemId) || !(await mayAct())) return;
   if (info.menuItemId === MENU.saveTab && tab) await saveToInbox(tab);
   if (info.menuItemId === MENU.saveSession) await saveSession({ windowId: tab?.windowId });
   if (info.menuItemId === MENU.open) await openDashboard();
@@ -176,6 +188,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // --- Keyboard shortcuts ---
 
 chrome.commands.onCommand.addListener(async (command, tab) => {
+  if (!['save-session', 'save-tab'].includes(command) || !(await mayAct())) return;
   if (command === 'save-session') await saveSession({ windowId: tab?.windowId });
   if (command === 'save-tab' && tab) await saveToInbox(tab);
 });
@@ -189,6 +202,8 @@ function escapeXml(text) {
 chrome.omnibox.setDefaultSuggestion({ description: 'Cari tab tersimpan di Tab Manager' });
 
 chrome.omnibox.onInputChanged.addListener(async (text, suggest) => {
+  // Typing is not an action, so no setup tab is opened here; just reveal nothing.
+  if (!(await isModuleEnabled('tabs')) || (await lockStatus()) !== 'open') return suggest([]);
   const results = search(await load(), text);
   const suggestions = [];
   for (const { collection, cards } of results) {
@@ -205,6 +220,7 @@ chrome.omnibox.onInputChanged.addListener(async (text, suggest) => {
 });
 
 chrome.omnibox.onInputEntered.addListener(async (text, disposition) => {
+  if (!(await mayAct())) return;
   const url = isSavableUrl(text) ? text : `${DASHBOARD_URL}?q=${encodeURIComponent(text)}`;
   if (disposition === 'currentTab') await chrome.tabs.update({ url });
   else await chrome.tabs.create({ url, active: disposition === 'newForegroundTab' });

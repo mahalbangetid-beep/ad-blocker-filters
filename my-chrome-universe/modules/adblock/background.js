@@ -2,6 +2,8 @@ import { convertFilterList, assignIds, PRIORITY } from './filters.js';
 import { createEngine, hostMatches } from './cosmetic.js';
 import { checkForUpdates, clearFeedUpdates, feedAdditions, feedCosmetic, readFeedState, syncDisabledStaticRules } from './updater.js';
 import { registerMenuProvider, rebuildMenus } from '../../core/menus.js';
+import { guardAction, messageAllowed } from '../../core/gate.js';
+import { isModuleEnabled, onModuleStatesChanged } from '../../core/modules.js';
 
 // Storage (all keys prefixed "ab:" so this module can live next to others):
 //   local:   ab:settings, ab:total (blocked requests, all time)
@@ -49,14 +51,20 @@ async function getSettings() {
     const lang = (navigator.language || '').slice(0, 2).toLowerCase();
     settings.enabledLists = (await getLists()).filter((l) => l.defaultEnabled || (l.language && l.language === lang)).map((l) => l.id);
   }
+  // The module switch (core:modules) is not a stored setting: switching back on restores everything.
+  settings.disabled = !(await isModuleEnabled('adblock'));
   return settings;
 }
 
 async function saveSettings(patch) {
-  const settings = { ...(await getSettings()), ...patch };
+  const { disabled, ...settings } = { ...(await getSettings()), ...patch };
   await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
-  return settings;
+  return { ...settings, disabled };
 }
+
+// Paused (the user's "pause everywhere") and disabled (module switched off) are kept
+// apart, but both turn every kind of blocking off.
+const isOff = (settings) => settings.paused || settings.disabled;
 
 export function normalizeDomain(input) {
   let text = String(input || '').trim().toLowerCase();
@@ -87,7 +95,7 @@ function hostOf(url) {
 
 async function applyRulesets(settings) {
   const lists = await getLists();
-  const want = settings.paused ? [] : settings.enabledLists.filter((id) => lists.some((l) => l.id === id));
+  const want = isOff(settings) ? [] : settings.enabledLists.filter((id) => lists.some((l) => l.id === id));
   const current = await chrome.declarativeNetRequest.getEnabledRulesets();
   const enableRulesetIds = want.filter((id) => !current.includes(id));
   const disableRulesetIds = current.filter((id) => !want.includes(id));
@@ -119,7 +127,7 @@ function userRules(settings) {
 // daily feed added to the enabled lists.
 async function applyDynamicRules(settings) {
   const rules = [];
-  if (!settings.paused) {
+  if (!isOff(settings)) {
     rules.push(...userRules(settings));
     const limit = chrome.declarativeNetRequest.MAX_NUMBER_OF_DYNAMIC_RULES ?? 30000;
     const additions = await feedAdditions(settings.enabledLists);
@@ -143,14 +151,17 @@ async function applyDynamicRules(settings) {
 }
 
 async function applyBadge(settings) {
-  await chrome.declarativeNetRequest.setExtensionActionOptions({ displayActionCountAsBadgeText: settings.showBadge && !settings.paused });
+  await chrome.declarativeNetRequest.setExtensionActionOptions({ displayActionCountAsBadgeText: settings.showBadge && !isOff(settings) });
   await chrome.action.setBadgeBackgroundColor({ color: '#c62828' });
 }
 
 // The shared menu (core/menus.js) asks for our items on every rebuild.
-registerMenuProvider('adblock', async () => ((await getSettings()).contextMenu
-  ? [{ id: MENU_ID, title: 'Blokir elemen…', contexts: ['page', 'image', 'link', 'frame', 'video'] }]
-  : []));
+registerMenuProvider('adblock', async () => {
+  const settings = await getSettings();
+  return settings.contextMenu && !isOff(settings)
+    ? [{ id: MENU_ID, title: 'Blokir elemen…', contexts: ['page', 'image', 'link', 'frame', 'video'] }]
+    : [];
+});
 
 // YouTube video ads ride inside the player data, so they need page scripts
 // (youtube-main.js) rather than network rules. Registered only while active.
@@ -158,7 +169,7 @@ const YT_IDS = ['ab-youtube', 'ab-youtube-css'];
 const YT_MATCHES = ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*'];
 
 async function applyYoutube(settings) {
-  const active = settings.youtube && !settings.paused && !isAllowlisted(settings, 'www.youtube.com');
+  const active = settings.youtube && !isOff(settings) && !isAllowlisted(settings, 'www.youtube.com');
   const existing = (await chrome.scripting.getRegisteredContentScripts({ ids: YT_IDS })).map((s) => s.id);
   if (active && existing.length === YT_IDS.length) return;
   if (existing.length) await chrome.scripting.unregisterContentScripts({ ids: existing });
@@ -183,16 +194,28 @@ async function getEngine(settings) {
   return engineCache.engine;
 }
 
-async function applyAll() {
+async function applyOnce() {
   const settings = await getSettings();
   await applyRulesets(settings);
   await syncDisabledStaticRules((await getLists()).map((l) => l.id)).catch(() => {});
   const failed = await applyDynamicRules(settings);
   await applyBadge(settings);
   await applyYoutube(settings);
-  await rebuildMenus();
+  // Settings are already applied; a menu failure must not turn the reply into an error.
+  await rebuildMenus().catch(() => {});
   return { settings, failed };
 }
+
+// Runs one at a time, each reading the settings afresh: two overlapping runs (e.g. the
+// module switched off and straight back on) could otherwise leave Chrome in the older state.
+let applyQueue = Promise.resolve();
+function applyAll() {
+  const run = applyQueue.then(applyOnce);
+  applyQueue = run.catch(() => {});
+  return run;
+}
+
+onModuleStatesChanged(() => { applyAll().catch(() => {}); });
 
 // ---------- Daily filter updates ----------
 
@@ -238,7 +261,7 @@ async function injectCosmetics({ tabId, frameId, documentId, url }) {
   const frameHost = hostOf(url);
   if (!frameHost || tabId < 0) return;
   const settings = await getSettings();
-  if (settings.paused) return;
+  if (isOff(settings)) return;
 
   // Allowlisting follows the top-level page, like Adblock Plus.
   let topHost = frameHost;
@@ -311,8 +334,10 @@ async function startPicker(tabId, frameId = 0) {
   await chrome.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, files: ['modules/adblock/picker.js'] });
 }
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === MENU_ID && tab?.id >= 0) startPicker(tab.id, info.frameId || 0).catch(() => {});
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== MENU_ID || !(tab?.id >= 0)) return;
+  if (isOff(await getSettings()) || !(await guardAction())) return;
+  startPicker(tab.id, info.frameId || 0).catch(() => {});
 });
 
 // ---------- Messages (all prefixed "ab:") ----------
@@ -329,6 +354,7 @@ const handlers = {
       host,
       site: host ? normalizeDomain(host) : null,
       paused: settings.paused,
+      disabled: settings.disabled,
       allowlisted: Boolean(host && isAllowlisted(settings, host)),
       pageBlocked: counts.get(tabId) || 0,
       totalBlocked: total + pendingTotal,
@@ -357,6 +383,7 @@ const handlers = {
   },
 
   async 'ab:startPicker'({ tabId }) {
+    if (isOff(await getSettings())) return { ok: false, error: 'Pemblokiran sedang tidak aktif.' };
     await startPicker(tabId);
     return { ok: true };
   },
@@ -451,11 +478,14 @@ const handlers = {
   },
 };
 
+// Refused unless the lock is open (core/gate.js); blocking itself goes on while locked.
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const handler = handlers[message?.type];
-  if (!handler) return false;
-  Promise.resolve()
-    .then(() => handler(message, sender))
+  const type = message?.type;
+  if (typeof type !== 'string' || !Object.hasOwn(handlers, type)) return false;
+  (async () => {
+    if (!(await messageAllowed(type))) return { ok: false, error: 'locked' };
+    return handlers[type](message, sender);
+  })()
     .then(sendResponse)
     .catch((err) => sendResponse({ ok: false, error: String(err?.message || err) }));
   return true;

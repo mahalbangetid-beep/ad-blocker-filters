@@ -87,7 +87,9 @@ const DASHBOARD = BASE + 'modules/tabs/newtab.html';
 const menuItems = [];
 const tabs = [];
 const groups = [];
-let store = {};
+// The lock gate (core/gate.js) reads these: a password exists and this session is unlocked ('open').
+let store = { 'lock:auth': { hash: 'x' } };
+const session = { 'lock:unlocked': true };
 const omniboxSuggestions = [];
 
 const chrome = {
@@ -96,6 +98,10 @@ const chrome = {
     local: {
       async get(key) { return key in store ? { [key]: structuredClone(store[key]) } : {}; },
       async set(obj) { Object.assign(store, structuredClone(obj)); },
+    },
+    session: {
+      async get(key) { return key in session ? { [key]: structuredClone(session[key]) } : {}; },
+      async set(obj) { Object.assign(session, structuredClone(obj)); },
     },
     onChanged: event(),
   },
@@ -134,7 +140,9 @@ globalThis.chrome = chrome;
 
 function send(message) {
   return new Promise((resolve) => {
-    for (const fn of chrome.runtime.onMessage.listeners) fn(message, {}, resolve);
+    let handled = false;
+    for (const fn of chrome.runtime.onMessage.listeners) if (fn(message, {}, resolve) === true) handled = true;
+    if (!handled) resolve(undefined);
   });
 }
 
@@ -236,4 +244,54 @@ test('context menu items come from the shared core menu', async () => {
   const { rebuildMenus } = await import('../my-chrome-universe/core/menus.js');
   await rebuildMenus();
   assert.deepEqual(menuItems.map((m) => m.id), ['tm-root', 'tm-save-tab', 'tm-save-session', 'tm-open']);
+});
+
+test('tab messages are refused while locked', async () => {
+  delete session['lock:unlocked'];
+  const op = { type: 'tm:op', op: { type: 'collection/create', name: 'Terkunci' } };
+  assert.deepEqual(await send(op), { ok: false, error: 'locked' });
+  assert.deepEqual(await send({ type: 'tm:getData' }), { ok: false, error: 'locked' });
+  // Saved tabs must not leak through the omnibox either.
+  const seen = [];
+  await chrome.omnibox.onInputChanged.fire('mdn', (s) => seen.push(...s));
+  assert.equal(seen.length, 0);
+  // Shortcuts and menu clicks are inert too.
+  tabs.length = 0;
+  tabs.push({ id: nextId++, url: 'https://locked.com/', title: 'Locked', windowId: 1, pinned: false });
+  const count = collections().length;
+  await chrome.commands.onCommand.fire('save-session', { windowId: 1 });
+  await chrome.contextMenus.onClicked.fire({ menuItemId: 'tm-open' }, { windowId: 1 });
+  await settle();
+  assert.equal(collections().length, count);
+  assert.deepEqual(urls(), ['https://locked.com/']);
+  assert.ok(!collections().some((c) => c.name === 'Terkunci'));
+
+  session['lock:unlocked'] = true;
+  assert.equal((await send(op)).ok, true);
+  assert.ok(collections().some((c) => c.name === 'Terkunci'));
+});
+
+test('shortcuts and menus do nothing while the module is off', async () => {
+  const { setModuleState } = await import('../my-chrome-universe/core/modules.js');
+  tabs.length = 0;
+  tabs.push({ id: nextId++, url: 'https://off.com/', title: 'Off', windowId: 1, pinned: false });
+  const before = collections().length;
+  await setModuleState('tabs', false);
+  try {
+    await chrome.commands.onCommand.fire('save-session', { windowId: 1 });
+    await chrome.commands.onCommand.fire('save-tab', { id: tabs[0].id, url: 'https://off.com/', title: 'Off', windowId: 1 });
+    await chrome.contextMenus.onClicked.fire({ menuItemId: 'tm-save-session' }, { windowId: 1 });
+    await chrome.contextMenus.onClicked.fire({ menuItemId: 'tm-open' }, { windowId: 1 });
+    const seen = [];
+    await chrome.omnibox.onInputChanged.fire('mdn', (s) => seen.push(...s));
+    await settle();
+    assert.equal(collections().length, before);
+    assert.equal(seen.length, 0);
+    assert.deepEqual(urls(), ['https://off.com/']);
+  } finally {
+    await setModuleState('tabs', true);
+  }
+  await chrome.commands.onCommand.fire('save-session', { windowId: 1 });
+  await settle();
+  assert.equal(collections().length, before + 1);
 });

@@ -1,4 +1,7 @@
 import { send } from './common.js';
+import { guardPage } from '../../core/page-guard.js';
+
+await guardPage('popup');
 
 const $ = (id) => document.getElementById(id);
 const state = await send('lock:getState');

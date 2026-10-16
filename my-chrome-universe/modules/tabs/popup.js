@@ -1,5 +1,8 @@
 import { isSavableUrl, INBOX_NAME } from './store.js';
 import { send, runOp, loadData, faviconUrl, h, applyTheme } from './common.js';
+import { guardPage } from '../../core/page-guard.js';
+
+await guardPage('popup');
 
 const $ = (id) => document.getElementById(id);
 const NEW_COLLECTION = '__new__';

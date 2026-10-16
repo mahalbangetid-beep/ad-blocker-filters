@@ -121,6 +121,9 @@ let cdp;
 let profile;
 let swSession;
 let extId;
+// One-time recovery code returned by lock:setup in before().
+let recoveryCode;
+const PASSWORD = 'rahasia1';
 
 async function evaluate(sessionId, expression) {
   const { result, exceptionDetails } = await cdp.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, sessionId);
@@ -222,6 +225,13 @@ before(async () => {
   }
   assert.ok(swSession, 'service worker extension tidak muncul (extension gagal dimuat?)');
   await sleep(1500); // let onInstalled finish applying rulesets
+
+  // Until a password exists every module message is refused ('setup'), so create it first.
+  assert.deepEqual(await bg({ type: 'ab:getOptions' }), { ok: false, error: 'locked' });
+  const setup = await bg({ type: 'lock:setup', password: PASSWORD, confirm: PASSWORD });
+  assert.equal(setup.ok, true, setup.error);
+  recoveryCode = setup.recoveryCode;
+  assert.ok(recoveryCode);
 });
 
 after(async () => {
@@ -305,6 +315,67 @@ test('pause disables all lists; enabling another list works', async () => {
   r = await loadTestPage();
   assert.equal(r.loads.adserver, false);
   assert.equal(r.loads.normal, true);
+});
+
+const enabledRulesets = () => evaluate(swSession, 'chrome.declarativeNetRequest.getEnabledRulesets()');
+
+test('turning Ad Blocker off stops blocking and keeps pause separate', async () => {
+  // Pause and the module switch are separate settings: switching the module off and on keeps the pause.
+  await bg({ type: 'ab:setPaused', paused: true });
+  assert.equal((await bg({ type: 'core:setModule', id: 'adblock', enabled: false })).ok, true);
+  assert.equal((await bg({ type: 'core:setModule', id: 'adblock', enabled: true })).ok, true);
+  assert.equal((await bg({ type: 'ab:getOptions' })).settings.paused, true);
+  await bg({ type: 'ab:setPaused', paused: false });
+  let r = await loadTestPage();
+  assert.equal(r.loads.adserver, false, 'unpaused: blocking again');
+  assert.equal(r.adBanner, 'none');
+
+  // The switch is applied by the background after the reply (storage change), so wait for it:
+  // rulesets first, then the dynamic rules (the custom filter from an earlier test).
+  const dynamicCount = 'chrome.declarativeNetRequest.getDynamicRules().then((r) => r.length)';
+  const off = await bg({ type: 'core:setModule', id: 'adblock', enabled: false });
+  try {
+    assert.deepEqual(off.modules, { adblock: false, tabs: true, lock: true });
+    await waitFor(swSession, `chrome.declarativeNetRequest.getEnabledRulesets().then(async (r) => r.length === 0 && (await ${dynamicCount}) === 0)`);
+    const tabId = await evaluate(swSession, 'chrome.tabs.query({}).then((t) => t[0].id)');
+    const state = await bg({ type: 'ab:getPopupState', tabId });
+    assert.equal(state.disabled, true);
+    assert.equal(state.paused, false);
+    r = await loadTestPage();
+    assert.equal(r.loads.adserver, true, 'module off: nothing blocked');
+    assert.equal(r.adBanner, 'block', 'module off: nothing hidden');
+    assert.deepEqual(await enabledRulesets(), []);
+  } finally {
+    // Switching back on restores the previous lists and filters.
+    await bg({ type: 'core:setModule', id: 'adblock', enabled: true });
+  }
+  await waitFor(swSession, `chrome.declarativeNetRequest.getEnabledRulesets().then(async (r) => r.length === 5 && (await ${dynamicCount}) > 0)`);
+  const tabId = await evaluate(swSession, 'chrome.tabs.query({}).then((t) => t[0].id)');
+  r = await loadTestPage();
+  assert.equal(r.loads.adserver, false);
+  assert.equal(r.adBanner, 'none');
+  assert.equal((await bg({ type: 'ab:getPopupState', tabId })).disabled, false);
+});
+
+const NEW_TAB_PAGE = 'chrome://new-tab-page/';
+const tabUrls = () => evaluate(swSession, 'chrome.tabs.query({}).then((t) => t.map((x) => x.url || x.pendingUrl))');
+
+test('turning Tab Manager off replaces the dashboard', async () => {
+  assert.equal((await bg({ type: 'core:setModule', id: 'tabs', enabled: false })).ok, true);
+  // The override still loads first, then hands the tab to Chrome's own New Tab page
+  // (chrome://new-tab-page/ does not route back to the override).
+  const { targetId } = await cdp.send('Target.createTarget', { url: 'chrome://newtab/' });
+  await waitFor(swSession, `chrome.tabs.query({}).then((t) => t.some((x) => x.url === ${JSON.stringify(NEW_TAB_PAGE)}))`);
+  await sleep(500);
+  const urls = await tabUrls();
+  assert.ok(!urls.includes('chrome://newtab/'), `dashboard still open: ${urls}`);
+  assert.equal(urls.filter((u) => u === NEW_TAB_PAGE).length, 1, `redirect looped: ${urls}`);
+  await cdp.send('Target.closeTarget', { targetId }).catch(() => {});
+
+  assert.equal((await bg({ type: 'core:setModule', id: 'tabs', enabled: true })).ok, true);
+  const dash = await openPage('chrome://newtab/');
+  await waitFor(dash, "document.querySelectorAll('#space-list li').length > 0");
+  assert.match(await evaluate(dash, 'location.href'), /\/modules\/tabs\/newtab\.html$/);
 });
 
 async function click(sessionId, x, y) {

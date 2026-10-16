@@ -13,7 +13,9 @@
   const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 
   const base = `${location.origin}/my-chrome-universe/`; // extension root
-  const local = {};
+  // A password exists and the session is unlocked, so the lock gate (core/page-guard.js) reports 'open'.
+  const local = { 'lock:auth': { harness: true } };
+  const session = { 'lock:unlocked': true };
   const onChanged = event();
 
   let nextId = 100;
@@ -29,7 +31,24 @@
   ];
   const tabEvents = Object.fromEntries(['onCreated', 'onRemoved', 'onUpdated', 'onMoved', 'onAttached', 'onDetached', 'onActivated'].map((n) => [n, event()]));
 
-  window.__mock = { tabs, local };
+  window.__mock = { tabs, local, session };
+
+  function storageArea(store, areaName) {
+    return {
+      async get(key) {
+        if (key == null) return clone(store);
+        return Object.fromEntries([].concat(key).filter((k) => k in store).map((k) => [k, clone(store[k])]));
+      },
+      async set(obj) {
+        const changes = {};
+        for (const [k, v] of Object.entries(obj)) {
+          changes[k] = { oldValue: store[k], newValue: clone(v) };
+          store[k] = clone(v);
+        }
+        onChanged.fire(changes, areaName);
+      },
+    };
+  }
 
   window.chrome = {
     runtime: {
@@ -47,20 +66,8 @@
       },
     },
     storage: {
-      local: {
-        async get(key) {
-          if (key == null) return clone(local);
-          return Object.fromEntries([].concat(key).filter((k) => k in local).map((k) => [k, clone(local[k])]));
-        },
-        async set(obj) {
-          const changes = {};
-          for (const [k, v] of Object.entries(obj)) {
-            changes[k] = { oldValue: local[k], newValue: clone(v) };
-            local[k] = clone(v);
-          }
-          onChanged.fire(changes, 'local');
-        },
-      },
+      local: storageArea(local, 'local'),
+      session: storageArea(session, 'session'),
       onChanged,
     },
     tabs: {

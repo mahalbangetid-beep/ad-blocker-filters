@@ -1,3 +1,8 @@
+import { guardPage } from '../../core/page-guard.js';
+
+// May later be shown inside the settings page's iframe.
+await guardPage(window.top === window ? 'tab' : 'frame');
+
 const $ = (id) => document.getElementById(id);
 const send = (type, payload = {}) => chrome.runtime.sendMessage({ type, ...payload });
 const number = new Intl.NumberFormat('id-ID');

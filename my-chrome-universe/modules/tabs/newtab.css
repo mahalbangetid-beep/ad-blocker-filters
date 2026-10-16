@@ -46,6 +46,9 @@ body {
 button { font: inherit; color: inherit; cursor: pointer; }
 input, select { font: inherit; color: var(--text); }
 
+/* Shown instead of the dashboard while Tab Manager is switched off */
+.module-off { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--muted); }
+
 /* Top bar */
 .topbar {
   display: flex;

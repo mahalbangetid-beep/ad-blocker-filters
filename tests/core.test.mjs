@@ -46,7 +46,7 @@ const created = [];
 let removeAllCalls = 0;
 
 const chrome = {
-  runtime: { getURL: (p) => BASE + p },
+  runtime: { getURL: (p) => BASE + p, onMessage: event(), onInstalled: event(), onStartup: event() },
   storage: { local: area('local'), session: area('session'), onChanged },
   tabs: {
     async query() { return tabs.map((t) => ({ ...t })); },
@@ -153,4 +153,30 @@ test('menus from every enabled module coexist', async () => {
   await setModuleState('tabs', true);
   await Promise.all([rebuildMenus(), rebuildMenus()]);
   assert.equal(created.length, 5);
+});
+
+function send(message) {
+  return new Promise((resolve) => {
+    let handled = false;
+    for (const fn of chrome.runtime.onMessage.listeners) if (fn(message, {}, resolve) === true) handled = true;
+    if (!handled) resolve(undefined);
+  });
+}
+
+test('core:setModule refuses lock, accepts adblock and is gated', async () => {
+  await import('../my-chrome-universe/core/background.js');
+  // No password yet ('setup'): data-changing core messages are refused.
+  assert.deepEqual(await send({ type: 'core:setModule', id: 'adblock', enabled: false }), { ok: false, error: 'locked' });
+  assert.deepEqual((await send({ type: 'core:getModules' })).modules, { adblock: true, tabs: true, lock: true });
+
+  await chrome.storage.local.set({ 'lock:auth': { hash: 'x' } });
+  await chrome.storage.session.set({ 'lock:unlocked': true });
+  const refused = await send({ type: 'core:setModule', id: 'lock', enabled: false });
+  assert.deepEqual(refused, { ok: false, error: 'Gunakan pengaturan Browser Lock' });
+  assert.equal(await isModuleEnabled('lock'), true);
+  assert.equal((await send({ type: 'core:setModule', id: 'nope', enabled: false })).ok, false);
+
+  const r = await send({ type: 'core:setModule', id: 'adblock', enabled: false });
+  assert.deepEqual(r, { ok: true, modules: { adblock: false, tabs: true, lock: true } });
+  assert.deepEqual(await send({ type: 'core:getModules' }), { ok: true, modules: { adblock: false, tabs: true, lock: true } });
 });

@@ -1,3 +1,7 @@
+import { guardPage } from '../../core/page-guard.js';
+
+await guardPage('popup');
+
 const $ = (id) => document.getElementById(id);
 const send = (type, payload = {}) => chrome.runtime.sendMessage({ type, ...payload });
 const number = new Intl.NumberFormat('id-ID');
@@ -10,12 +14,14 @@ async function render() {
 
   $('site-box').hidden = !supported;
   $('unsupported').hidden = supported;
-  $('pick').disabled = !supported || state.paused || state.allowlisted;
+  const off = state.paused || state.disabled;
+  $('pick').disabled = !supported || off || state.allowlisted;
   $('host').textContent = state.site || '';
-  $('site-toggle').checked = !state.allowlisted && !state.paused;
-  $('site-toggle').disabled = state.paused;
-  $('state').textContent = state.paused
-    ? 'Pemblokiran dijeda di semua situs'
+  $('site-toggle').checked = !state.allowlisted && !off;
+  $('site-toggle').disabled = off;
+  $('state').textContent = state.disabled
+    ? 'Ad Blocker nonaktif'
+    : state.paused ? 'Pemblokiran dijeda di semua situs'
     : state.allowlisted ? 'Iklan diizinkan di situs ini' : 'Iklan diblokir di situs ini';
 
   $('page-count').textContent = number.format(state.pageBlocked);

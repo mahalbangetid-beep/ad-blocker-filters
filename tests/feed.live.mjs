@@ -65,6 +65,8 @@ try {
   const { targetId } = await send('Target.createTarget', { url: `chrome-extension://${extId}/modules/adblock/popup.html` });
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
   await sleep(800);
+  // Module messages are refused until a password exists.
+  await evaluate(sessionId, `chrome.runtime.sendMessage({ type: 'lock:setup', password: 'rahasia1', confirm: 'rahasia1' })`);
   const result = await evaluate(sessionId, `chrome.runtime.sendMessage({ type: 'ab:updateFilters' })`);
   const bundle = await evaluate(sessionId, `fetch('lists.json').then(r => r.json()).then(b => b.feedVersion)`);
   const dynamic = await evaluate(swSession, 'chrome.declarativeNetRequest.getDynamicRules().then(r => r.length)');

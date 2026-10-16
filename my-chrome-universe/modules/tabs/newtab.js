@@ -1,5 +1,31 @@
 import { search, isSavableUrl } from './store.js';
 import { send, runOp, loadData, onDataChanged, faviconUrl, hostname, h, applyTheme } from './common.js';
+import { guardPage } from '../../core/page-guard.js';
+import { isModuleEnabled, onModuleStatesChanged } from '../../core/modules.js';
+
+await guardPage('tab');
+
+// With Tab Manager off, hand the tab to Chrome's own New Tab page. chrome://newtab/ would
+// load this override again (an endless loop) and pages cannot navigate to chrome:// URLs
+// themselves, but tabs.update to chrome://new-tab-page/ works (checked in Chromium).
+// The notice stays as the fallback when that is not possible.
+async function leaveDashboard() {
+  document.title = 'Tab Baru';
+  const enable = h('button', {
+    class: 'primary-btn',
+    onclick: async () => {
+      const result = await send('core:setModule', { id: 'tabs', enabled: true });
+      if (result?.ok) location.reload();
+    },
+  }, 'Aktifkan Tab Manager');
+  document.body.replaceChildren(h('main', { class: 'module-off' }, h('p', {}, 'Tab Manager sedang nonaktif.'), enable));
+  const tab = await chrome.tabs.getCurrent().catch(() => null);
+  if (tab) await chrome.tabs.update(tab.id, { url: 'chrome://new-tab-page/' }).catch(() => {});
+  return new Promise(() => {});
+}
+
+if (!(await isModuleEnabled('tabs'))) await leaveDashboard();
+onModuleStatesChanged((states) => { if (!states.tabs) location.reload(); });
 
 const $ = (id) => document.getElementById(id);
 const DASHBOARD_URL = chrome.runtime.getURL('modules/tabs/newtab.html');
