@@ -1,6 +1,6 @@
 // Simulates the Chrome extension APIs in Node and drives background.js through
 // the main flows. Run: node --test tests/browser-lock.test.mjs
-import { test } from 'node:test';
+import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 
 const BASE = 'chrome-extension://testid/';
@@ -65,7 +65,22 @@ const chrome = {
         chrome.tabs.onRemoved.fire(id, { isWindowClosing: false });
       }
     },
-    async update(id) { return chrome.tabs.get(id); },
+    async update(id, props = {}) {
+      const t = tabs.find((x) => x.id === id);
+      if (!t) throw new Error('no tab');
+      if (props.url) t.url = props.url;
+      if (props.active) for (const o of tabs) if (o.windowId === t.windowId) o.active = o === t;
+      return { ...t };
+    },
+    // index -1 = end of the tab's window; array order stands in for tab order
+    async move(id, { index }) {
+      const i = tabs.findIndex((x) => x.id === id);
+      if (i < 0) throw new Error('no tab');
+      const [t] = tabs.splice(i, 1);
+      if (index === -1) tabs.push(t);
+      else tabs.splice(index, 0, t);
+      return { ...t };
+    },
   },
   windows: {
     async getAll() { return windows.map((w) => ({ ...w })); },
@@ -228,36 +243,84 @@ test('correct password unlocks and restores tabs', async () => {
   const r = await send({ type: 'lock:unlock', password: 'rahasia1' });
   assert.equal(r.ok, true);
   await settle();
+  // Before the handoff the lock tab is still there and the restored tabs are in the background.
+  assert.deepEqual(tabs.map((t) => t.url), [LOCK, 'https://a.com/', 'https://b.com/', 'https://c.com/']);
+  assert.ok(tabs.slice(1).every((t) => !t.active));
+  assert.deepEqual(await send({ type: 'lock:handoff' }), { ok: true });
   assert.deepEqual(tabs.map((t) => t.url), ['https://a.com/', 'https://b.com/', 'https://c.com/', NEWTAB]);
+  assert.equal(tabs.at(-1).active, true);
+  assert.equal((await chrome.storage.session.get('tm:arrive'))['tm:arrive'], true);
   assert.equal((await send({ type: 'lock:getState' })).locked, false);
   assert.equal((await chrome.storage.local.get('lock:failures'))['lock:failures'], 0);
 });
 
 test('unlock restores tabs and focuses the dashboard', async () => {
-  // Tab Manager on: restored tabs stay in the background, a new dashboard tab is created last and active.
-  assert.deepEqual(tabs.map((t) => [t.url, t.active]), [
-    ['https://a.com/', false], ['https://b.com/', false], ['https://c.com/', false], [NEWTAB, true],
-  ]);
-
-  // Tab Manager off: no extra tab, the first restored tab is active.
+  // Tab Manager off: the first restored tab is active and the lock tab is gone.
   await setModuleState('tabs', false);
+  await chrome.storage.session.remove('tm:arrive');
   await send({ type: 'lock:lock' });
   await settle();
   assert.deepEqual(tabs.map((t) => t.url), [LOCK]);
   assert.equal((await send({ type: 'lock:unlock', password: 'rahasia1' })).ok, true);
   await settle();
+  await send({ type: 'lock:handoff' });
   assert.deepEqual(tabs.map((t) => [t.url, t.active]), [
     ['https://a.com/', true], ['https://b.com/', false], ['https://c.com/', false],
   ]);
+  assert.equal((await chrome.storage.session.get('tm:arrive'))['tm:arrive'], undefined);
 
-  // Nothing to restore and Tab Manager off: one plain new tab so the window stays usable.
+  // Nothing to restore and Tab Manager off: the lock tab itself becomes a plain new tab.
   tabs.length = 0;
   await send({ type: 'lock:lock' });
   await settle();
   await send({ type: 'lock:unlock', password: 'rahasia1' });
   await settle();
+  await send({ type: 'lock:handoff' });
   assert.deepEqual(tabs.map((t) => [t.url, t.active]), [[NEWTAB, true]]);
   await setModuleState('tabs', true);
+});
+
+const flush = () => new Promise((r) => setImmediate(r)); // setImmediate stays real under mock timers
+
+test('handoff falls back when the lock page never asks', async () => {
+  tabs.length = 0;
+  tabs.push({ id: nextId++, url: 'https://a.com/', windowId: 100, incognito: false });
+  await send({ type: 'lock:lock' });
+  await settle();
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    await send({ type: 'lock:unlock', password: 'rahasia1' });
+    for (let i = 0; i < 20; i++) await flush();
+    assert.deepEqual(tabs.map((t) => t.url), [LOCK, 'https://a.com/']);
+    mock.timers.tick(4000);
+    for (let i = 0; i < 20; i++) await flush();
+  } finally {
+    mock.timers.reset();
+  }
+  assert.deepEqual(tabs.map((t) => t.url), ['https://a.com/', NEWTAB]);
+  assert.equal(tabs.at(-1).active, true);
+});
+
+test('handoff twice is harmless', async () => {
+  tabs.length = 0;
+  tabs.push({ id: nextId++, url: 'https://a.com/', windowId: 100, incognito: false });
+  await send({ type: 'lock:lock' });
+  await settle();
+  await send({ type: 'lock:unlock', password: 'rahasia1' });
+  await settle();
+  await Promise.all([send({ type: 'lock:handoff' }), send({ type: 'lock:handoff' })]);
+  assert.deepEqual(await send({ type: 'lock:handoff' }), { ok: true });
+  assert.deepEqual(tabs.map((t) => t.url), ['https://a.com/', NEWTAB]);
+});
+
+test('handoff is refused while locked', async () => {
+  await send({ type: 'lock:lock' });
+  await settle();
+  assert.deepEqual(await send({ type: 'lock:handoff' }), { ok: false, error: 'locked' });
+  assert.deepEqual(tabs.map((t) => t.url), [LOCK]);
+  await send({ type: 'lock:unlock', password: 'rahasia1' });
+  await settle();
+  await send({ type: 'lock:handoff' });
 });
 
 test('lock now, idle and screen lock', async () => {

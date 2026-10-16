@@ -814,7 +814,7 @@ test('unlock restores tabs and shows the dashboard', async () => {
   const tabs = await until(async () => {
     const all = await evaluate(swSession, "chrome.tabs.query({}).then((t) => t.map((x) => ({ url: x.url || x.pendingUrl || '', active: x.active, index: x.index, windowId: x.windowId })))");
     return all.some((t) => t.url.startsWith(SITE)) && all.some((t) => t.active && t.url) && all;
-  }, 'restored website tab and an active tab with a URL');
+  }, 'restored website tab and an active tab with a URL', 20000);
 
   // Website tabs come back in the background; extension pages (options, dashboard) are not restored.
   const restored = tabs.filter((t) => t.url.startsWith(SITE));

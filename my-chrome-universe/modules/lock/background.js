@@ -129,8 +129,12 @@ async function lock() {
   return true;
 }
 
-// Restored tabs open in the background; with Tab Manager on, a new dashboard tab
-// (New Tab override) is created last so it is the one the user sees.
+const HANDOFF_FALLBACK_MS = 4000;
+let handoffTimer = null;
+
+// Restored tabs open in the background in the lock tab's window. The lock tab itself is
+// turned into the dashboard later (finishUnlock): the lock page asks for it with
+// lock:handoff after its animation; if it never does, a timer does it anyway.
 async function restoreTabs() {
   await saveQueue;
   const { 'lock:savedTabs': savedTabs = [] } = await chrome.storage.session.get('lock:savedTabs');
@@ -138,15 +142,46 @@ async function restoreTabs() {
 
   const lockTabs = (await chrome.tabs.query({})).filter(isLockTab);
   const windowId = lockTabs[0]?.windowId;
-  const dashboard = await isModuleEnabled('tabs');
+  let firstId = null;
 
-  for (const [i, url] of savedTabs.entries()) {
-    await chrome.tabs.create({ url, windowId, active: !dashboard && i === 0 }).catch(() => {});
+  for (const url of savedTabs) {
+    const tab = await chrome.tabs.create({ url, windowId, active: false }).catch(() => null);
+    if (tab && firstId === null) firstId = tab.id;
   }
-  if (dashboard || !savedTabs.length) {
-    await chrome.tabs.create({ windowId, active: true }).catch(() => {});
-  }
-  await removeTabs(lockTabs.map((t) => t.id));
+  // Kept in storage: the service worker may restart before the handoff.
+  await chrome.storage.session.set({ 'lock:firstRestored': firstId });
+
+  clearTimeout(handoffTimer);
+  handoffTimer = setTimeout(() => finishUnlock().catch(() => {}), HANDOFF_FALLBACK_MS);
+  handoffTimer?.unref?.();
+}
+
+// Turns the lock tab into the dashboard (or, with Tab Manager off, activates the first
+// restored tab and closes the lock tab). Idempotent and serialized: a second call finds
+// no lock tab and does nothing; it never runs while the browser is locked.
+function finishUnlock() {
+  clearTimeout(handoffTimer);
+  handoffTimer = null;
+  return serialized(async () => {
+    if ((await lockStatus()) !== 'open') return;
+    const lockTabs = (await chrome.tabs.query({})).filter(isLockTab);
+    if (!lockTabs.length) return;
+    const [lockTab, ...extra] = lockTabs;
+    await removeTabs(extra.map((t) => t.id));
+
+    const { 'lock:firstRestored': firstId = null } = await chrome.storage.session.get('lock:firstRestored');
+    await chrome.storage.session.remove('lock:firstRestored');
+
+    if (await isModuleEnabled('tabs')) {
+      await chrome.storage.session.set({ 'tm:arrive': true });
+      await chrome.tabs.move(lockTab.id, { index: -1 }).catch(() => {});
+      await chrome.tabs.update(lockTab.id, { url: 'chrome://newtab/', active: true }).catch(() => {});
+    } else if (firstId !== null && (await chrome.tabs.update(firstId, { active: true }).then(() => true, () => false))) {
+      await removeTabs([lockTab.id]);
+    } else {
+      await chrome.tabs.update(lockTab.id, { url: 'chrome://newtab/', active: true }).catch(() => {});
+    }
+  });
 }
 
 async function getThrottle() {
@@ -342,6 +377,12 @@ const handlers = {
     await chrome.storage.local.set({ 'lock:settings': clean });
     await applyIdleSettings();
     return { ok: true, settings: clean };
+  },
+
+  // Sent by the lock page after its unlock animation; status is already "open" here.
+  async 'lock:handoff'() {
+    await finishUnlock();
+    return { ok: true };
   },
 
   async 'lock:lock'() {
