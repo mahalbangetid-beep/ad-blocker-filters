@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "version": "202610160856",
-  "generatedAt": "2026-10-16T08:56:46.971Z",
+  "version": "202610160904",
+  "generatedAt": "2026-10-16T09:04:39.464Z",
   "totals": {
-    "rules": 39591,
-    "defaultRules": 18061,
+    "rules": 39687,
+    "defaultRules": 18130,
     "guaranteedStaticRules": 30000
   },
   "problems": [],
@@ -15,14 +15,14 @@
       "description": "Iklan di seluruh web (gabungan EasyList, uBlock Origin, AdGuard, dan daftar Adblock Plus/AdBlock)",
       "defaultEnabled": true,
       "language": null,
-      "ruleCount": 16875,
-      "networkFilters": 85336,
+      "ruleCount": 16942,
+      "networkFilters": 85338,
       "cosmeticFilters": 55716,
       "files": {
         "rules": {
           "path": "rules/ads.json",
-          "sha256": "171d1c09c679cdafbf8da16c27b767db98045c17c9f411852b07f0abd66e291f",
-          "bytes": 4545523
+          "sha256": "57efb25cc3875d71bdc78b5d47f419110a9225fb29150c5ba06123939287b8ea",
+          "bytes": 4540970
         },
         "cosmetic": {
           "path": "cosmetic/ads.json",
@@ -40,10 +40,10 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "202610160845",
+          "version": "202610160855",
           "expires": "4 days (update frequency)",
-          "sha256": "e6476f1337ba844221690e6247698c12b11f6206e9d36b2b2d6ea40de6eb5b27",
-          "networkFilters": 54912,
+          "sha256": "f288598da1ec5b8e52a4ff850f207e5c9400d59ef42b1955ec8a316be355e8ce",
+          "networkFilters": 54914,
           "cosmeticFilters": 24276,
           "skipped": {
             "popup": 2962,
@@ -250,14 +250,14 @@
       "description": "Iklan di situs berbahasa Indonesia (ABPindo + AdBlockID)",
       "defaultEnabled": false,
       "language": "id",
-      "ruleCount": 2800,
+      "ruleCount": 2802,
       "networkFilters": 5059,
       "cosmeticFilters": 10794,
       "files": {
         "rules": {
           "path": "rules/indonesia.json",
-          "sha256": "d6c16fd94677bc425be4be1285503682497cf715f0b90312b8d1d3af901796cd",
-          "bytes": 470004
+          "sha256": "9340ac62c6d1a1ce1ccb54e4086f584d216337e8f5d4929168c076fcc395d9d7",
+          "bytes": 470276
         },
         "cosmetic": {
           "path": "cosmetic/indonesia.json",
@@ -323,14 +323,14 @@
       "description": "Situs berbahaya, penipuan, dan penambang kripto",
       "defaultEnabled": true,
       "language": null,
-      "ruleCount": 1186,
+      "ruleCount": 1188,
       "networkFilters": 4365,
       "cosmeticFilters": 99,
       "files": {
         "rules": {
           "path": "rules/security.json",
-          "sha256": "ef993dfb13ad9c9f6dca6fb305592159d6692444c8bfc6dcbdb2346a99ace540",
-          "bytes": 281508
+          "sha256": "2b3d69579c4243a9a7f06969415f1d2a5bdc569e553f176f0cb6f85cc689bbd2",
+          "bytes": 281738
         },
         "cosmetic": {
           "path": "cosmetic/security.json",
@@ -414,14 +414,14 @@
       "description": "Pelacak dan analitik (EasyPrivacy, uBlock Privacy, AdGuard Tracking Protection)",
       "defaultEnabled": false,
       "language": null,
-      "ruleCount": 9881,
+      "ruleCount": 9905,
       "networkFilters": 57145,
       "cosmeticFilters": 7,
       "files": {
         "rules": {
           "path": "rules/privacy.json",
-          "sha256": "37ef2e308cd1f7b4d2405eb8e7b0b1cd9ff2f7f3771305b73650fc12263cab8f",
-          "bytes": 2558793
+          "sha256": "45fd02c01b4652682141b57d853ad394c240d11f2aa70a257c7cce62820d8602",
+          "bytes": 2560897
         },
         "cosmetic": {
           "path": "cosmetic/privacy.json",
@@ -439,9 +439,9 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "202610160845",
+          "version": "202610160855",
           "expires": "4 days (update frequency)",
-          "sha256": "d85168a7daec074d1d08a847d08ecc3d57a7e4b766c2d6820d06a62a3bb6a1ac",
+          "sha256": "7e69d6d415e05ae807921a76b0898ebe80a7da005c2356c09e7608ee8c5991aa",
           "networkFilters": 56233,
           "cosmeticFilters": 2,
           "skipped": {
@@ -509,14 +509,14 @@
       "description": "Pop-up cookie, widget media sosial, notifikasi, dan gangguan lain",
       "defaultEnabled": false,
       "language": null,
-      "ruleCount": 8849,
+      "ruleCount": 8850,
       "networkFilters": 10860,
       "cosmeticFilters": 87353,
       "files": {
         "rules": {
           "path": "rules/annoyances.json",
-          "sha256": "89c3be881dc4a91b226eaf1ae2a908fc5a0d20eadeda636a89bba6704c227da3",
-          "bytes": 1577930
+          "sha256": "d2a0c9f2a0edcecd767ccb98bb8446182f6dc10a9f9d548e0504f2decbd8e6f9",
+          "bytes": 1578040
         },
         "cosmetic": {
           "path": "cosmetic/annoyances.json",
