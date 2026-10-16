@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "version": "202610160904",
-  "generatedAt": "2026-10-16T09:04:39.464Z",
+  "version": "202610161300",
+  "generatedAt": "2026-10-16T13:00:40.666Z",
   "totals": {
-    "rules": 39687,
-    "defaultRules": 18130,
+    "rules": 39691,
+    "defaultRules": 18132,
     "guaranteedStaticRules": 30000
   },
   "problems": [],
@@ -15,19 +15,19 @@
       "description": "Iklan di seluruh web (gabungan EasyList, uBlock Origin, AdGuard, dan daftar Adblock Plus/AdBlock)",
       "defaultEnabled": true,
       "language": null,
-      "ruleCount": 16942,
-      "networkFilters": 85338,
+      "ruleCount": 16944,
+      "networkFilters": 85402,
       "cosmeticFilters": 55716,
       "files": {
         "rules": {
           "path": "rules/ads.json",
-          "sha256": "57efb25cc3875d71bdc78b5d47f419110a9225fb29150c5ba06123939287b8ea",
-          "bytes": 4540970
+          "sha256": "83bdd036eea6c557bb37eaee1b62bc8c4d9043388225cc652f1216739c0d9787",
+          "bytes": 4542965
         },
         "cosmetic": {
           "path": "cosmetic/ads.json",
-          "sha256": "e91290afd14673b461d6d2999eb63240fde985a173c96dc7b8635049792f9e0e",
-          "bytes": 3303145
+          "sha256": "c00d31326d268d9a08671e72f59b51592963653333eaf993c2f1d4601f9a6a8c",
+          "bytes": 3303409
         }
       },
       "sources": [
@@ -40,10 +40,10 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "202610160855",
+          "version": "202610161253",
           "expires": "4 days (update frequency)",
-          "sha256": "f288598da1ec5b8e52a4ff850f207e5c9400d59ef42b1955ec8a316be355e8ce",
-          "networkFilters": 54914,
+          "sha256": "6e5cd46371659527f0833ba3f5e9f47764169c6bd719b342b750d63aa050b1f7",
+          "networkFilters": 54973,
           "cosmeticFilters": 24276,
           "skipped": {
             "popup": 2962,
@@ -64,18 +64,18 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "202610160851",
+          "version": "202610161252",
           "expires": "1 hours (update frequency)",
-          "sha256": "5fa7fc0f80fd2a2e1082b8ec1759452c6a9bd6138bd07ea2e66a48da0e0d50f8",
-          "networkFilters": 1885,
+          "sha256": "e1606fbbb466cee0197d554b01f075d9e3339b06030744e8974dfc0a2e675523",
+          "networkFilters": 1890,
           "cosmeticFilters": 458,
           "skipped": {
-            "snippet": 1970,
+            "snippet": 1976,
             "popup": 11,
             "procedural": 50,
             "option:rewrite": 46,
             "option:csp": 40,
-            "regex": 21,
+            "regex": 19,
             "option:addheader": 5,
             "domain": 15,
             "option:header": 1
@@ -90,9 +90,9 @@
           "from": "AdBlock",
           "status": "fresh",
           "error": null,
-          "version": "202610160851",
+          "version": "202610161252",
           "expires": "1 days (update frequency)",
-          "sha256": "be54f69a093874185bd571da616ca9d7ab93049e23150b41ca052d00288982f1",
+          "sha256": "725ce1fa0d19305ec248cc4a01787b10123d873a7cbb66ee54a87d28d49966ab",
           "networkFilters": 2514,
           "cosmeticFilters": 459,
           "skipped": {
@@ -111,7 +111,7 @@
           "error": null,
           "version": "Tue, 13 Oct 2026 17:49:24 +0000",
           "expires": "5 days",
-          "sha256": "6020017540d4fd8d778d85dfdde4d47745fc5cb6b7b6bc99378ab8db83b16aa1",
+          "sha256": "dc66f207a8c7851deecf7b2b88554ecd9db036b2b736e7b89d5df2fd1cfb719f",
           "networkFilters": 3794,
           "cosmeticFilters": 6086,
           "skipped": {
@@ -212,9 +212,9 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "2.4.97.67",
+          "version": "2.4.97.71",
           "expires": "5 days (update frequency)",
-          "sha256": "f7e5d61e2218b4e843868ca5c4724e85341bf16bf1a8490560b3f2b2789bb839",
+          "sha256": "0a1f0f1a4e885aaf9c4aaed61c552fed019c9586092e7d7e10c8dfdae4a88afa",
           "networkFilters": 20827,
           "cosmeticFilters": 24153,
           "skipped": {
@@ -224,7 +224,7 @@
             "option:redirect": 685,
             "badfilter": 74,
             "non-ascii": 5,
-            "scriptlet": 4347,
+            "scriptlet": 4349,
             "procedural": 3116,
             "domain": 459,
             "option:csp": 24,
@@ -250,19 +250,19 @@
       "description": "Iklan di situs berbahasa Indonesia (ABPindo + AdBlockID)",
       "defaultEnabled": false,
       "language": "id",
-      "ruleCount": 2802,
-      "networkFilters": 5059,
-      "cosmeticFilters": 10794,
+      "ruleCount": 2800,
+      "networkFilters": 5052,
+      "cosmeticFilters": 10802,
       "files": {
         "rules": {
           "path": "rules/indonesia.json",
-          "sha256": "9340ac62c6d1a1ce1ccb54e4086f584d216337e8f5d4929168c076fcc395d9d7",
-          "bytes": 470276
+          "sha256": "ae9c47dc2fc4bae71827afe3358036783f80ec11265b87ad194805538a9d663e",
+          "bytes": 469876
         },
         "cosmetic": {
           "path": "cosmetic/indonesia.json",
-          "sha256": "a8cc7c16c8d026bfeca360ee6d164b3bc5cd43609cc34d67c6dbc9cc86277bfa",
-          "bytes": 588518
+          "sha256": "af43cfdb7bb0e78bd0eb6944b97bbb859fb8965ee12a49cab2f91e74d45c8e4c",
+          "bytes": 588339
         }
       },
       "sources": [
@@ -275,14 +275,14 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "202610141429",
+          "version": "202610161207",
           "expires": "4 days (update frequency)",
-          "sha256": "d09622c1e4c72833f06114338879c6030357f5bc4cfbf311e6583658967bdec3",
-          "networkFilters": 3581,
-          "cosmeticFilters": 5787,
+          "sha256": "b2742e6501a99ad9e5678d6688b18b1a45e20f73ab41c174ae18d8f12803df5b",
+          "networkFilters": 3574,
+          "cosmeticFilters": 5795,
           "skipped": {
             "popup": 637,
-            "scriptlet": 44,
+            "scriptlet": 43,
             "unsupported-cosmetic": 1,
             "option:redirect": 7,
             "option:rewrite": 6,
@@ -414,14 +414,14 @@
       "description": "Pelacak dan analitik (EasyPrivacy, uBlock Privacy, AdGuard Tracking Protection)",
       "defaultEnabled": false,
       "language": null,
-      "ruleCount": 9905,
-      "networkFilters": 57145,
+      "ruleCount": 9909,
+      "networkFilters": 57152,
       "cosmeticFilters": 7,
       "files": {
         "rules": {
           "path": "rules/privacy.json",
-          "sha256": "45fd02c01b4652682141b57d853ad394c240d11f2aa70a257c7cce62820d8602",
-          "bytes": 2560897
+          "sha256": "f0a2c1f2de4bcb7291f51099210ce26b8a3e7b215fd8c2a0abc550b7262d8c42",
+          "bytes": 2561503
         },
         "cosmetic": {
           "path": "cosmetic/privacy.json",
@@ -439,10 +439,10 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "202610160855",
+          "version": "202610161253",
           "expires": "4 days (update frequency)",
-          "sha256": "7e69d6d415e05ae807921a76b0898ebe80a7da005c2356c09e7608ee8c5991aa",
-          "networkFilters": 56233,
+          "sha256": "2e053ea28a3a3b449af15ba3686733f1afeeb3a9e4564df54c9efd68a099d442",
+          "networkFilters": 56240,
           "cosmeticFilters": 2,
           "skipped": {
             "badfilter": 20,
@@ -511,17 +511,17 @@
       "language": null,
       "ruleCount": 8850,
       "networkFilters": 10860,
-      "cosmeticFilters": 87353,
+      "cosmeticFilters": 87377,
       "files": {
         "rules": {
           "path": "rules/annoyances.json",
-          "sha256": "d2a0c9f2a0edcecd767ccb98bb8446182f6dc10a9f9d548e0504f2decbd8e6f9",
-          "bytes": 1578040
+          "sha256": "783f82626540a153919848e472d3be5f65fb5a80fd647e93a1694f4b1a44f5c2",
+          "bytes": 1578053
         },
         "cosmetic": {
           "path": "cosmetic/annoyances.json",
-          "sha256": "2e73072d2a19e900fa49155bd1a968536322119e1678012d9d2a27b57b806454",
-          "bytes": 4848788
+          "sha256": "6f8df717db5757ac751b6179972bf99a8ceea322559684d2624a8782a632dd6d",
+          "bytes": 4850650
         }
       },
       "sources": [
@@ -534,15 +534,15 @@
           "from": "AdBlock",
           "status": "fresh",
           "error": null,
-          "version": "202610160650",
+          "version": "202610161125",
           "expires": "9 days (update frequency)",
-          "sha256": "cf5ae4bb42b6043f16f2d303ff43cc82cf46f5e382be10f61fde253219248a8b",
+          "sha256": "eb0f28b0a90b43f5d894e65ee73cf79cbf1a09fb31a88e36ac863b6c51cb44b0",
           "networkFilters": 4146,
-          "cosmeticFilters": 46550,
+          "cosmeticFilters": 46570,
           "skipped": {
             "domain": 42,
             "procedural": 1384,
-            "scriptlet": 5480,
+            "scriptlet": 5482,
             "popup": 1,
             "badfilter": 1,
             "regex": 1
@@ -608,15 +608,15 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "2.2.83.2",
+          "version": "2.2.83.6",
           "expires": "5 days (update frequency)",
-          "sha256": "77628dd2f4867102864dbe15a025046c7eb3b0ee3b4a8d1da629228350aca812",
+          "sha256": "a1ab4e6d817b74548133bff5018a9d61c4790be468fcd6f235fd7fd6b68eec82",
           "networkFilters": 6497,
-          "cosmeticFilters": 40187,
+          "cosmeticFilters": 40191,
           "skipped": {
             "regex": 13,
             "domain": 363,
-            "procedural": 8637,
+            "procedural": 8638,
             "scriptlet": 3510,
             "option:redirect": 82,
             "badfilter": 5,
