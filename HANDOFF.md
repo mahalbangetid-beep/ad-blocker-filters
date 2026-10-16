@@ -17,22 +17,26 @@ Filter list Ad Blocker tetap digabung dari banyak sumber dan diperbarui otomatis
 ## Current State
 
 **Working (terverifikasi di branch `universe-redesign`):**
-- 91 unit test lolos: `node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs`
-  (core 17, browser-lock 31, tab-manager 20, ad-blocker 13, ui 10).
-- 42 E2E di Chromium sungguhan lolos (`node --test tests/universe.e2e.mjs`, tiga kali berturut-turut di akhir Task 9):
+- 92 unit test lolos: `node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs`
+  (core 17, browser-lock 32, tab-manager 20, ad-blocker 13, ui 10).
+- 44 E2E di Chromium sungguhan lolos (`node --test tests/universe.e2e.mjs`, dua kali berturut-turut setelah perbaikan
+  review akhir); 13 tes Ad Blocker/feed berawalan `adblock: ` adalah gerbang terbit CI
+  (`node --test --test-name-pattern="^adblock: " tests/universe.e2e.mjs`), E2E penuh berjalan di job `ui-e2e` terpisah.
+  Cakupan:
   semua cakupan lama (iklan, filter saya, allowlist, jeda, sakelar modul, picker, YouTube tiruan, update feed, popup,
   pengaturan, gerbang kunci, kode pemulihan) + baru: sambutan saat startup → login, unlock mengubah tab kunci menjadi
   dashboard, kunci manual tanpa sambutan, pesan "Password salah" seketika di gerak Minim, tombol Kunci meruntuhkan
   dashboard, panduan sekali, arrival hanya di tab kunci, tema berubah di semua halaman tanpa reload, Minim mematikan loop
   kanvas, halaman extension tanpa request ke host lain, kartu `.guard-notice`, login tetap muncul bila kanvas gagal,
-  simpan cepat di pengaturan tidak hilang.
+  simpan cepat di pengaturan tidak hilang, zona tab terbuka (simpan sesi + tutup, hapus duplikat, simpan satu tab ke
+  "Disimpan", `newtab.html?q=`), tombol Kunci di popup dan Pengaturan juga meruntuhkan halaman dulu.
 - Permukaan baru: sambutan + login + setup (`modules/lock/lock.*`, `setup.*`, `screen.css`), dashboard empat zona
   (`modules/tabs/newtab.*`, `dashboard/*.js`), popup kartu modul + panel (`popup.*`, `modules/*/panel.js`), satu halaman
   pengaturan tanpa iframe (`options.*`, `settings-general.js`, `modules/*/settings.js`), pemberitahuan gerbang
   (`core/page-guard.js`), picker bergaya baru, ikon logo orbit (`icons/*.png`, dibuat `tools/make-icons.mjs`).
   Halaman lama `modules/{lock,adblock}/options.html` tinggal pengalih ke `options.html#<id>`; folder `modules/*/icons` dihapus.
-- Tangkapan layar semua permukaan × dua tema sudah dibandingkan dengan prototipe (laporan Task 9 di
-  `.superpowers/sdd/2026-10-16-global-redesign/task-9-report.md`; folder `.superpowers/` lokal, diabaikan git).
+- Tangkapan layar semua permukaan × dua tema sudah dibandingkan dengan prototipe (buat ulang dengan
+  `SHOT_DIR=/tmp/shots node --test tests/universe.e2e.mjs`).
 
 **Belum dilakukan / perlu pengguna:**
 - Branch `universe-redesign` belum di-merge ke `main` dan belum di-push (`main` lokal `a9c1860` juga belum di-push ke
@@ -42,9 +46,8 @@ Filter list Ad Blocker tetap digabung dari banyak sumber dan diperbarui otomatis
   Pengaturan → Tampilan (tema/animasi/aksen), mode Incognito.
 - `node tests/feed.live.mjs` dan `node tests/youtube.live.mjs` (butuh internet) belum dijalankan ulang setelah redesign.
 
-**Broken:** tidak ada yang diketahui. Catatan kecil yang ditunda ada di `.superpowers/sdd/2026-10-16-global-redesign/progress.md`
-(baris "minor (deferred)"), mis. Escape di panel popup kembali ke beranda (bukan menutup), adblock section di
-pengaturan tidak sinkron langsung bila diubah dari popup.
+**Broken:** tidak ada yang diketahui. Catatan kecil yang ditunda: Escape di panel popup kembali ke beranda (bukan
+menutup), bagian Ad Blocker di pengaturan tidak sinkron langsung bila diubah dari popup.
 
 ## Files in Play
 
@@ -105,6 +108,5 @@ dari feed → diff mendekati batas (30.000 dinamis / 5.000 dinonaktifkan). Jawab
 
 ## Memory Pointers
 
-claude-mem dari mesin Windows tidak tersedia di Linux; ringkasannya ada di `docs/PROJECT_HISTORY.md`. Catatan kerja
-redesign per tugas (brief, laporan, keputusan, temuan tertunda) ada di `.superpowers/sdd/2026-10-16-global-redesign/`
-(hanya di mesin ini; diabaikan git). Keputusan pentingnya sudah dirangkum di `docs/PROJECT_HISTORY.md` §8.
+claude-mem dari mesin Windows tidak tersedia di Linux; ringkasannya ada di `docs/PROJECT_HISTORY.md`. Keputusan penting
+redesign dirangkum di `docs/PROJECT_HISTORY.md` §8.

@@ -15,7 +15,7 @@ Struktur folder:
 ```
 my-chrome-universe/
   manifest.json, background.js     satu service worker; meng-import core lalu tiap modul
-  popup.html/.js/.css              popup toolbar: grid modul → panel modul
+  popup.html/.js/.css              popup toolbar: kartu modul (sakelar + status) → panel modul
   options.html/.js/.css            halaman pengaturan tunggal (satu halaman gulir; settings-general.js = Umum + Tentang)
   core/                            registry modul, gerbang kunci, menu klik kanan bersama, helper panel/pengaturan
   ui/                              sistem desain: token dua tema, komponen, ikon + logo, font lokal, gerak, kanvas bintang, sambutan
@@ -52,6 +52,7 @@ modul, dan Tentang; perubahan langsung tersimpan. Mematikan Browser Lock selalu 
 ```bash
 node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs
 node --test tests/universe.e2e.mjs      # E2E seluruh extension di Chromium sungguhan
+node --test --test-name-pattern="^adblock: " tests/universe.e2e.mjs   # hanya tes Ad Blocker/feed
 SHOT_DIR=/tmp/shots node --test tests/universe.e2e.mjs   # sekaligus menyimpan tangkapan layar beberapa permukaan
 node tools/make-icons.mjs               # buat ulang icons/*.png dari logo orbit (hanya bila logo berubah)
 ```
@@ -99,8 +100,10 @@ Feed publik: https://mahalbangetid-beep.github.io/ad-blocker-filters/index.json
 (repo: https://github.com/mahalbangetid-beep/ad-blocker-filters).
 
 GitHub Actions (`.github/workflows/filter-bot.yml`) menjalankannya setiap hari pukul 08.17 WIB: unit test → bangun feed →
-muat ruleset baru ke Chromium dan pastikan iklan masih terblokir → terbitkan ke branch `gh-pages`. Bila ada sumber yang
-tidak tersedia sama sekali, atau verifikasi gagal, feed tidak diterbitkan.
+muat ruleset baru ke Chromium dan pastikan iklan masih terblokir (tes E2E berawalan `adblock: `) → terbitkan ke branch
+`gh-pages`. Bila ada sumber yang tidak tersedia sama sekali, atau verifikasi gagal, feed tidak diterbitkan. Seluruh E2E
+(dashboard, popup, pengaturan, layar kunci) berjalan di job `ui-e2e` tersendiri: kegagalannya terlihat di run, tetapi
+tidak menahan feed.
 
 **Pembaruan otomatis di extension** (`modules/adblock/updater.js`): sekali sehari (chrome.alarms) dan lewat tombol
 "Perbarui sekarang" di Pengaturan, extension mengambil `index.json`, mengunduh kategori yang aktif, memeriksa SHA-256,
@@ -142,4 +145,5 @@ UI Tab Manager bisa dicoba di browser biasa dengan API `chrome` tiruan:
    `chrome.contextMenus.removeAll` sendiri. Menu dibangun ulang bila modul dinyalakan/dimatikan.
 8. `import './modules/<id>/background.js'` di `background.js`; tambahkan `permissions`/`commands` ke manifest
    (maksimal 4 shortcut ber-`suggested_key`; terpakai 3). Aturan dinamis declarativeNetRequest seluruhnya milik modul adblock.
-9. Tambahkan unit test (`tests/<id>.test.mjs`) dan satu tes di `tests/universe.e2e.mjs` (tes gerbang kunci tetap di akhir berkas).
+9. Tambahkan unit test (`tests/<id>.test.mjs`) dan satu tes di `tests/universe.e2e.mjs` (tes gerbang kunci tetap di akhir berkas;
+   awalan nama `adblock: ` hanya untuk tes yang wajib lolos sebelum feed diterbitkan).

@@ -32,7 +32,7 @@ mengubah arsitektur.
 | `filter-bot/` | Bot yang menggabungkan filter list dari banyak sumber → feed harian di GitHub Pages |
 | `tests/` | Unit test (`core`, `browser-lock`, `tab-manager`, `ad-blocker`, `ui` `.test.mjs`), E2E Chromium (`universe.e2e.mjs`), cek langsung (`*.live.mjs`), harness UI (`harness/`: dashboard tiruan, `ui-gallery.html`, `sky-demo.html`) |
 | `docs/superpowers/` | Spesifikasi desain (penyatuan, redesign Universe + prototipe di `specs/assets/`) dan rencana |
-| `.github/workflows/filter-bot.yml` | CI harian 01:17 UTC: unit test → bangun feed → verifikasi di Chromium → terbitkan ke `gh-pages` |
+| `.github/workflows/filter-bot.yml` | CI harian 01:17 UTC: unit test → bangun feed → E2E Ad Blocker/feed (tes berawalan `adblock: `) di Chromium → terbitkan ke `gh-pages`; E2E UI penuh di job `ui-e2e` terpisah (tidak menahan feed) |
 
 Satu extension, Manifest V3, JavaScript murni (ES module), **tanpa build step dan tanpa dependensi npm**.
 
@@ -45,6 +45,7 @@ node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.te
 # E2E seluruh extension di Chromium sungguhan (butuh Chromium Playwright + openssl)
 npx playwright@1 install chromium        # sekali; di Linux tanpa GUI tambahkan --with-deps
 node --test tests/universe.e2e.mjs        # CHROME_PATH=/path/chrome untuk memilih browser lain
+node --test --test-name-pattern="^adblock: " tests/universe.e2e.mjs   # hanya Ad Blocker/feed (gerbang terbit CI)
 
 # Filter bot
 node filter-bot/bot.mjs                      # ambil semua sumber → feed/ (feed/ diabaikan git)

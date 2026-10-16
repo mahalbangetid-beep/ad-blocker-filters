@@ -1,6 +1,8 @@
 # Daily filter bot: fetches the filter lists from every source, merges and compiles
 # them, verifies the result in a real Chromium with the extension loaded, and
 # publishes the feed to the gh-pages branch (served by GitHub Pages).
+# Publishing waits only for the unit tests and the Ad Blocker/feed E2E checks; the full
+# UI E2E suite runs in its own job and never holds back the feed.
 name: Filter bot
 
 on:
@@ -48,8 +50,9 @@ jobs:
       - name: Install Chromium
         run: npx --yes playwright@1 install --with-deps chromium
 
-      - name: Verify in Chromium
-        run: node --test tests/universe.e2e.mjs
+      - name: Verify in Chromium (Ad Blocker and feed)
+        run: |
+          node --test --test-name-pattern="^adblock: " tests/universe.e2e.mjs
 
       - name: Publish feed
         run: |
@@ -76,3 +79,23 @@ jobs:
               require('fs').appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
             "
           fi
+
+  # Whole extension (dashboard, popup, settings, lock screen) in real Chromium. Separate from
+  # the publish job: a failure here shows up in the run but does not stop the daily feed.
+  ui-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install Chromium
+        run: npx --yes playwright@1 install --with-deps chromium
+
+      - name: Full E2E
+        run: node --test tests/universe.e2e.mjs
