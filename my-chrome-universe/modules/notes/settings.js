@@ -1,14 +1,16 @@
 // Sticky notes section of the settings page: how new notes look, every page that has notes
 // (open or clear it), backup (JSON/CSV export, JSON import) and clearing everything.
-import { COLORS, FONTS, SIZES, INDEX_KEY } from './store.js';
+import { COLORS, FONTS, SIZES, INDEX_KEY, colorOf } from './store.js';
 import { h, row, toggleRow, expandRow, expandButton, button, segment, rowMsg, showMsg, errorText } from '../../core/settings-ui.js';
 import { loadStyles, favTile } from '../../core/panel.js';
+import { getModuleStates, onModuleStatesChanged } from '../../core/modules.js';
 import { icon } from '../../ui/icons.js';
 import { askImportMode, confirmDanger } from '../tabs/dashboard/dialogs.js';
 
 export const summary = { sub: 'Tampilan, halaman, cadangan', desc: 'Catatan tempel di halaman web: tampilan catatan baru, daftar halaman, dan cadangannya.' };
 
 const NF = new Intl.NumberFormat('id-ID');
+const WHEN = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const DAY = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 const PAGE_SIZE = 40;
 
@@ -81,7 +83,32 @@ export async function render(root, ctx) {
     save: (on) => ctx.send('nt:saveSettings', { patch: { showDate: on } }),
   });
 
-  // ---------- pages with notes ----------
+  // ---------- the board (Tab Manager dashboard) ----------
+  const boardButton = button('Buka papan', {
+    id: 'nt-open-board', ic: 'note',
+    onclick: () => location.assign(chrome.runtime.getURL('modules/tabs/newtab.html?view=catatan')),
+  });
+  const boardRow = row({
+    title: 'Papan semua catatan',
+    desc: 'Semua catatan dari semua halaman dalam satu papan di dashboard Tab Manager (New Tab), lengkap dengan pencarian.',
+    control: boardButton,
+    extra: 'papan semua catatan dashboard lihat',
+  });
+  const syncBoard = (on) => {
+    boardButton.disabled = !on;
+    if (on) boardButton.removeAttribute('title');
+    else boardButton.title = 'Tab Manager sedang nonaktif; isi catatan tetap bisa dilihat di daftar halaman di bawah';
+  };
+  syncBoard((await getModuleStates()).tabs);
+  onModuleStatesChanged((states) => syncBoard(states.tabs));
+
+  // ---------- pages with notes (each opens to show its notes) ----------
+  let notesByUrl = null; // url -> notes, loaded the first time a page is opened
+  const openPages = new Set();
+  const loadNotes = async () => {
+    const all = await ctx.send('nt:all');
+    notesByUrl = new Map((all?.pages || []).map((p) => [p.url, p.notes]));
+  };
   const count = h('span', { class: 'item-desc', id: 'nt-pages-desc' });
   const search = h('input', { class: 'input', type: 'search', id: 'nt-search', placeholder: 'Cari judul atau alamat…', 'aria-label': 'Cari halaman bercatatan' });
   const list = h('ul', { class: 'nt-pages', id: 'nt-pages' });
@@ -100,14 +127,35 @@ export async function render(root, ctx) {
   const pageItem = (p) => {
     const del = h('button', { class: 'icon-btn sm rp nt-del', type: 'button', title: 'Hapus catatan di halaman ini', 'aria-label': `Hapus catatan di ${p.title || shortUrl(p.url)}` }, icon('trash'));
     const open = h('a', { class: 'icon-btn sm rp', href: p.url, target: '_blank', rel: 'noopener', title: 'Buka halaman', 'aria-label': `Buka ${p.title || shortUrl(p.url)}` }, icon('external'));
-    const li = h('li', { class: 'nt-page-row' },
-      favTile(p.url, hostOf(p.url)),
-      h('span', { class: 'nt-page-text' },
-        h('b', { title: p.title || p.url }, p.title || shortUrl(p.url)),
-        h('span', { title: p.url }, shortUrl(p.url))),
-      h('span', { class: 'pill', title: 'Jumlah catatan' }, NF.format(p.count)),
-      h('span', { class: 'nt-day' }, p.updated ? DAY.format(new Date(p.updated)) : ''),
-      open, del);
+    const expanded = openPages.has(p.url);
+    const toggle = h('button', { type: 'button', class: 'nt-page-text', 'aria-expanded': String(expanded), title: 'Tampilkan isi catatan' },
+      h('b', { title: p.title || p.url }, p.title || shortUrl(p.url)),
+      h('span', { title: p.url }, shortUrl(p.url)));
+    const sub = h('ul', { class: 'nt-sub' });
+    const fillSub = () => {
+      const notes = [...(notesByUrl?.get(p.url) || [])].sort((a, b) => (b.updated || 0) - (a.updated || 0));
+      sub.replaceChildren(...notes.map((n) => h('li', { style: `--c: ${colorOf(n.color).fill}` },
+        h('span', { class: `nt-sub-text${n.text.trim() ? '' : ' empty'}` }, n.text.trim() || '(catatan kosong)'),
+        h('span', { class: 'nt-sub-when' }, WHEN.format(new Date(n.updated || n.created))))));
+    };
+    toggle.addEventListener('click', async () => {
+      const show = !openPages.has(p.url);
+      if (show) openPages.add(p.url);
+      else openPages.delete(p.url);
+      if (show && !notesByUrl) await loadNotes();
+      fillSub();
+      li.classList.toggle('open', show);
+      toggle.setAttribute('aria-expanded', String(show));
+    });
+    const li = h('li', { class: `nt-page-row${expanded ? ' open' : ''}` },
+      h('div', { class: 'nt-page-main' },
+        favTile(p.url, hostOf(p.url)),
+        toggle,
+        h('span', { class: 'pill', title: 'Jumlah catatan' }, NF.format(p.count)),
+        h('span', { class: 'nt-day' }, p.updated ? DAY.format(new Date(p.updated)) : ''),
+        open, del),
+      sub);
+    if (expanded) fillSub();
     del.addEventListener('click', async () => {
       if (!(await confirmDanger('Hapus catatan halaman ini?', `${NF.format(p.count)} catatan di ${shortUrl(p.url)} akan dihapus dan tidak bisa dikembalikan.`))) return;
       const result = await ctx.send('nt:clearPage', { url: p.url });
@@ -192,12 +240,14 @@ export async function render(root, ctx) {
   // Follow changes made anywhere (notes typed on a page, the popup, an import).
   const reload = async () => {
     const next = await ctx.send('nt:list');
+    if (openPages.size) await loadNotes();
+    else notesByUrl = null;
     if (next?.ok) { pages = next.pages; paintPages(); }
   };
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes[INDEX_KEY] && root.isConnected) reload();
   });
 
-  root.replaceChildren(colorItem, fontItem, sizeItem, dateRow.item, pagesRow.item, backup, clearRow);
+  root.replaceChildren(colorItem, fontItem, sizeItem, dateRow.item, boardRow, pagesRow.item, backup, clearRow);
   paintPages();
 }

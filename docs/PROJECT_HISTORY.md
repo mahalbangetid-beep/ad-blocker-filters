@@ -287,6 +287,19 @@ sembilan tugas `docs/superpowers/plans/2026-10-16-global-redesign.md`. Dikerjaka
 - **Popup di tab latar belakang tidak beranimasi** (tangkapan kosong): buka popup di latar (agar tab situs tetap aktif
   untuk panel), lalu `Target.activateTarget` sebelum memotret.
 
+**Papan semua catatan** (permintaan pengguna setelah mencoba: "belum ada tempat lihat semua catatan"). Rekomendasi yang
+disetujui: dashboard Tab Manager, karena itu "rumah" yang muncul setelah login dan di setiap tab baru.
+- `modules/notes/board.js` + `board.css` dimuat `newtab.html`; mode tampilan `view` (`space`/`notes`) di `newtab.js`,
+  URL `?view=catatan`. Kartu halaman memakai `.col` dashboard; catatan mini memakai palet catatan dari `store.js`
+  (`COLORS` kini memuat bg/bg2/ink/sub; tes memastikan sama dengan CSS `content.js`).
+- Pesan baru (hanya halaman extension): `nt:all`, `nt:open` (pakai tab halaman yang sudah terbuka, kalau tidak buka tab,
+  tunggu `complete`, lalu `nt:focus` — content script menunggu muat awalnya dulu), `nt:deleteNote` + `nt:restoreNote`
+  (urungkan dari toast).
+- Ctrl K: grup "Catatan" (`searchNotes` di `store.js`). Pengaturan: tombol "Buka papan" dan halaman yang bisa
+  dibentangkan untuk melihat isi catatan (cadangan saat Tab Manager mati).
+- Pelajaran: animasi masuk catatan mini hanya saat papan dibuka (`.nb-enter` sementara), bukan setiap gambar ulang;
+  tombol popup yang memanggil `window.close()` menutup tab popup di E2E, jadi langkah itu harus terakhir.
+
 ## Kebiasaan lingkungan Windows yang tidak berlaku di Linux
 
 - Pengguna menjalankan Claude Code desktop (Windows) dengan Git Bash + PowerShell; Python 3.11, Node 24, gh 2.95.

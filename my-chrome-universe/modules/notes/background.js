@@ -110,6 +110,19 @@ async function runInTab(tabId, message) {
   return (await tell(tabId, message)) || { ok: false, error: 'Halaman tidak menjawab. Muat ulang halaman lalu coba lagi.' };
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Waits (up to 15 s) until a tab has finished loading.
+async function loaded(tabId) {
+  for (let i = 0; i < 100; i++) {
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab) return false;
+    if (tab.status === 'complete') return true;
+    await sleep(150);
+  }
+  return false;
+}
+
 async function syncContentScript({ injectOpenTabs = false } = {}) {
   const on = await isModuleEnabled('notes');
   const registered = (await chrome.scripting.getRegisteredContentScripts({ ids: [SCRIPT_ID] })).length > 0;
@@ -226,6 +239,58 @@ export const handlers = {
       .filter((p) => p.count > 0)
       .sort((a, b) => b.updated - a.updated);
     return { ok: true, pages, total: pages.reduce((n, p) => n + p.count, 0) };
+  },
+
+  // Every page with its notes, the most recently edited page first (the dashboard board).
+  async 'nt:all'() {
+    const latest = (page) => page.notes.reduce((max, n) => Math.max(max, n.updated || 0), 0);
+    const pages = (await readAllPages()).sort((a, b) => latest(b) - latest(a));
+    return { ok: true, pages };
+  },
+
+  // Shows a note on its page: an open tab of that page is brought forward, otherwise one is opened.
+  async 'nt:open'({ url, id }) {
+    const key = pageKey(url);
+    if (!key) return { ok: false, error: 'Alamat halaman tidak valid.' };
+    let tab = (await chrome.tabs.query({})).find((t) => pageKey(t.url) === key);
+    if (tab) {
+      await chrome.tabs.update(tab.id, { active: true });
+      if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
+    } else {
+      tab = await chrome.tabs.create({ url: key, active: true });
+    }
+    if (!(await loaded(tab.id))) return { ok: false, error: 'Halaman belum selesai dimuat.' };
+    return runInTab(tab.id, { type: 'nt:focus', id });
+  },
+
+  async 'nt:deleteNote'({ url, id }) {
+    const key = pageKey(url);
+    if (!key) return { ok: false, error: 'Alamat halaman tidak valid.' };
+    const result = await serial(async () => {
+      const page = await readPage(key);
+      const note = page?.notes.find((n) => n.id === id);
+      if (!note) return { ok: false, error: 'Catatan tidak ditemukan.' };
+      await writePage({ ...page, notes: page.notes.filter((n) => n.id !== id) });
+      return { ok: true, note, title: page.title };
+    });
+    if (result.ok) refreshTabs(key);
+    return result;
+  },
+
+  // Undo of nt:deleteNote: the note comes back with its id and times.
+  async 'nt:restoreNote'({ url, title, note }) {
+    const key = pageKey(url);
+    if (!key || !note || typeof note !== 'object') return { ok: false, error: 'Permintaan tidak valid.' };
+    const result = await serial(async () => {
+      const page = (await readPage(key)) || { url: key, title: cleanTitle(title), notes: [] };
+      if (page.notes.length >= LIMITS.notesPerPage) return { ok: false, error: `Batas ${LIMITS.notesPerPage} catatan per halaman tercapai.` };
+      const restored = cleanNote(note, { now: Number(note.updated) || Date.now() });
+      page.notes = [...page.notes.filter((n) => n.id !== restored.id), restored];
+      await writePage(page);
+      return { ok: true, note: restored };
+    });
+    if (result.ok) refreshTabs(key);
+    return result;
   },
 
   async 'nt:getSettings'() {

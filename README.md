@@ -8,7 +8,7 @@ tema gelap "Malam" dan terang "Fajar", animasi di setiap elemen, font dan ikon l
 |---|---|---|
 | Browser Lock (`modules/lock/`) | Set password for your browser (Chrome Lock) | Kunci browser dengan password (hash PBKDF2), kode pemulihan sekali pakai, kunci saat startup/idle/layar terkunci, jeda setelah salah 5x. **Gerbang wajib**: sebelum password dibuat, modul lain belum bisa dipakai |
 | Tab Manager (`modules/tabs/`) | Toby: Tab Manager & Session Saver | Dashboard New Tab: ruang → koleksi → kartu tab, simpan sesi, drag & drop, grup tab, pencarian, omnibox `tm`, impor/ekspor |
-| Catatan Tempel (`modules/notes/`) | Note Anywhere | Catatan seperti sticky note di halaman web mana pun: seret, ubah ukuran, 7 warna, sematkan di layar, jadikan ikon, sembunyikan; muncul lagi saat halaman dibuka. Daftar semua halaman bercatatan, ekspor JSON/CSV, impor JSON. Teks biasa (bukan HTML), tanpa sync ke server |
+| Catatan Tempel (`modules/notes/`) | Note Anywhere | Catatan seperti sticky note di halaman web mana pun: seret, ubah ukuran, 7 warna, sematkan di layar, jadikan ikon, sembunyikan; muncul lagi saat halaman dibuka. **Papan semua catatan** di dashboard (rail → "Semua catatan", `newtab.html?view=catatan`; juga dicari lewat Ctrl K), daftar halaman di pengaturan, ekspor JSON/CSV, impor JSON. Teks biasa (bukan HTML), tanpa sync ke server |
 | Ad Blocker (`modules/adblock/`) | Adblock Plus | Filter list (EasyList, ABPindo, EasyPrivacy, …) dikompilasi ke aturan declarativeNetRequest, sembunyikan elemen, izinkan situs, jeda, filter sendiri, "Blokir elemen", iklan video YouTube |
 
 Struktur folder:
@@ -40,6 +40,10 @@ my-chrome-universe/
   Tempel di popup → "Tempel catatan baru". Bilah atas untuk menyeret, pojok kanan bawah untuk mengubah ukuran, menu ⋯
   untuk warna (Surya, Ion, Nova, Nebula, Langit, Bulan, Malam), sematkan di layar, salin, dan hapus (bisa diurungkan).
   Catatan berada di shadow DOM tertutup dengan palet sendiri dan font sistem; animasinya mengikuti tingkat gerak.
+- **Papan catatan (dashboard)**: rail kiri → "Semua catatan" (atau popup → "Semua catatan"): satu kartu per halaman berisi
+  catatan mini berwarna, kolom cari, klik catatan untuk membuka halamannya dan menyorot catatan itu, salin/hapus
+  (bisa diurungkan). Ctrl K juga menemukan isi catatan. Saat Tab Manager mati, isi catatan tetap bisa dilihat di
+  Pengaturan → Catatan Tempel → Halaman dengan catatan (klik judul halaman).
 
 ## Memasang
 

@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="../../ui/tokens.css">
   <link rel="stylesheet" href="../../ui/components.css">
   <link rel="stylesheet" href="newtab.css">
+  <link rel="stylesheet" href="../notes/board.css">
 </head>
 <body>
   <div class="nebula" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -37,6 +38,10 @@
       <div class="space-list" id="space-list"><span class="space-ind" id="space-ind" hidden></span></div>
       <h3 class="sec starred-head">Berbintang</h3>
       <ul class="starred" id="starred"></ul>
+      <div class="rail-notes" id="rail-notes" hidden>
+        <h3 class="sec notes-head">Catatan Tempel</h3>
+        <button class="notes-entry rp" type="button" id="notes-entry" title="Semua catatan yang ditempel di halaman web"><i data-ic="note"></i><span class="notes-label">Semua catatan</span><span class="space-n" id="notes-n">0</span></button>
+      </div>
       <span class="zone-tag" data-n="1" style="--i:0">Ruang</span>
     </aside>
 
@@ -48,6 +53,10 @@
             <button class="btn ghost sm rp" type="button" id="fold-all"><i data-ic="fold"></i><span>Lipat semua</span></button>
             <button class="btn primary sm rp" type="button" id="add-col"><i data-ic="plus"></i>Koleksi baru</button>
             <button class="icon-btn sm rp" type="button" id="space-menu" aria-label="Opsi ruang" title="Opsi ruang" aria-haspopup="menu"><i data-ic="more"></i></button>
+          </div>
+          <div class="main-actions" id="notes-actions" hidden>
+            <label class="nb-search"><i data-ic="search"></i><input class="input" id="nb-q" type="search" placeholder="Cari isi, judul, atau alamat…" autocomplete="off" aria-label="Cari catatan"></label>
+            <a class="btn ghost sm rp" href="../../options.html#notes"><i data-ic="sliders"></i>Pengaturan catatan</a>
           </div>
           <div class="main-actions" id="search-actions" hidden>
             <button class="btn ghost sm rp" type="button" id="clear-search"><i data-ic="x"></i>Tutup pencarian</button>

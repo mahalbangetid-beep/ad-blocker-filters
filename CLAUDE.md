@@ -29,7 +29,7 @@ mengubah arsitektur.
 | `tools/make-icons.mjs` | Membuat `icons/icon{16,32,48,128}.png` dari `logo()` lewat Chromium (jalankan sekali bila logo berubah, commit PNG-nya) |
 | `my-chrome-universe/modules/lock/` | Browser Lock: kunci browser dengan password; **gerbang wajib** semua modul |
 | `my-chrome-universe/modules/tabs/` | Tab Manager: dashboard New Tab ala Toby (ruang → koleksi → kartu tab) |
-| `my-chrome-universe/modules/notes/` | Catatan Tempel ala Note Anywhere: `store.js` (aturan data murni), `background.js` (satu-satunya penulis `nt:*`), `content.js` (catatan di situs, didaftarkan lewat `chrome.scripting` saat modul aktif) |
+| `my-chrome-universe/modules/notes/` | Catatan Tempel ala Note Anywhere: `store.js` (aturan data murni), `background.js` (satu-satunya penulis `nt:*`), `content.js` (catatan di situs, didaftarkan lewat `chrome.scripting` saat modul aktif), `board.js`/`board.css` (papan semua catatan di dashboard Tab Manager, `newtab.html?view=catatan`) |
 | `my-chrome-universe/modules/adblock/` | Ad Blocker ala Adblock Plus (declarativeNetRequest); `filters.js`, `updater.js`, ruleset bawaan |
 | `filter-bot/` | Bot yang menggabungkan filter list dari banyak sumber → feed harian di GitHub Pages |
 | `tests/` | Unit test (`core`, `browser-lock`, `tab-manager`, `ad-blocker`, `ui`, `notes` `.test.mjs`), E2E Chromium (`universe.e2e.mjs`), cek langsung (`*.live.mjs`), harness UI (`harness/`: dashboard tiruan, `ui-gallery.html`, `sky-demo.html`) |

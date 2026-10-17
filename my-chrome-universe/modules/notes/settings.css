@@ -5,10 +5,17 @@
 .nt-search .ic { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
 .nt-search .input { width: 100%; padding-left: 38px; }
 .nt-pages { display: flex; flex-direction: column; gap: 6px; }
-.nt-page-row { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 10px; border-radius: 13px; border: 1px solid var(--line); background: rgb(var(--tint) / .02);
-  transition: border-color var(--d2), background var(--d2); }
+.nt-page-row { border-radius: 13px; border: 1px solid var(--line); background: rgb(var(--tint) / .02); transition: border-color var(--d2), background var(--d2); }
+.nt-page-main { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 10px; }
 .nt-page-row:hover { border-color: var(--line-strong); background: rgb(var(--tint) / .045); }
-.nt-page-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.nt-page-text { flex: 1; min-width: 0; display: flex; flex-direction: column; text-align: left; border-radius: 8px; }
+.nt-page-text:hover b { color: var(--nebula-text); }
+.nt-sub { display: none; flex-direction: column; gap: 4px; padding: 0 12px 12px 50px; }
+.nt-page-row.open .nt-sub { display: flex; animation: rise 420ms var(--ease-out); }
+.nt-sub li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 10px; background: rgb(var(--tint) / .03); border-left: 3px solid var(--c); }
+.nt-sub-text { flex: 1; min-width: 0; font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nt-sub-text.empty { color: var(--faint); font-style: italic; }
+.nt-sub-when { flex: none; font: 400 11.5px/1.6 var(--f-mono); color: var(--faint); }
 .nt-page-text b, .nt-page-text span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nt-page-text b { font-size: 14px; font-weight: 600; }
 .nt-page-text span { font: 400 12px/1.4 var(--f-mono); color: var(--faint); }
@@ -19,4 +26,4 @@
 #nt-more { margin-top: 10px; }
 #nt-more[hidden], #nt-empty[hidden] { display: none; }
 #nt-empty { padding: 18px 0; }
-@media (max-width: 640px) { .nt-day { display: none; } }
+@media (max-width: 640px) { .nt-day { display: none; } .nt-sub { padding-left: 12px; } .nt-sub li { flex-wrap: wrap; } }

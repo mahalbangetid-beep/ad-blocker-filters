@@ -26,7 +26,7 @@ const MARKUP = `
   </div>
   <div class="nt-pair" style="--i:4">
     <button class="btn ghost danger sm rp" type="button" id="nt-clear" title="Hapus semua catatan di halaman ini"><i data-ic="trash"></i><span>Hapus semua</span></button>
-    <button class="btn ghost sm rp" type="button" id="nt-manage"><i data-ic="sliders"></i><span>Kelola semua</span></button>
+    <button class="btn ghost sm rp" type="button" id="nt-manage"><i data-ic="note"></i><span>Semua catatan</span></button>
   </div>
 `;
 
@@ -143,8 +143,10 @@ export async function render(root) {
     paint();
   });
 
+  // Every note: the board in the Tab Manager dashboard, or the settings list while Tab Manager is off.
   $('nt-manage').addEventListener('click', async () => {
-    await chrome.tabs.create({ url: chrome.runtime.getURL('options.html#notes') });
+    const board = (await getModuleStates()).tabs;
+    await chrome.tabs.create({ url: chrome.runtime.getURL(board ? 'modules/tabs/newtab.html?view=catatan' : 'options.html#notes') });
     window.close();
   });
 }

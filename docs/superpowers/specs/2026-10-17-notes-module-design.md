@@ -72,3 +72,11 @@ tidak ada catatan yang tampil. Halaman extension memakai `guardPage` seperti bia
 - `tests/notes.test.mjs` (unit, Node): store.js.
 - `tests/universe.e2e.mjs`: buat catatan dari panel → ketik → muat ulang → tetap ada; seret/ubah ukuran tersimpan;
   warna + sematkan; hapus; daftar di pengaturan + ekspor; modul dimatikan → catatan hilang dari halaman.
+
+## Tambahan: papan semua catatan (disetujui pengguna, 2026-10-17)
+
+Tempat melihat semua catatan = dashboard Tab Manager: entri "Semua catatan" di rail (di bawah Berbintang) mengganti grid
+dengan papan: satu kartu per halaman (favicon, judul, alamat, jumlah, buka, hapus), catatan mini berwarna (klik → halaman
+dibuka/ditampilkan dan catatan disorot; salin; hapus dengan urungkan), kolom cari di header. Ctrl K juga mencari isi
+catatan. Popup "Semua catatan" membuka `newtab.html?view=catatan`. Bila Tab Manager mati: daftar halaman di Pengaturan
+bisa dibentangkan untuk melihat isi catatan. Mengedit isi catatan tetap di halamannya (belum dari papan).

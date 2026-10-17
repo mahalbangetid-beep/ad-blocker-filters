@@ -23,6 +23,7 @@ import {
 import { setupPalette, openPalette, closePalette, paletteOpen } from './dashboard/palette.js';
 import { setupGuide, showGuide, hideGuide, guideShown, autoShowGuide } from './dashboard/guide.js';
 import { exportData, readImportFile, importData, importBookmarks } from './dashboard/backup.js';
+import { setupBoard, loadBoard, renderBoard, leaveBoard, openNote, boardPages, noteTotal } from '../notes/board.js';
 
 await guardPage('tab');
 
@@ -76,7 +77,11 @@ if (welcome) {
 }
 
 let data = await loadData();
-let query = new URLSearchParams(location.search).get('q') || '';
+const params = new URLSearchParams(location.search);
+let query = params.get('q') || '';
+// 'space' (collections of the active space) or 'notes' (the sticky notes board, ?view=catatan).
+let view = params.get('view') === 'catatan' && modules.notes ? 'notes' : 'space';
+if (modules.notes) await loadBoard();
 setupCollections({ getData: () => data, thisTab, sky });
 
 // ---------- Rendering ----------
@@ -89,10 +94,36 @@ let renderAgain = false;
 let pendingRender = false;
 let pendingReveal = null; // { id, cardId } shown once the target space is on screen
 
+function syncUrl() {
+  const url = query ? `${location.pathname}?q=${encodeURIComponent(query)}` : view === 'notes' ? `${location.pathname}?view=catatan` : location.pathname;
+  history.replaceState(null, '', url);
+}
+
 function setQuery(next) {
   query = next;
-  const url = query ? `${location.pathname}?q=${encodeURIComponent(query)}` : location.pathname;
-  history.replaceState(null, '', url);
+  syncUrl();
+}
+
+function setView(next) {
+  view = next;
+  syncUrl();
+}
+
+let shownTotal = null;
+function syncNotesEntry() {
+  $('rail-notes').hidden = !modules.notes;
+  const entry = $('notes-entry');
+  const total = noteTotal();
+  entry.classList.toggle('on', view === 'notes' && !query);
+  if (view === 'notes' && !query) entry.setAttribute('aria-current', 'page');
+  else entry.removeAttribute('aria-current');
+  $('notes-n').textContent = String(total);
+  if (shownTotal !== null && total > shownTotal) {
+    entry.classList.remove('bump');
+    void entry.offsetWidth;
+    entry.classList.add('bump');
+  }
+  shownTotal = total;
 }
 
 function clearSearch() {
@@ -105,7 +136,17 @@ async function render({ first = false } = {}) {
     return;
   }
   syncOpenSettings(data);
-  renderRail(data, { onActivate: activate, onReveal: reveal, onSpaceMenu: spaceMenu, onDropTabs: saveDropToSpace, searching: Boolean(query) });
+  const onBoard = view === 'notes' && !query;
+  renderRail(data, { onActivate: activate, onReveal: reveal, onSpaceMenu: spaceMenu, onDropTabs: saveDropToSpace, searching: Boolean(query) || onBoard });
+  syncNotesEntry();
+  if (onBoard) {
+    const enter = first || shownSpaceId !== null || !$('cols').classList.contains('nb-board');
+    shownSpaceId = null;
+    renderBoard({ enter });
+    if (enter) $('tm-main').scrollTo({ top: 0 });
+    return;
+  }
+  leaveBoard();
   $('search-actions').hidden = !query;
   if (query) {
     shownSpaceId = null;
@@ -138,8 +179,9 @@ async function render({ first = false } = {}) {
 }
 
 function activate(spaceId) {
-  const searching = Boolean(query);
+  const searching = Boolean(query) || view === 'notes';
   clearSearch();
+  setView('space');
   if (spaceId === data.activeSpaceId) {
     if (searching) render();
     return;
@@ -149,8 +191,9 @@ function activate(spaceId) {
 }
 
 function reveal(spaceId, collectionId, cardId = null) {
-  const searching = Boolean(query);
+  const searching = Boolean(query) || view === 'notes';
   clearSearch();
+  setView('space');
   if (spaceId !== data.activeSpaceId) {
     pendingReveal = { id: collectionId, cardId };
     setActiveSpace(spaceId);
@@ -170,7 +213,16 @@ function revealSaved(collectionId) {
   reveal(data.activeSpaceId, collectionId);
 }
 
+function showNotes() {
+  if (!modules.notes) return;
+  clearSearch();
+  closeDrawer();
+  setView('notes');
+  render();
+}
+
 function showAllResults(text) {
+  view = 'space';
   setQuery(text.trim());
   render();
   $('tm-main').scrollTo({ top: 0 });
@@ -229,7 +281,12 @@ async function lockNow() {
 }
 
 function showModules(states, options) {
+  const notesWas = modules.notes;
   Object.assign(modules, states);
+  if (states.notes !== notesWas) {
+    if (!states.notes && view === 'notes') setView('space');
+    (states.notes ? loadBoard() : Promise.resolve()).then(() => render());
+  }
   $('tm-lock').hidden = !states.lock;
   showAdblockChip(states.adblock, options);
 }
@@ -296,6 +353,7 @@ function commands() {
     { ic: 'download', label: 'Simpan sesi (semua tab di jendela ini)', keywords: 'simpan tab', hint: 'Alt+Shift+S', run: () => saveSession() },
     modules.lock && { ic: 'lock', label: 'Kunci browser sekarang', hint: 'Alt+Shift+L', run: lockNow },
     { ic: 'copy', label: 'Hapus tab duplikat', keywords: 'tutup ganda', run: () => dedupe() },
+    modules.notes && { ic: 'note', label: 'Lihat semua catatan tempel', keywords: 'catatan note sticky papan', run: showNotes },
     { ic: 'plus', label: 'Buat koleksi baru', run: () => { clearSearch(); render().then(() => addCollection()); } },
     { ic: 'plus', label: 'Buat ruang baru', run: addSpace },
     !query && { ic: 'fold', label: allFolded ? 'Bentangkan semua koleksi' : 'Lipat semua koleksi', run: () => foldAll() },
@@ -323,7 +381,12 @@ setupPalette({
     toast(`Membuka ${card.title}`, { icon: 'external' });
   },
   onShowAll: showAllResults,
+  notes: () => (modules.notes ? boardPages() : []),
+  onOpenNote: openNote,
 });
+
+setupBoard({ onChange: () => { if (!isDragging()) render(); } });
+$('notes-entry').addEventListener('click', showNotes);
 
 setupGuide({ beforeShow: closeDrawer });
 
@@ -334,7 +397,7 @@ $('add-col').addEventListener('click', () => addCollection());
 $('fold-all').addEventListener('click', () => foldAll());
 $('space-menu').addEventListener('click', (e) => spaceMenu(e.currentTarget, activeSpace().id));
 $('space-title').addEventListener('contextmenu', (e) => {
-  if (query) return;
+  if (query || view === 'notes') return;
   e.preventDefault();
   spaceMenu(e.currentTarget, activeSpace().id);
 });

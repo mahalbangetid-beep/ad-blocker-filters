@@ -1,6 +1,7 @@
 // Zone 4: one palette (Ctrl/⌘+K or "/") to find saved tabs and collections (store.js search(),
 // the same matching as the old search box) and to run commands. ↑/↓ select, Enter runs, Esc closes.
 import { search } from '../store.js';
+import { searchNotes } from '../../notes/store.js';
 import { h } from '../common.js';
 import { icon } from '../../../ui/icons.js';
 import { motionLevel } from '../../../ui/motion.js';
@@ -9,10 +10,17 @@ import { favicon, STAGGER_MAX } from './collections.js';
 const $ = (id) => document.getElementById(id);
 const MAX_TABS = 7;
 const MAX_COLS = 4;
+const MAX_NOTES = 5;
 
 // getData(); commands(): [{ ic, label, keywords?, hint?, run }];
-// onReveal(spaceId, collectionId, cardId?); onOpenCard(card); onShowAll(query).
-const ctx = { getData: () => null, commands: () => [], onReveal: () => {}, onOpenCard: () => {}, onShowAll: () => {} };
+// onReveal(spaceId, collectionId, cardId?); onOpenCard(card); onShowAll(query);
+// notes(): sticky note pages [{ url, title, notes }]; onOpenNote(url, noteId).
+const ctx = {
+  getData: () => null, commands: () => [], onReveal: () => {}, onOpenCard: () => {}, onShowAll: () => {},
+  notes: () => [], onOpenNote: () => {},
+};
+const firstLine = (text) => text.split('\n').map((l) => l.trim()).find(Boolean) || '(catatan kosong)';
+const hostOf = (url) => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; } };
 let items = []; // [{ item, el }]
 let selected = 0;
 let returnFocus = null;
@@ -111,7 +119,11 @@ function groups(query) {
   if (total > 0) {
     shownTabs.push({ ic: 'search', label: `Tampilkan semua hasil untuk “${query}”`, sub: `${total} tab di ${results.length} koleksi`, plain: true, run: () => ctx.onShowAll(query) });
   }
-  return [['Tab tersimpan', shownTabs], ['Koleksi', cols.slice(0, MAX_COLS)], ['Perintah', commands]];
+  const notes = searchNotes(ctx.notes(), query).slice(0, MAX_NOTES).map(({ page, note }) => ({
+    ic: 'note', label: firstLine(note.text), sub: `Catatan di ${page.title || hostOf(page.url)}`,
+    run: () => ctx.onOpenNote(page.url, note.id),
+  }));
+  return [['Tab tersimpan', shownTabs], ['Catatan', notes], ['Koleksi', cols.slice(0, MAX_COLS)], ['Perintah', commands]];
 }
 
 function render() {

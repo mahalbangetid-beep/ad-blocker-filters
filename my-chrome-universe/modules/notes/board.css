@@ -1,0 +1,66 @@
+/* Sticky notes in the Tab Manager dashboard: the rail entry and the board (modules/notes/board.js).
+   Page cards reuse the dashboard's .col; mini notes use the notes' own palette (set inline per note). */
+
+/* ---------- rail entry ---------- */
+.rail-notes { display: flex; flex-direction: column; gap: 2px; }
+.rail-notes[hidden] { display: none; }
+.tm h3.notes-head { margin: 18px 8px 4px; }
+.notes-entry { display: flex; align-items: center; gap: 11px; padding: 10px; border-radius: 12px; border: 1px solid transparent; color: var(--dust); font-weight: 600; text-align: left;
+  transition: color var(--d2), background var(--d2), border-color var(--d2); }
+.notes-entry:hover { color: var(--star); background: rgb(var(--tint) / .05); }
+.notes-entry.on { color: var(--star); background: color-mix(in srgb, var(--nebula) 14%, transparent); border-color: color-mix(in srgb, var(--nebula) 35%, transparent); }
+.notes-entry .ic { width: 16px; height: 16px; flex: none; color: var(--nebula-text); transition: transform 500ms var(--spring); }
+.notes-entry:hover .ic, .notes-entry.on .ic { transform: rotate(-10deg) scale(1.15); }
+.notes-entry .notes-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notes-entry.bump .space-n { animation: nb-bump 600ms var(--spring); }
+@keyframes nb-bump { 40% { transform: scale(1.5); color: var(--nebula-text); } }
+
+/* ---------- header actions ---------- */
+#notes-actions { align-items: center; }
+#notes-actions a.btn { text-decoration: none; color: var(--star); }
+.nb-search { position: relative; display: flex; }
+.nb-search .ic { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+.nb-search .input { height: 36px; width: min(320px, 56vw); padding-left: 36px; border-radius: 11px; font-size: 14px; }
+
+/* ---------- board ---------- */
+.cols.nb-board { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+.nb-head { gap: 10px; padding: 12px 10px 10px 12px; }
+.nb-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.nb-title b, .nb-title small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-title b { font: 600 15px/1.3 var(--f-body); }
+.nb-title small { font: 400 11.5px/1.35 var(--f-mono); color: var(--faint); }
+.nb-page .pill { color: var(--nebula-text); background: color-mix(in srgb, var(--nebula) 14%, transparent); }
+.nb-page .col-actions a { text-decoration: none; }
+.nb-clear:hover { color: var(--danger-text); }
+
+.nb-notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 10px; padding: 2px 12px 14px; }
+.nb-note { position: relative; min-width: 0; border-radius: 13px; color: var(--ink); background: linear-gradient(165deg, var(--bg) 0%, var(--bg2) 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .45), 0 12px 22px -16px rgb(var(--shade) / calc(.9 * var(--shade-k)));
+  transition: transform 380ms var(--spring), box-shadow var(--d2); }
+/* Notes rise in only when the board opens, not on every redraw. */
+.nb-board.nb-enter .nb-note { animation: rise 520ms var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 70ms + var(--j, 0) * 45ms + 180ms); }
+.nb-note::before { content: ""; position: absolute; inset: 0 0 auto; height: 7px; border-radius: 13px 13px 0 0; background: var(--fill); pointer-events: none; }
+.nb-note:hover, .nb-note:focus-within { transform: translateY(-3px) rotate(-.7deg); box-shadow: inset 0 1px 0 rgb(255 255 255 / .45), 0 0 0 2px var(--fill), 0 18px 32px -16px var(--fill); }
+.nb-open { display: flex; flex-direction: column; gap: 9px; width: 100%; min-height: 108px; padding: 15px 12px 10px; border-radius: inherit; text-align: left; color: inherit; }
+.nb-open:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
+.nb-text { flex: 1; font-size: 13px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; }
+.nb-text.empty { color: var(--sub); font-style: italic; }
+.nb-meta { display: flex; align-items: center; gap: 5px; font: 500 10.5px/1.2 var(--f-mono); color: var(--sub); }
+.nb-meta .ic { width: 12px; height: 12px; flex: none; }
+.nb-tools { position: absolute; top: 10px; right: 6px; display: flex; gap: 2px; opacity: 0; transition: opacity var(--d2); }
+.nb-note:hover .nb-tools, .nb-note:focus-within .nb-tools { opacity: 1; }
+.nb-tool { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; color: var(--ink); background: color-mix(in srgb, var(--bg) 85%, transparent); transition: background var(--d2), transform var(--d1); }
+.nb-tool:hover { background: color-mix(in srgb, var(--ink) 14%, var(--bg)); }
+.nb-tool:active { transform: scale(.9); }
+.nb-tool:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.nb-tool .ic { width: 14px; height: 14px; }
+.nb-empty { max-width: 520px; }
+
+@media (hover: none) { .nb-tools { opacity: 1; } .nb-open { padding-top: 40px; } }
+@media (max-width: 760px) {
+  .rail-notes { order: 3; flex-direction: row; }
+  .tm h3.notes-head, .notes-entry .notes-label { display: none; }
+  .nb-search .input { width: min(220px, 50vw); }
+  .cols.nb-board { grid-template-columns: minmax(0, 1fr); }
+}

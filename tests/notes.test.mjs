@@ -3,7 +3,7 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  pageKey, cleanNote, cleanSettings, cleanTitle, toCsv, parseBackup, mergeBackup, indexEntry,
+  pageKey, cleanNote, cleanSettings, cleanTitle, toCsv, parseBackup, mergeBackup, indexEntry, searchNotes, colorOf,
   SETTINGS_DEFAULTS, COLORS, LIMITS, PAGE_PREFIX,
 } from '../my-chrome-universe/modules/notes/store.js';
 
@@ -61,6 +61,18 @@ test('cleanTitle and indexEntry', () => {
   assert.equal(cleanTitle(null), '');
   assert.equal(cleanTitle('x'.repeat(500)).length, LIMITS.title);
   assert.deepEqual(indexEntry({ title: 'T', notes: [{ updated: 3 }, { updated: 7 }] }), { title: 'T', count: 2, updated: 7 });
+});
+
+test('searchNotes matches every word in text, title or address, newest first', () => {
+  const pages = [
+    { url: 'https://a.com/resep', title: 'Resep', notes: [{ id: 1, text: 'beli gula', updated: 1 }, { id: 2, text: 'Gula aren', updated: 5 }] },
+    { url: 'https://b.com/', title: 'Belanja', notes: [{ id: 3, text: 'kopi', updated: 3 }] },
+  ];
+  assert.deepEqual(searchNotes(pages, 'gula').map((r) => r.note.id), [2, 1]);
+  assert.deepEqual(searchNotes(pages, 'resep  BELI').map((r) => r.note.id), [1]);
+  assert.deepEqual(searchNotes(pages, 'b.com kopi').map((r) => r.note.id), [3]);
+  assert.deepEqual(searchNotes(pages, '').map((r) => r.note.id), [2, 3, 1]);
+  assert.equal(colorOf('nope').id, 'surya');
 });
 
 test('toCsv quotes fields and starts with a BOM', () => {
@@ -160,6 +172,8 @@ globalThis.chrome = {
   tabs: {
     query: async () => tabs,
     get: async (id) => tabs.find((t) => t.id === id),
+    create: async ({ url, active }) => { const tab = { id: 100 + tabs.length, url, active, status: 'complete', windowId: 1 }; tabs.push(tab); return tab; },
+    update: async (id, props) => Object.assign(tabs.find((t) => t.id === id), props),
     sendMessage: async (tabId, message) => { sentToTabs.push({ tabId, message }); return { ok: true, hidden: false, icons: false }; },
   },
   scripting: {
@@ -168,6 +182,7 @@ globalThis.chrome = {
     unregisterContentScripts: async () => { registered.length = 0; },
     executeScript: async () => [],
   },
+  windows: { update: async () => ({}) },
   contextMenus: { create: () => {}, removeAll: (cb) => cb?.(), onClicked: event() },
   commands: { onCommand: event() },
   webNavigation: { onHistoryStateUpdated: event() },
@@ -286,6 +301,7 @@ test('note palette keeps 4.5:1 text contrast and matches the colour dots', async
     assert.ok(m, `palette for ${c.id}`);
     const v = (name) => new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})`).exec(m[1])?.[1];
     assert.equal(v('bar').toUpperCase(), c.fill.toUpperCase(), `${c.id}: store fill = content bar`);
+    for (const key of ['bg', 'bg2', 'ink', 'sub']) assert.equal(v(key).toUpperCase(), c[key].toUpperCase(), `${c.id}: store ${key} = content`);
     for (const bg of ['bg', 'bg2', 'bar']) {
       const r = contrast(v('ink'), v(bg));
       assert.ok(r >= 4.5, `${c.id}: ink on ${bg} = ${r.toFixed(2)}`);
@@ -295,4 +311,46 @@ test('note palette keeps 4.5:1 text contrast and matches the colour dots', async
       assert.ok(r >= 4.5, `${c.id}: sub on ${bg} = ${r.toFixed(2)}`);
     }
   }
+});
+
+test('nt:all lists every page with its notes, newest page first', async () => {
+  const ext = { id: 'testid', url: `${EXT}modules/tabs/newtab.html` };
+  await call('nt:save', { note: { text: 'lama' } });
+  await new Promise((r) => setTimeout(r, 2));
+  await call('nt:save', { note: { text: 'baru' } }, web('https://b.test/'));
+  const all = await call('nt:all', {}, ext);
+  assert.equal(all.ok, true);
+  assert.deepEqual(all.pages.map((p) => p.url), ['https://b.test/', PAGE]);
+  assert.equal(all.pages[1].title, 'Artikel');
+  assert.equal(all.pages[1].notes[0].text, 'lama');
+});
+
+test('nt:deleteNote and nt:restoreNote round trip from an extension page', async () => {
+  const ext = { id: 'testid', url: `${EXT}modules/tabs/newtab.html` };
+  const { note } = await call('nt:save', { note: { text: 'simpan', color: 'ion' } });
+  const removed = await call('nt:deleteNote', { url: `${PAGE}#x`, id: note.id }, ext);
+  assert.equal(removed.ok, true);
+  assert.equal(removed.note.text, 'simpan');
+  assert.equal(removed.title, 'Artikel');
+  assert.equal(local.dump()[`nt:p:${PAGE}`], undefined);
+  assert.equal((await call('nt:deleteNote', { url: PAGE, id: 'nope' }, ext)).ok, false);
+  const restored = await call('nt:restoreNote', { url: PAGE, title: removed.title, note: removed.note }, ext);
+  assert.equal(restored.ok, true);
+  const [back] = (await call('nt:load')).notes;
+  assert.deepEqual({ id: back.id, text: back.text, color: back.color, created: back.created }, { id: note.id, text: 'simpan', color: 'ion', created: note.created });
+  assert.equal((await call('nt:restoreNote', { url: 'chrome://x/', note: removed.note }, ext)).ok, false);
+});
+
+test('nt:open reuses a tab already on the page, otherwise opens one, then focuses the note', async () => {
+  const ext = { id: 'testid', url: `${EXT}modules/tabs/newtab.html` };
+  tabs = [{ id: 7, url: `${PAGE}#bagian`, status: 'complete', windowId: 1 }];
+  assert.equal((await call('nt:open', { url: PAGE, id: 'n1' }, ext)).ok, true);
+  assert.equal(tabs.length, 1, 'the open tab is reused');
+  assert.equal(tabs[0].active, true);
+  assert.deepEqual(sentToTabs.filter((s) => s.message.type === 'nt:focus').map((s) => [s.tabId, s.message.id]), [[7, 'n1']]);
+  sentToTabs.length = 0;
+  assert.equal((await call('nt:open', { url: 'https://c.test/x', id: 'n2' }, ext)).ok, true);
+  assert.equal(tabs.at(-1).url, 'https://c.test/x');
+  assert.deepEqual(sentToTabs.filter((s) => s.message.type === 'nt:focus').map((s) => s.tabId), [tabs.at(-1).id]);
+  assert.equal((await call('nt:open', { url: 'javascript:alert(1)', id: 'x' }, ext)).ok, false);
 });

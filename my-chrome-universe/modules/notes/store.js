@@ -5,17 +5,18 @@ export const PAGE_PREFIX = 'nt:p:';
 export const INDEX_KEY = 'nt:index';
 export const SETTINGS_KEY = 'nt:settings';
 
-// Note colours: `fill` is the note's bar colour (content.js holds the full palette; the tests keep
-// both in step). Extension pages use `fill` for colour dots.
+// Note colours. content.js (a classic script on websites) repeats this palette in its CSS; the tests
+// keep both in step. `fill` is the bar colour (colour dots); bg/bg2/ink/sub draw mini notes.
 export const COLORS = [
-  { id: 'surya', name: 'Surya', fill: '#FFB547' },
-  { id: 'ion', name: 'Ion', fill: '#5EEAD4' },
-  { id: 'nova', name: 'Nova', fill: '#FF8FA8' },
-  { id: 'nebula', name: 'Nebula', fill: '#A99BFF' },
-  { id: 'langit', name: 'Langit', fill: '#6CB4FF' },
-  { id: 'bulan', name: 'Bulan', fill: '#BBC3D9' },
-  { id: 'malam', name: 'Malam', fill: '#2D355A' },
+  { id: 'surya', name: 'Surya', fill: '#FFB547', bg: '#FFE9B8', bg2: '#FFDB91', ink: '#2B1B03', sub: '#6A4708' },
+  { id: 'ion', name: 'Ion', fill: '#5EEAD4', bg: '#D2F8F0', bg2: '#ADF0E3', ink: '#06292A', sub: '#1C5A50' },
+  { id: 'nova', name: 'Nova', fill: '#FF8FA8', bg: '#FFE0E7', bg2: '#FFC6D3', ink: '#3A0A18', sub: '#772640' },
+  { id: 'nebula', name: 'Nebula', fill: '#A99BFF', bg: '#E8E2FF', bg2: '#D6CCFF', ink: '#1C1442', sub: '#463B84' },
+  { id: 'langit', name: 'Langit', fill: '#6CB4FF', bg: '#D9ECFF', bg2: '#BEDCFF', ink: '#0B2340', sub: '#284B74' },
+  { id: 'bulan', name: 'Bulan', fill: '#BBC3D9', bg: '#F3F5FA', bg2: '#E2E6F1', ink: '#131A35', sub: '#434B6E' },
+  { id: 'malam', name: 'Malam', fill: '#2D355A', bg: '#1B2139', bg2: '#11162A', ink: '#EEF1FF', sub: '#B4BBD8' },
 ];
+export const colorOf = (id) => COLORS.find((c) => c.id === id) || COLORS[0];
 export const FONTS = [['sans', 'Sans'], ['serif', 'Serif'], ['mono', 'Mono']];
 export const SIZES = [['s', 'Kecil'], ['m', 'Sedang'], ['l', 'Besar']];
 
@@ -90,6 +91,20 @@ export function indexEntry(page) {
     count: page.notes.length,
     updated: page.notes.reduce((max, n) => Math.max(max, n.updated || 0), 0),
   };
+}
+
+// Notes whose text, page title or address contain every word of `query`, newest first.
+// pages: [{ url, title, notes }]. An empty query returns every note.
+export function searchNotes(pages, query) {
+  const words = String(query || '').toLowerCase().split(/\s+/).filter(Boolean);
+  const out = [];
+  for (const page of pages) {
+    for (const note of page.notes) {
+      const hay = `${note.text} ${page.title} ${page.url}`.toLowerCase();
+      if (words.every((w) => hay.includes(w))) out.push({ page, note });
+    }
+  }
+  return out.sort((a, b) => (b.note.updated || 0) - (a.note.updated || 0));
 }
 
 // ---------- backup ----------

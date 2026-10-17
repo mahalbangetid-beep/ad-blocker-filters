@@ -619,6 +619,7 @@
   document.addEventListener('pointerdown', onPointerDown, true);
   window.addEventListener('pagehide', onPageHide);
 
+  let ready = Promise.resolve(); // the latest load; a note to focus may still be on its way
   const onMessage = (message, sender, sendResponse) => {
     if (sender.id !== chrome.runtime.id || typeof message?.type !== 'string') return false;
     const reply = (value) => { sendResponse(value); return false; };
@@ -628,9 +629,11 @@
       case 'nt:new': createNote(message); return reply({ ok: true });
       case 'nt:toggleHidden': setHidden(!hidden); return reply({ ok: true, hidden });
       case 'nt:toggleIcons': if (hidden) setHidden(false); setIcons(!icons); return reply({ ok: true, icons });
-      case 'nt:focus': return reply({ ok: focusNote(message.id) });
-      case 'nt:refresh': load(); return reply({ ok: true });
-      case 'nt:urlChanged': load({ fresh: true }); return reply({ ok: true });
+      case 'nt:focus':
+        ready.then(() => sendResponse({ ok: focusNote(message.id) }));
+        return true;
+      case 'nt:refresh': ready = load(); return reply({ ok: true });
+      case 'nt:urlChanged': ready = load({ fresh: true }); return reply({ ok: true });
       case 'nt:off': destroy(); return reply({ ok: true });
       default: return false;
     }
@@ -652,5 +655,5 @@
 
   // Visible to this extension's isolated world only (used by the E2E tests), never to the site.
   window.__mcuNotes = { destroy, shadow };
-  load();
+  ready = load();
 })();

@@ -1419,9 +1419,92 @@ test('notes: the popup panel lists the notes, hides, iconizes, jumps to one and 
     assert.equal((await bg({ type: 'nt:list' })).total, 0);
     await waitFor(p, "document.getElementById('nt-count').textContent === 'Belum ada catatan di halaman ini'");
     assert.deepEqual(popup.errors, []);
+
+    // "Semua catatan" opens the board in the dashboard (and closes the popup).
+    await evaluate(p, "document.getElementById('nt-manage').click()");
+    const boardUrl = `chrome-extension://${extId}/modules/tabs/newtab.html?view=catatan`;
+    await until(async () => (await evaluate(swSession, `chrome.tabs.query({}).then((t) => t.some((x) => x.url === ${JSON.stringify(boardUrl)}))`)), 'board tab opened');
+    await evaluate(swSession, `chrome.tabs.query({}).then((t) => chrome.tabs.remove(t.filter((x) => x.url === ${JSON.stringify(boardUrl)}).map((x) => x.id)))`);
     assert.deepEqual(page.errors, []);
   } finally {
     for (const id of [popup?.targetId, page.targetId]) if (id) await cdp.send('Target.closeTarget', { targetId: id }).catch(() => {});
+  }
+});
+
+// Gives the n-th note on the page a colour and text, the way a person would.
+async function writeNote(s, index, text, color) {
+  await nEval(s, `(() => { const n = ${S}.querySelectorAll('.note')[${index}]; n.querySelector('.b-more').click(); n.querySelector('.swatch[data-color="${color}"]').click(); const t = n.querySelector('textarea'); t.value = ${JSON.stringify(text)}; t.dispatchEvent(new Event('input')); })()`);
+}
+
+test('notes: the dashboard board shows every note, searches, opens one and deletes with undo', async () => {
+  await bg({ type: 'nt:clearAll' });
+  const first = await openNotesPage();
+  const second = await openNotesPage(`${SITE}/notes-dua.html`);
+  let dash = null;
+  try {
+    for (const [page, n] of [[first, 2], [second, 1]]) {
+      for (let i = 0; i < n; i++) await bg({ type: 'nt:command', tabId: page.tabId, command: 'new' });
+      await nWait(page.sessionId, `${S}.querySelectorAll('.note').length === ${n}`);
+    }
+    await writeNote(first.sessionId, 0, 'Belanja kopi dan roti', 'surya');
+    await writeNote(first.sessionId, 1, 'Catatan kedua\nbaris dua', 'nebula');
+    await writeNote(second.sessionId, 0, 'Halaman dua punya catatan', 'ion');
+    await until(async () => (await bg({ type: 'nt:all' })).pages.flatMap((p) => p.notes).filter((n) => n.text).length === 3, 'texts saved');
+
+    dash = await openWatched(`chrome-extension://${extId}/modules/tabs/newtab.html?view=catatan`);
+    const d = dash.sessionId;
+    await waitFor(d, "document.getElementById('tm')?.classList.contains('ready')");
+    await waitFor(d, "document.querySelectorAll('#cols .nb-page').length === 2 && document.querySelectorAll('#cols .nb-note').length === 3");
+    assert.equal(await evaluate(d, "document.getElementById('notes-entry').classList.contains('on')"), true);
+    assert.equal(await evaluate(d, "document.getElementById('notes-n').textContent"), '3');
+    assert.match(await evaluate(d, "document.getElementById('space-meta').textContent"), /3 catatan di 2 halaman/);
+    assert.equal(await evaluate(d, "document.getElementById('notes-actions').hidden"), false);
+    assert.equal(await evaluate(d, "document.getElementById('main-actions').hidden"), true);
+    await sleep(1600);
+    await screenshot(d, 'dashboard-notes');
+
+    // Search narrows the board to matching notes.
+    const searchFor = (q) => evaluate(d, `(() => { const i = document.getElementById('nb-q'); i.value = ${JSON.stringify(q)}; i.dispatchEvent(new Event('input')); })()`);
+    await searchFor('kedua');
+    await waitFor(d, "document.querySelectorAll('#cols .nb-note').length === 1");
+    await searchFor('tidak-ada-apa-apa');
+    await waitFor(d, "document.getElementById('cols').innerText.includes('Tidak ada catatan yang cocok')");
+    await searchFor('');
+    await waitFor(d, "document.querySelectorAll('#cols .nb-note').length === 3");
+
+    // Clicking a note brings its page forward and focuses that note.
+    const [target] = (await pageNotes(second.tabId));
+    await evaluate(d, `document.querySelector('.nb-note[data-id="${target.id}"] .nb-open').click()`);
+    await nWait(second.sessionId, `${S}.activeElement === ${S}.querySelector('.note textarea')`);
+    assert.equal(await evaluate(swSession, `chrome.tabs.get(${second.tabId}).then((t) => t.active)`), true);
+
+    // Delete from the board, then undo from the toast.
+    await evaluate(d, `document.querySelector('.nb-note[data-id="${target.id}"] .nb-tool[aria-label="Hapus catatan"]').click()`);
+    await until(async () => (await pageNotes(second.tabId)).length === 0, 'deleted from the board');
+    await waitFor(d, "document.querySelectorAll('#cols .nb-note').length === 2");
+    await nWait(second.sessionId, `${S}.querySelectorAll('.note:not(.leaving)').length === 0`);
+    await evaluate(d, "[...document.querySelectorAll('.toast button')].find((b) => b.textContent.includes('Urungkan')).click()");
+    await until(async () => (await pageNotes(second.tabId))[0]?.id === target.id, 'restored');
+    await waitFor(d, "document.querySelectorAll('#cols .nb-note').length === 3");
+
+    // Ctrl K finds notes too.
+    await evaluate(d, "document.getElementById('open-palette').click()");
+    await evaluate(d, "(() => { const q = document.getElementById('pal-q'); q.value = 'kopi'; q.dispatchEvent(new Event('input')); })()");
+    await waitFor(d, "[...document.querySelectorAll('#pal-list .pal-group')].some((g) => g.textContent === 'Catatan')");
+    assert.match(await evaluate(d, "document.getElementById('pal-list').innerText"), /Belanja kopi dan roti/);
+    await evaluate(d, "document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+
+    // A space in the rail leaves the board.
+    await evaluate(d, "document.querySelector('#space-list .space').click()");
+    await waitFor(d, "document.getElementById('notes-actions').hidden && !document.getElementById('cols').classList.contains('nb-board')");
+    assert.equal(await evaluate(d, "document.getElementById('notes-entry').classList.contains('on')"), false);
+    assert.equal(await evaluate(d, 'location.search'), '');
+    await evaluate(d, "document.getElementById('notes-entry').click()");
+    await waitFor(d, "document.querySelectorAll('#cols .nb-note').length === 3");
+    assert.deepEqual(dash.errors, []);
+  } finally {
+    for (const id of [dash?.targetId, first.targetId, second.targetId]) if (id) await cdp.send('Target.closeTarget', { targetId: id }).catch(() => {});
+    await bg({ type: 'nt:clearAll' });
   }
 });
 
@@ -1480,6 +1563,12 @@ test('notes: settings list the pages, change the look and clear everything', asy
     await evaluate(o, "document.querySelector('#sec-notes .x-toggle').click()");
     await waitFor(o, "document.querySelectorAll('#nt-pages .nt-page-row').length === 1");
     assert.match(await evaluate(o, "document.querySelector('#nt-pages .nt-page-row').innerText"), /Uji catatan/);
+    assert.equal(await evaluate(o, "document.getElementById('nt-open-board').disabled"), false, 'board button while Tab Manager is on');
+    // A page opens to show what its notes say.
+    await nEval(s, `(() => { const t = ${S}.querySelector('textarea'); t.value = 'Isi untuk pengaturan'; t.dispatchEvent(new Event('input')); })()`);
+    await until(async () => (await pageNotes(tabId))[0]?.text === 'Isi untuk pengaturan', 'text saved');
+    await evaluate(o, "document.querySelector('#nt-pages .nt-page-text').click()");
+    await waitFor(o, "document.querySelector('#nt-pages .nt-sub-text')?.textContent === 'Isi untuk pengaturan'");
     for (const id of ['nt-export-json', 'nt-export-csv', 'nt-import', 'nt-clear-all']) {
       assert.equal(await evaluate(o, `!!document.getElementById('${id}')`), true, id);
     }
