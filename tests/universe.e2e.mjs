@@ -6,7 +6,7 @@
 // Run: node --test tests/universe.e2e.mjs   (CHROME_PATH=... to pick a browser)
 // Only the Ad Blocker/feed checks (what the daily filter bot needs before publishing):
 //      node --test --test-name-pattern="^adblock: " tests/universe.e2e.mjs
-import { test, after, before } from 'node:test';
+import { test, after, afterEach, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { createServer as createTlsServer } from 'node:https';
@@ -27,6 +27,11 @@ const TLS_PORT = 8767;
 const YOUTUBE = `https://www.youtube.com:${TLS_PORT}`;
 const CDP_PORT = 9333;
 const SITE = `http://site.test:${PORT}`;
+// The published feed (GitHub Pages) changes every day. Left reachable, a freshly installed extension
+// downloads it while the first tests run, so their outcome would depend on that day's feed. Its host
+// resolves to 127.0.0.1 (nothing on port 443): the install-time update fails at once and the tests
+// run on the bundled rulesets; the feed tests use their own local feed (FEED_URL).
+const LIVE_FEED_HOST = new URL(JSON.parse(readFileSync(join(extDir, 'modules/adblock/lists.json'), 'utf8')).feedUrl).hostname;
 
 
 // ---------- Local site with ads ----------
@@ -199,9 +204,11 @@ async function openPage(url, fresh = true) {
   return sessionId;
 }
 
+let lastTestPage = null; // for the failure diagnostics
 async function loadTestPage() {
   hits.length = 0;
   const session = await openPage(`${SITE}/page.html`);
+  lastTestPage = session;
   return evaluate(session, `({
     loads: window.loads,
     adBanner: getComputedStyle(document.getElementById('ad_banner')).display,
@@ -224,7 +231,7 @@ before(async () => {
     `--user-data-dir=${profile}`,
     `--load-extension=${extDir}`,
     `--disable-extensions-except=${extDir}`,
-    `--host-resolver-rules=MAP site.test 127.0.0.1, MAP adnxs.com 127.0.0.1, MAP adsterra.com 127.0.0.1, MAP www.youtube.com 127.0.0.1, MAP newad.test 127.0.0.1, MAP feed.test 127.0.0.1`,
+    `--host-resolver-rules=MAP site.test 127.0.0.1, MAP adnxs.com 127.0.0.1, MAP adsterra.com 127.0.0.1, MAP www.youtube.com 127.0.0.1, MAP newad.test 127.0.0.1, MAP feed.test 127.0.0.1, MAP ${LIVE_FEED_HOST} 127.0.0.1`,
     '--no-first-run',
     '--no-default-browser-check',
     '--lang=en-US',
@@ -268,6 +275,28 @@ before(async () => {
   assert.ok(recoveryCode);
 });
 
+// A failed Ad Blocker test prints what the extension had applied, to tell a broken rule
+// from rules that were still being changed.
+afterEach(async (t) => {
+  if (t.passed || !t.name.startsWith('adblock: ') || !swSession) return;
+  const state = await evaluate(swSession, `(async () => ({
+    enabledRulesets: await chrome.declarativeNetRequest.getEnabledRulesets(),
+    dynamicRules: (await chrome.declarativeNetRequest.getDynamicRules()).length,
+    allowlistRules: (await chrome.declarativeNetRequest.getDynamicRules()).filter((r) => r.action.type === 'allowAllRequests').length,
+    disabledAds: (await chrome.declarativeNetRequest.getDisabledRuleIds({ rulesetId: 'ads' })).length,
+    settings: (await chrome.storage.local.get('ab:settings'))['ab:settings'],
+    feed: ((f) => f && { status: f.status, error: f.error, feedVersion: f.feedVersion, categories: Object.fromEntries(Object.entries(f.categories || {})
+      .map(([id, c]) => [id, { version: c.version, added: c.added?.length || 0, disabled: c.disabled?.length || 0 }])) })((await chrome.storage.local.get('ab:feed'))['ab:feed']),
+  }))()`).catch((err) => ({ error: err.message }));
+  // Element hiding arrives from the service worker after the page commits: late or never?
+  await sleep(2000);
+  state.lastPageTwoSecondsLater = lastTestPage && await evaluate(lastTestPage, `({
+    adBanner: getComputedStyle(document.getElementById('ad_banner')).display,
+    customAd: getComputedStyle(document.querySelector('.my-custom-ad')).display,
+  })`).catch((err) => err.message);
+  console.log(`DIAGNOSE ${t.name}: ${JSON.stringify(state, (k, v) => (k === 'customFilters' && v ? `${v.length} chars` : v))}`);
+});
+
 after(async () => {
   try {
     await cdp?.send('Browser.close');
@@ -286,6 +315,9 @@ test('adblock: static rulesets are accepted and the defaults are enabled', async
   assert.deepEqual(enabled.sort(), ['ads', 'security']);
   const available = await evaluate(swSession, 'chrome.declarativeNetRequest.getAvailableStaticRuleCount()');
   assert.ok(available > 0, `available static rules: ${available}`);
+  // The published feed is out of reach (LIVE_FEED_HOST), so nothing was downloaded at install.
+  const feed = await evaluate(swSession, "chrome.storage.local.get('ab:feed').then((g) => g['ab:feed'] || null)");
+  assert.deepEqual(Object.keys(feed?.categories || {}), [], 'no feed update applied during the tests');
 });
 
 test('adblock: ads are blocked and hidden, normal content is untouched', async () => {
@@ -2043,7 +2075,19 @@ test('startup shows the welcome, then the login card', async () => {
   assert.equal(await sessionValue('core:welcome'), null, 'a manual lock leaves no welcome flag');
   await evaluate(swSession, "chrome.storage.session.set({ 'core:welcome': true })");
   await cdp.send('Page.reload', {}, lockSession);
-  await waitFor(lockSession, visible('#welcome'));
+  try {
+    await waitFor(lockSession, visible('#welcome'));
+  } catch (err) {
+    // Intermittent in the full run only: was the flag consumed, and what did the page do with it?
+    const page = await evaluate(lockSession, `({ url: location.href, motion: document.documentElement.dataset.motion,
+      welcomeHidden: document.getElementById('welcome')?.hidden, welcomeClass: document.getElementById('welcome')?.className,
+      formVisible: ${visible('#form')} })`).catch((e) => e.message);
+    const sw = await evaluate(swSession, `(async () => ({ flag: (await chrome.storage.session.get('core:welcome'))['core:welcome'] ?? null,
+      appearance: (await chrome.storage.local.get('core:appearance'))['core:appearance'] ?? null,
+      lockTabs: (await chrome.tabs.query({})).filter((t) => (t.url || '').includes('modules/lock/lock.html')).length }))()`).catch((e) => e.message);
+    console.log(`DIAGNOSE startup welcome: ${JSON.stringify({ page, sw })}`);
+    throw err;
+  }
   await screenshot(lockSession, 'lock-welcome');
   // The card behind the welcome can be neither focused nor clicked.
   assert.equal(await evaluate(lockSession, "!!document.querySelector('.login-card').closest('[inert]')"), true);

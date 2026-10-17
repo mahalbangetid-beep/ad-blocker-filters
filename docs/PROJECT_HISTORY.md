@@ -300,6 +300,22 @@ disetujui: dashboard Tab Manager, karena itu "rumah" yang muncul setelah login d
 - Pelajaran: animasi masuk catatan mini hanya saat papan dibuka (`.nb-enter` sementara), bukan setiap gambar ulang;
   tombol popup yang memanggil `window.close()` menutup tab popup di E2E, jadi langkah itu harus terakhir.
 
+## 10. CI tidak stabil (2026-10-17)
+
+- **Bot crash di `fetch` Node 24 (job `build`)**: `AssertionError: assert(!this.paused)` dari dalam undici
+  (`Parser.finish`, event socket) — dilempar di luar promise sehingga retry dan cadangan "salinan terakhir" tidak jalan dan
+  feed tidak terbit. Tidak terulang dalam 5 run lokal dengan Node 24.21.0 yang sama; tidak ada laporan yang persis sama.
+  Perbaikan: `filter-bot/bot.mjs` mengunduh dengan `node:http(s)` (redirect, gzip/deflate/br, batas 60 dtk); isi unduhan
+  dibandingkan dengan hasil `fetch` (15/18 identik, sisanya hanya versi upstream EasyList yang berganti). Run berikutnya:
+  `build` lolos dan feed terbit.
+- **E2E memakai feed produksi tanpa sengaja (job `ui-e2e`)**: extension yang baru terpasang langsung mengunduh feed
+  GitHub Pages (lebih baru dari ruleset di repo; job `build` tidak kena karena membangun ulang ruleset). Kontrol lokal:
+  119 aturan dinamis ditambah dan 117 aturan bawaan dimatikan di tengah tes. Kini host feed dipetakan ke 127.0.0.1 di
+  Chromium tes (`LIVE_FEED_HOST`) dan tes pertama Ad Blocker memastikan tidak ada update yang diterapkan.
+- **Masih terbuka**: kegagalan sesekali "turning Ad Blocker off…" (jaringan sudah diblokir tapi `#ad_banner` belum
+  tersembunyi — CSS dari service worker datang terlambat atau tidak?) dan "startup shows the welcome…" (lolos sendirian,
+  sesekali gagal di urutan penuh). Keduanya kini mencetak `DIAGNOSE …` saat gagal; perbaiki setelah datanya ada.
+
 ## Kebiasaan lingkungan Windows yang tidak berlaku di Linux
 
 - Pengguna menjalankan Claude Code desktop (Windows) dengan Git Bash + PowerShell; Python 3.11, Node 24, gh 2.95.

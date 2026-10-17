@@ -97,6 +97,8 @@ dari feed → diff mendekati batas (30.000 dinamis / 5.000 dinonaktifkan). Jawab
 
 ## Next Steps
 
+- CI: bila `ui-e2e` gagal lagi, baca baris `DIAGNOSE` di log job (lihat `docs/PROJECT_HISTORY.md` §10) sebelum mengubah apa pun.
+
 0. Pengguna menguji papan catatan (muat ulang extension → tab baru → rail "Semua catatan"), lalu merge `notes-module` ke
    `main` + push bila disetujui. Kandidat lanjutan: mengedit isi catatan langsung dari papan, shortcut (slot ke-4 masih
    kosong; perintah `new-note` sudah ada tanpa tombol bawaan).
