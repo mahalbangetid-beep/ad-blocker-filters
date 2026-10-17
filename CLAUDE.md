@@ -9,7 +9,8 @@ mengubah arsitektur.
 - Berkomunikasi dalam **bahasa Indonesia**; jawab dalam bahasa Indonesia. Teks UI extension juga berbahasa Indonesia.
 - Pola kerjanya: menyebut extension Chrome Web Store yang sudah ia pasang ("buatkan yang serupa dengan X"), lalu kita
   membaca file extension yang terpasang, menjelaskan cara kerjanya, dan membangun versi sendiri yang lebih baik/aman.
-- Ketiga extension sudah **disatukan** menjadi satu: **My Chrome Universe** (`my-chrome-universe/`); cara menambah modul
+- Semua extension sudah **disatukan** menjadi satu: **My Chrome Universe** (`my-chrome-universe/`): Browser Lock, Tab Manager,
+  Catatan Tempel (tiruan Note Anywhere, 2026-10-17), Ad Blocker; cara menambah modul
   ada di "Menambah modul baru" di `README.md`. Tampilannya sudah didesain ulang ("Universe": tema gelap "Malam" + terang
   "Fajar", penuh animasi) dan sudah di-merge ke `main` + di-push (lihat `HANDOFF.md`).
 - Akun GitHub: `mahalbangetid-beep`. Repo publik: https://github.com/mahalbangetid-beep/ad-blocker-filters
@@ -28,9 +29,10 @@ mengubah arsitektur.
 | `tools/make-icons.mjs` | Membuat `icons/icon{16,32,48,128}.png` dari `logo()` lewat Chromium (jalankan sekali bila logo berubah, commit PNG-nya) |
 | `my-chrome-universe/modules/lock/` | Browser Lock: kunci browser dengan password; **gerbang wajib** semua modul |
 | `my-chrome-universe/modules/tabs/` | Tab Manager: dashboard New Tab ala Toby (ruang → koleksi → kartu tab) |
+| `my-chrome-universe/modules/notes/` | Catatan Tempel ala Note Anywhere: `store.js` (aturan data murni), `background.js` (satu-satunya penulis `nt:*`), `content.js` (catatan di situs, didaftarkan lewat `chrome.scripting` saat modul aktif) |
 | `my-chrome-universe/modules/adblock/` | Ad Blocker ala Adblock Plus (declarativeNetRequest); `filters.js`, `updater.js`, ruleset bawaan |
 | `filter-bot/` | Bot yang menggabungkan filter list dari banyak sumber → feed harian di GitHub Pages |
-| `tests/` | Unit test (`core`, `browser-lock`, `tab-manager`, `ad-blocker`, `ui` `.test.mjs`), E2E Chromium (`universe.e2e.mjs`), cek langsung (`*.live.mjs`), harness UI (`harness/`: dashboard tiruan, `ui-gallery.html`, `sky-demo.html`) |
+| `tests/` | Unit test (`core`, `browser-lock`, `tab-manager`, `ad-blocker`, `ui`, `notes` `.test.mjs`), E2E Chromium (`universe.e2e.mjs`), cek langsung (`*.live.mjs`), harness UI (`harness/`: dashboard tiruan, `ui-gallery.html`, `sky-demo.html`) |
 | `docs/superpowers/` | Spesifikasi desain (penyatuan, redesign Universe + prototipe di `specs/assets/`) dan rencana |
 | `.github/workflows/filter-bot.yml` | CI harian 01:17 UTC: unit test → bangun feed → E2E Ad Blocker/feed (tes berawalan `adblock: `) di Chromium → terbitkan ke `gh-pages`; E2E UI penuh di job `ui-e2e` terpisah (tidak menahan feed) |
 
@@ -40,7 +42,7 @@ Satu extension, Manifest V3, JavaScript murni (ES module), **tanpa build step da
 
 ```bash
 # Unit test (Node 24; tidak butuh browser)
-node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs
+node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs tests/notes.test.mjs
 
 # E2E seluruh extension di Chromium sungguhan (butuh Chromium Playwright + openssl)
 npx playwright@1 install chromium        # sekali; di Linux tanpa GUI tambahkan --with-deps
@@ -74,7 +76,7 @@ Untuk mencoba manual: `chrome://extensions` → Developer mode → Load unpacked
 
 ## Konvensi yang wajib dijaga
 
-- **Awalan namespace**: Browser Lock → `lock:`; Tab Manager → `tm:`; Ad Blocker → `ab:`; core → `core:` (pesan dan kunci storage).
+- **Awalan namespace**: Browser Lock → `lock:`; Tab Manager → `tm:`; Catatan Tempel → `nt:`; Ad Blocker → `ab:`; core → `core:` (pesan dan kunci storage).
 - **Registry modul**: modul didaftarkan di `MODULES` (`core/modules.js`); popup, halaman pengaturan, sakelar, dan menu
   klik kanan mengikuti daftar itu. Sakelar lewat `core:setModule` (menolak `lock`); Browser Lock hanya lewat
   `lock:setEnabled` (mematikan butuh password saat ini).
@@ -83,8 +85,9 @@ Untuk mencoba manual: `chrome://extensions` → Developer mode → Load unpacked
   (selain layar kunci/setup) `await guardPage('tab'|'popup')` sebelum membaca data **atau memutar animasi yang
   memperlihatkan data**. Saat tidak `open`, `guardPage` mengganti halaman dengan kartu `.guard-notice` (tanpa data modul).
 - **Pengirim pesan**: setiap listener `onMessage` memanggil `senderAllowed(sender, type)` (`core/gate.js`) dan menjawab
-  `{ ok:false, error:'forbidden' }` untuk extension lain atau halaman web; hanya `WEB_MESSAGES` (`ab:addFilter` dari picker)
-  boleh datang dari content script.
+  `{ ok:false, error:'forbidden' }` untuk extension lain atau halaman web; hanya `WEB_MESSAGES` (`ab:addFilter` dari picker;
+  `nt:load`/`nt:save`/`nt:delete` dari catatan) boleh datang dari content script. Handler catatan mengambil halaman dari
+  `sender.tab.url` frame utama (bukan dari isi pesan; `sender.url` tidak ikut berubah saat `history.pushState`).
 - **Menu klik kanan**: hanya `core/menus.js` yang boleh memanggil `chrome.contextMenus.removeAll`; modul memakai
   `registerMenuProvider(id, provider)`.
 - Aturan dinamis declarativeNetRequest seluruhnya milik modul adblock.
@@ -107,8 +110,9 @@ Untuk mencoba manual: `chrome://extensions` → Developer mode → Load unpacked
 - **Token, bukan warna literal**: komponen memakai variabel `tokens.css`. `:root` = tema gelap "Malam",
   `:root[data-ui="light"]` = terang "Fajar"; aksen `:root[data-accent="ion"|"nova"]` (default surya). Teks kecil harus
   ≥ 4,5:1 di kedua tema (dijaga `tests/ui.test.mjs`; varian teks `--solar-text`, `--danger-text`, dll. untuk tema terang).
-  Pengecualian: picker di situs web (`modules/adblock/picker.js`) punya palet sendiri di shadow DOM, font sistem,
-  gelap/terang dari `prefers-color-scheme` halaman.
+  Pengecualian: picker di situs web (`modules/adblock/picker.js`) dan catatan (`modules/notes/content.js`) punya palet
+  sendiri di shadow DOM tertutup, font sistem, gelap/terang dari `prefers-color-scheme` halaman; kontras palet catatan
+  dijaga `tests/notes.test.mjs`. Warna kartu modul catatan: token `--nebula`/`--nebula-text`.
 - **Tanpa request ke luar**: font lokal di `ui/fonts/` (Unbounded, Plus Jakarta Sans, JetBrains Mono, OFL), tanpa CDN
   (E2E `extension pages make no third-party requests`). Ikon = SVG dari `ui/icons.js` (`<i data-ic="name">` +
   `hydrateIcons()`), bukan emoji.

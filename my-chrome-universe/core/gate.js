@@ -16,8 +16,9 @@ export const PUBLIC_MESSAGES = new Set([
   'lock:getState', 'lock:setup', 'lock:unlock', 'lock:recover', 'lock:lock', 'core:getModules',
 ]);
 
-// Messages a content script may send from a website: only the block-element picker's.
-export const WEB_MESSAGES = new Set(['ab:addFilter']);
+// Messages a content script may send from a website: the block-element picker's and the sticky
+// notes' (their handlers take the page from the sender, so a site only reaches its own notes).
+export const WEB_MESSAGES = new Set(['ab:addFilter', 'nt:load', 'nt:save', 'nt:delete']);
 
 // Defense in depth for every onMessage listener: only this extension, and only its own
 // pages (popup, tabs, frames; sender.url is the frame's URL) unless the type is in WEB_MESSAGES.

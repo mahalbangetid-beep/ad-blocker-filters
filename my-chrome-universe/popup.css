@@ -46,6 +46,7 @@ body { width: 370px; overflow: hidden; background: var(--panel-solid); font-size
 .mcu-card { --tc: var(--accent); --tct: var(--accent-text); display: flex; align-items: center; gap: 4px; padding: 4px 10px 4px 4px; border-radius: 16px; border: 1px solid var(--line); background: rgb(var(--tint) / .025); transition: border-color var(--d2), background var(--d2), opacity var(--d2), transform 300ms var(--ease-out); transform: perspective(600px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
 .mcu-card[data-id="adblock"] { --tc: var(--ion); --tct: var(--ion-text); }
 .mcu-card[data-id="tabs"] { --tc: var(--solar); --tct: var(--solar-text); }
+.mcu-card[data-id="notes"] { --tc: var(--nebula); --tct: var(--nebula-text); }
 .mcu-card[data-id="lock"] { --tc: var(--nova); --tct: var(--nova-text); }
 .mcu-card:hover { border-color: var(--line-strong); background: rgb(var(--tint) / .05); }
 .mcu-card.off .mcu-card-open { opacity: .55; }

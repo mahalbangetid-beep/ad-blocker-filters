@@ -5,6 +5,7 @@ export const MODULES_KEY = 'core:modules';
 export const MODULES = [
   { id: 'adblock', name: 'Ad Blocker', icon: 'shield', panel: 'modules/adblock/panel.js', settings: 'modules/adblock/settings.js' },
   { id: 'tabs', name: 'Tab Manager', icon: 'layers', panel: 'modules/tabs/panel.js', settings: 'modules/tabs/settings.js' },
+  { id: 'notes', name: 'Catatan Tempel', icon: 'note', panel: 'modules/notes/panel.js', settings: 'modules/notes/settings.js' },
   { id: 'lock', name: 'Browser Lock', icon: 'lock', panel: 'modules/lock/panel.js', settings: 'modules/lock/settings.js' },
 ];
 

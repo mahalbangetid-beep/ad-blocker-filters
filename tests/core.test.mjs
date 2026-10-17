@@ -81,7 +81,7 @@ beforeEach(() => {
 });
 
 test('module states default to enabled', async () => {
-  assert.deepEqual(await getModuleStates(), { adblock: true, tabs: true, lock: true });
+  assert.deepEqual(await getModuleStates(), { adblock: true, tabs: true, notes: true, lock: true });
   await setModuleState('tabs', false);
   assert.equal(await isModuleEnabled('tabs'), false);
   assert.equal(await isModuleEnabled('lock'), true);
@@ -90,7 +90,7 @@ test('module states default to enabled', async () => {
 test('module icons are names from the shared icon set', async () => {
   const { MODULES } = await import('../my-chrome-universe/core/modules.js');
   const { ICONS } = await import('../my-chrome-universe/ui/icons.js');
-  assert.deepEqual(MODULES.map((m) => m.icon), ['shield', 'layers', 'lock']);
+  assert.deepEqual(MODULES.map((m) => m.icon), ['shield', 'layers', 'note', 'lock']);
   for (const m of MODULES) assert.ok(m.icon in ICONS, `${m.id}: unknown icon ${m.icon}`);
 });
 
@@ -109,7 +109,7 @@ test('onModuleStatesChanged reports full states', async () => {
   const seen = [];
   onModuleStatesChanged((s) => seen.push(s));
   await setModuleState('adblock', false);
-  assert.deepEqual(seen.at(-1), { adblock: false, tabs: true, lock: true });
+  assert.deepEqual(seen.at(-1), { adblock: false, tabs: true, notes: true, lock: true });
 });
 
 test('lockStatus covers setup, locked, open and disabled lock', async () => {
@@ -224,7 +224,7 @@ test('core:setModule refuses lock, accepts adblock and is gated', async () => {
   await import('../my-chrome-universe/core/background.js');
   // No password yet ('setup'): data-changing core messages are refused.
   assert.deepEqual(await send({ type: 'core:setModule', id: 'adblock', enabled: false }), { ok: false, error: 'locked' });
-  assert.deepEqual((await send({ type: 'core:getModules' })).modules, { adblock: true, tabs: true, lock: true });
+  assert.deepEqual((await send({ type: 'core:getModules' })).modules, { adblock: true, tabs: true, notes: true, lock: true });
 
   await chrome.storage.local.set({ 'lock:auth': { hash: 'x' } });
   await chrome.storage.session.set({ 'lock:unlocked': true });
@@ -234,8 +234,8 @@ test('core:setModule refuses lock, accepts adblock and is gated', async () => {
   assert.equal((await send({ type: 'core:setModule', id: 'nope', enabled: false })).ok, false);
 
   const r = await send({ type: 'core:setModule', id: 'adblock', enabled: false });
-  assert.deepEqual(r, { ok: true, modules: { adblock: false, tabs: true, lock: true } });
-  assert.deepEqual(await send({ type: 'core:getModules' }), { ok: true, modules: { adblock: false, tabs: true, lock: true } });
+  assert.deepEqual(r, { ok: true, modules: { adblock: false, tabs: true, notes: true, lock: true } });
+  assert.deepEqual(await send({ type: 'core:getModules' }), { ok: true, modules: { adblock: false, tabs: true, notes: true, lock: true } });
 });
 
 test('core messages from a web page are refused', async () => {

@@ -3,7 +3,7 @@
   "name": "My Chrome Universe",
   "short_name": "Universe",
   "version": "1.0.0",
-  "description": "Satu extension untuk Ad Blocker, Tab Manager, dan Browser Lock. Semua data lokal, tanpa akun, tanpa telemetri, tanpa iklan yang diizinkan.",
+  "description": "Satu extension untuk Ad Blocker, Tab Manager, Catatan Tempel, dan Browser Lock. Semua data lokal, tanpa akun, tanpa telemetri, tanpa iklan yang diizinkan.",
   "minimum_chrome_version": "121",
   "permissions": [
     "declarativeNetRequest",
@@ -66,6 +66,9 @@
         "default": "Alt+Shift+D"
       },
       "description": "Simpan tab aktif ke koleksi \"Disimpan\""
+    },
+    "new-note": {
+      "description": "Tempel catatan baru di halaman ini"
     }
   },
   "icons": {

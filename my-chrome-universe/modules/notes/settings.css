@@ -1,0 +1,22 @@
+/* Sticky notes section of the settings page. */
+.nt-swatches { flex-wrap: wrap; gap: 9px; }
+.nt-swatches .swatch { width: 28px; height: 28px; box-shadow: inset 0 0 0 1px rgb(var(--tint) / .28), 0 0 16px -4px var(--c); }
+.nt-search { position: relative; margin: 14px 0 10px; }
+.nt-search .ic { position: absolute; left: 12px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
+.nt-search .input { width: 100%; padding-left: 38px; }
+.nt-pages { display: flex; flex-direction: column; gap: 6px; }
+.nt-page-row { display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 10px; border-radius: 13px; border: 1px solid var(--line); background: rgb(var(--tint) / .02);
+  transition: border-color var(--d2), background var(--d2); }
+.nt-page-row:hover { border-color: var(--line-strong); background: rgb(var(--tint) / .045); }
+.nt-page-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.nt-page-text b, .nt-page-text span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nt-page-text b { font-size: 14px; font-weight: 600; }
+.nt-page-text span { font: 400 12px/1.4 var(--f-mono); color: var(--faint); }
+.nt-page-row .pill { color: var(--nebula-text); background: color-mix(in srgb, var(--nebula) 14%, transparent); }
+.nt-day { flex: none; font-size: 12px; color: var(--faint); min-width: 84px; text-align: right; }
+.nt-page-row .icon-btn { width: 34px; height: 34px; }
+.nt-del:hover { color: var(--danger-text); }
+#nt-more { margin-top: 10px; }
+#nt-more[hidden], #nt-empty[hidden] { display: none; }
+#nt-empty { padding: 18px 0; }
+@media (max-width: 640px) { .nt-day { display: none; } }

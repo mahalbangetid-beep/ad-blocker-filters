@@ -1,6 +1,6 @@
 # My Chrome Universe
 
-Satu extension Chrome (Manifest V3, JavaScript murni, tanpa build step) yang menyatukan tiga modul. Semua data lokal,
+Satu extension Chrome (Manifest V3, JavaScript murni, tanpa build step) yang menyatukan empat modul. Semua data lokal,
 tanpa akun, tanpa telemetri, tanpa "Acceptable Ads". Tampilannya satu sistem desain "Universe" bertema luar angkasa:
 tema gelap "Malam" dan terang "Fajar", animasi di setiap elemen, font dan ikon lokal (tanpa request ke server lain).
 
@@ -8,6 +8,7 @@ tema gelap "Malam" dan terang "Fajar", animasi di setiap elemen, font dan ikon l
 |---|---|---|
 | Browser Lock (`modules/lock/`) | Set password for your browser (Chrome Lock) | Kunci browser dengan password (hash PBKDF2), kode pemulihan sekali pakai, kunci saat startup/idle/layar terkunci, jeda setelah salah 5x. **Gerbang wajib**: sebelum password dibuat, modul lain belum bisa dipakai |
 | Tab Manager (`modules/tabs/`) | Toby: Tab Manager & Session Saver | Dashboard New Tab: ruang → koleksi → kartu tab, simpan sesi, drag & drop, grup tab, pencarian, omnibox `tm`, impor/ekspor |
+| Catatan Tempel (`modules/notes/`) | Note Anywhere | Catatan seperti sticky note di halaman web mana pun: seret, ubah ukuran, 7 warna, sematkan di layar, jadikan ikon, sembunyikan; muncul lagi saat halaman dibuka. Daftar semua halaman bercatatan, ekspor JSON/CSV, impor JSON. Teks biasa (bukan HTML), tanpa sync ke server |
 | Ad Blocker (`modules/adblock/`) | Adblock Plus | Filter list (EasyList, ABPindo, EasyPrivacy, …) dikompilasi ke aturan declarativeNetRequest, sembunyikan elemen, izinkan situs, jeda, filter sendiri, "Blokir elemen", iklan video YouTube |
 
 Struktur folder:
@@ -20,7 +21,7 @@ my-chrome-universe/
   core/                            registry modul, gerbang kunci, menu klik kanan bersama, helper panel/pengaturan
   ui/                              sistem desain: token dua tema, komponen, ikon + logo, font lokal, gerak, kanvas bintang, sambutan
   icons/                           ikon extension (logo orbit; dibuat dengan tools/make-icons.mjs)
-  modules/{lock,tabs,adblock}/     kode tiap modul (background, panel.js, settings.js, halaman)
+  modules/{lock,tabs,notes,adblock}/  kode tiap modul (background, panel.js, settings.js, halaman)
 ```
 
 ## Tampilan
@@ -35,12 +36,16 @@ my-chrome-universe/
   Tema (Otomatis/Terang/Gelap), Tingkat animasi (Penuh/Seimbang/Minim; bawaan Minim bila sistem meminta animasi
   dikurangi), Warna aksen (Surya/Ion/Nova), Animasi sambutan. Perubahan langsung berlaku di semua halaman yang terbuka.
 - Panel "Blokir elemen" di situs memakai palet yang sama (font sistem, gelap/terang mengikuti situs).
+- **Catatan Tempel di situs**: klik kanan → "Tempel catatan di sini" (teks yang dipilih ikut masuk), atau panel Catatan
+  Tempel di popup → "Tempel catatan baru". Bilah atas untuk menyeret, pojok kanan bawah untuk mengubah ukuran, menu ⋯
+  untuk warna (Surya, Ion, Nova, Nebula, Langit, Bulan, Malam), sematkan di layar, salin, dan hapus (bisa diurungkan).
+  Catatan berada di shadow DOM tertutup dengan palet sendiri dan font sistem; animasinya mengikuti tingkat gerak.
 
 ## Memasang
 
 `chrome://extensions` → Developer mode → **Load unpacked** → pilih folder `my-chrome-universe/`.
 Bila sebelumnya memasang tiga extension lama (Browser Lock, Tab Manager, Ad Blocker), **hapus ketiganya** dulu agar
-shortcut, menu klik kanan, dan New Tab tidak bentrok. Data lama tidak ikut pindah. Saat pertama dibuka, extension
+shortcut, menu klik kanan, dan New Tab tidak bentrok. Data lama tidak ikut pindah. Note Anywhere juga boleh dihapus (modul Catatan Tempel menggantikannya). Saat pertama dibuka, extension
 meminta pembuatan password (Browser Lock) dan menampilkan kode pemulihan sekali; simpan kode itu.
 
 Ikon toolbar membuka popup berisi kartu modul; sakelar di tiap kartu mematikan/menyalakan modul itu, ketuk kartu untuk
@@ -50,7 +55,7 @@ modul, dan Tentang; perubahan langsung tersimpan. Mematikan Browser Lock selalu 
 ## Tes
 
 ```bash
-node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs
+node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs tests/notes.test.mjs
 node --test tests/universe.e2e.mjs      # E2E seluruh extension di Chromium sungguhan
 node --test --test-name-pattern="^adblock: " tests/universe.e2e.mjs   # hanya tes Ad Blocker/feed
 SHOT_DIR=/tmp/shots node --test tests/universe.e2e.mjs   # sekaligus menyimpan tangkapan layar beberapa permukaan

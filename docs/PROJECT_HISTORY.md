@@ -249,6 +249,44 @@ sembilan tugas `docs/superpowers/plans/2026-10-16-global-redesign.md`. Dikerjaka
 - **Minim = tanpa loop**: tes menghitung `requestAnimationFrame` lewat skrip yang dipasang sebelum halaman dimuat
   (`Page.addScriptToEvaluateOnNewDocument`), dengan kontrol: gerak Penuh harus menghasilkan banyak frame.
 
+## 9. Catatan Tempel — tiruan Note Anywhere (`my-chrome-universe/modules/notes/`, 2026-10-17)
+
+**Temuan reverse engineering** (Note Anywhere v1.2.0, `bohahkiiknkelflnjjlipnaeapefmjbh`, oleh "William"/myatoms.io; REA
+`analyze_javascript_application` + bundel webpack yang dirapikan dengan js-beautify):
+- Bundel berisi `webextension-polyfill`, polyfill custom elements, `idb`, `nanoid`, `jscolor`. Content script di semua
+  http/https membuat `<note-anywhere-sticky>` (shadow DOM *open*) per catatan: `position:absolute` (Pin → `fixed`),
+  seret lewat bilah, ubah ukuran di pojok 15 px (min 150×180), `contenteditable` disimpan sebagai **HTML** 600 ms setelah
+  mengetik, menu 7 warna + Pin + Delete, mode Iconize dan Hide/Show per halaman.
+- Data di IndexedDB `note-anywhere` v2, store `notes` (indeks `url` tanpa hash, `timestamp`, `syncId`, `deleted`), hapus
+  lunak. Badge = jumlah catatan di tab. Pengaturan (warna, font, ukuran, tanggal di bilah) di `storage.sync`.
+- Sync ke `beta.myatoms.io`: token dititipkan lewat `externally_connectable` dari situs myatoms, dikirim di query string,
+  tiap 60 menit/saat jendela ditutup/startup (teks Options bilang 5 menit); balasan server menimpa catatan lokal.
+- Kelemahan: XSS (HTML catatan dipasang dengan `innerHTML` di situs, popup, dan Summary — data sync ikut), scan z-index
+  seluruh elemen di setiap halaman, catatan terikat URL persis.
+
+**Keputusan** (pengguna memilih "langsung mulai"; tidak ada sesi tanya-jawab):
+- Langsung jadi modul My Chrome Universe (bukan extension terpisah), awalan `nt:`, kartu berwarna token baru `--nebula`.
+- Teks biasa (`<textarea>`), tanpa sync/akun, tanpa badge (milik Ad Blocker). Penyimpanan `chrome.storage.local`:
+  `nt:p:<url>` per halaman + `nt:index` ringkasan (status popup/daftar pengaturan tanpa membaca semua catatan).
+- Content script didaftarkan `chrome.scripting.registerContentScripts` hanya saat modul aktif; satu host `<mcu-notes>`
+  (shadow DOM *closed*, z-index maksimum — tanpa scan) yang baru dipasang bila ada catatan. Dibangun dengan DOM API +
+  constructed stylesheet (tanpa string markup). Tombol keyboard di catatan tidak diteruskan ke situs.
+- Tambahan dibanding aslinya: klik kanan pada teks terpilih → catatan berisi teks itu; urungkan hapus; salin teks;
+  navigasi SPA memuat catatan URL baru; tab lain di URL yang sama ikut diperbarui; ekspor JSON + impor (gabung/ganti).
+
+**Pelajaran**
+- **`sender.url` tidak mengikuti `history.pushState`**: setelah navigasi SPA, pesan content script masih membawa URL
+  dokumen awal, sementara `sender.tab.url` sudah URL baru. Handler catatan memakai `sender.tab.url` (frame utama saja).
+  Ditemukan lewat E2E navigasi SPA + log `webNavigation.onHistoryStateUpdated`.
+- **Trusted Types tidak berlaku di isolated world**: di halaman ber-`require-trusted-types-for 'script'`, `innerHTML` di
+  main world ditolak tetapi di content script tetap jalan (dibuktikan E2E; tes halaman ketat juga memastikan halaman itu
+  memang ketat). Membangun DOM tanpa markup tetap dipilih agar teks catatan mustahil menjadi HTML.
+- **Konteks content script di E2E**: shadow DOM tertutup hanya bisa dijangkau dari isolated world extension;
+  E2E mencari konteks `auxData.type === 'isolated'` bernama "My Chrome Universe" (Runtime.disable/enable memancarkan
+  ulang semua konteks) dan `content.js` memaparkan `window.__mcuNotes.shadow` hanya di world itu.
+- **Popup di tab latar belakang tidak beranimasi** (tangkapan kosong): buka popup di latar (agar tab situs tetap aktif
+  untuk panel), lalu `Target.activateTarget` sebelum memotret.
+
 ## Kebiasaan lingkungan Windows yang tidak berlaku di Linux
 
 - Pengguna menjalankan Claude Code desktop (Windows) dengan Git Bash + PowerShell; Python 3.11, Node 24, gh 2.95.

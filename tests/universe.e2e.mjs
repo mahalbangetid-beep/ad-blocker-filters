@@ -46,6 +46,12 @@ const PAGE = `<!doctype html><html><head><title>Uji iklan</title></head><body>
 <script src="http://newad.test:${PORT}/n.js" onload="mark('feedNew', true)" onerror="mark('feedNew', false)"></script>
 </body></html>`;
 
+// Page for the sticky notes tests: long enough to scroll; records key presses the site sees.
+const NOTES_PAGE = `<!doctype html><html><head><title>Uji catatan</title></head><body style="margin:0;font:16px/1.6 sans-serif">
+<h1 style="margin:24px">Halaman uji catatan</h1><div style="height:3000px;margin:24px">Isi halaman yang panjang.</div>
+<script>window.keys = []; document.addEventListener('keydown', (e) => keys.push(e.key));</script>
+</body></html>`;
+
 // Mimics how YouTube delivers ads: inside the player response (inline, via
 // JSON.parse and via fetch().json()), plus an ad that is already "playing".
 const AD_DATA = { adPlacements: [{ ad: 1 }], playerAds: [{ ad: 1 }], adSlots: [{ ad: 1 }], videoDetails: { videoId: 'abc' } };
@@ -69,6 +75,12 @@ function handle(req, res) {
   }
   hits.push(`${req.headers.host}${req.url}`);
   if (req.url.startsWith('/page')) return res.writeHead(200, { 'content-type': 'text/html' }).end(PAGE);
+  if (req.url.startsWith('/notes-strict')) {
+    // Like YouTube: Trusted Types required, no inline styles or scripts allowed.
+    const csp = "require-trusted-types-for 'script'; trusted-types 'none'; style-src 'none'; script-src 'none'";
+    return res.writeHead(200, { 'content-type': 'text/html', 'content-security-policy': csp }).end('<!doctype html><title>Ketat</title><h1>Halaman ketat</h1>');
+  }
+  if (req.url.startsWith('/notes')) return res.writeHead(200, { 'content-type': 'text/html' }).end(NOTES_PAGE);
   if (req.url.startsWith('/watch')) return res.writeHead(200, { 'content-type': 'text/html' }).end(YT_PAGE);
   if (req.url.startsWith('/youtubei/v1/player')) return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(AD_DATA));
   res.writeHead(200, { 'content-type': 'text/javascript' }).end('/* ok */');
@@ -357,7 +369,7 @@ test('adblock: turning Ad Blocker off stops blocking and keeps pause separate', 
   const dynamicCount = 'chrome.declarativeNetRequest.getDynamicRules().then((r) => r.length)';
   const off = await bg({ type: 'core:setModule', id: 'adblock', enabled: false });
   try {
-    assert.deepEqual(off.modules, { adblock: false, tabs: true, lock: true });
+    assert.deepEqual(off.modules, { adblock: false, tabs: true, notes: true, lock: true });
     await waitFor(swSession, `chrome.declarativeNetRequest.getEnabledRulesets().then(async (r) => r.length === 0 && (await ${dynamicCount}) === 0)`);
     const tabId = await evaluate(swSession, 'chrome.tabs.query({}).then((t) => t[0].id)');
     const state = await bg({ type: 'ab:getPopupState', tabId });
@@ -604,13 +616,13 @@ const panelLinks = (s) => evaluate(s, "[...document.querySelectorAll('head link[
 
 test('popup shows the module cards and opens a panel', async () => {
   const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/popup.html`);
-  await waitFor(s, "document.querySelectorAll('.mcu-card').length === 3");
-  assert.deepEqual(await cardNames(s), ['Ad Blocker', 'Tab Manager', 'Browser Lock']);
+  await waitFor(s, "document.querySelectorAll('.mcu-card').length === 4");
+  assert.deepEqual(await cardNames(s), ['Ad Blocker', 'Tab Manager', 'Catatan Tempel', 'Browser Lock']);
   await waitFor(s, `document.querySelector('.mcu-card[data-id="tabs"] .mcu-card-status')?.textContent.endsWith(' koleksi')`);
   assert.equal(await cardStatus(s, 'lock'), 'aktif');
   assert.equal(await evaluate(s, 'document.body.getBoundingClientRect().width'), 370);
   assert.ok(await evaluate(s, 'document.body.getBoundingClientRect().height') <= 600, 'popup fits Chrome\'s 600 px limit');
-  for (const id of ['adblock', 'tabs', 'lock']) assert.equal(await evaluate(s, `${modSwitch(id)}.checked`), true, `${id} switch on the card`);
+  for (const id of ['adblock', 'tabs', 'notes', 'lock']) assert.equal(await evaluate(s, `${modSwitch(id)}.checked`), true, `${id} switch on the card`);
   // The popup's own tab is the active one: no website, so no hero.
   assert.equal(await evaluate(s, heroShown), false);
   assert.ok(await evaluate(s, "!!document.getElementById('mcu-lock-now')"));
@@ -691,7 +703,7 @@ test('popup works when the active tab is not a website', async () => {
 
 test('popup card switches turn modules off and on', async () => {
   const { sessionId: s, targetId, errors } = await openWatched(`chrome-extension://${extId}/popup.html`);
-  await waitFor(s, "document.querySelectorAll('.mcu-card').length === 3");
+  await waitFor(s, "document.querySelectorAll('.mcu-card').length === 4");
 
   // Tab Manager: the card switch turns it off; its panel then shows only the notice.
   await openCard(s, 'tabs');
@@ -1204,7 +1216,7 @@ test('guide shows once', async () => {
 
 // ---------- Settings page ----------
 
-const SECTIONS = ['umum', 'lock', 'tabs', 'adblock', 'about'];
+const SECTIONS = ['umum', 'lock', 'tabs', 'notes', 'adblock', 'about'];
 const settingsUrl = (hash = '') => `chrome-extension://${extId}/options.html${hash}`;
 const settingsReady = "document.querySelector('.st')?.classList.contains('ready')";
 const activeLink = (s) => evaluate(s, "document.querySelector('#st-links .st-link.on')?.dataset.sec || ''");
@@ -1220,6 +1232,326 @@ const typeSearch = (s, q) => evaluate(s, `(() => {
   q.value = ${JSON.stringify(q)};
   q.dispatchEvent(new Event('input', { bubbles: true }));
 })()`);
+
+// ---------- Sticky notes ----------
+
+const NOTES_URL = `${SITE}/notes.html`;
+const tabIdOf = (url) => evaluate(swSession, `chrome.tabs.query({}).then((t) => t.filter((x) => x.url === ${JSON.stringify(url)}).at(-1)?.id)`);
+const pageNotes = async (tabId) => (await bg({ type: 'nt:pageState', tabId })).notes || [];
+
+// The notes live in a closed shadow root that only the extension's isolated world can reach
+// (content.js exposes it there as window.__mcuNotes.shadow). Find that world's context.
+const notesContexts = new Map();
+async function notesContext(sessionId) {
+  for (let i = 0; i < 60; i++) {
+    const contexts = [];
+    const listen = (msg) => {
+      if (msg.sessionId === sessionId && msg.method === 'Runtime.executionContextCreated') contexts.push(msg.params.context);
+    };
+    cdp.listeners.add(listen);
+    await cdp.send('Runtime.disable', {}, sessionId);
+    await cdp.send('Runtime.enable', {}, sessionId);
+    cdp.listeners.delete(listen);
+    for (const c of contexts.filter((x) => x.auxData?.type === 'isolated' && x.name === 'My Chrome Universe')) {
+      const { result } = await cdp.send('Runtime.evaluate', { expression: '!!window.__mcuNotes', contextId: c.id, returnByValue: true }, sessionId);
+      if (result.value) {
+        notesContexts.set(sessionId, c.id);
+        return c.id;
+      }
+    }
+    await sleep(100);
+  }
+  throw new Error('notes content script not found in the page');
+}
+
+async function nEval(sessionId, expression) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const contextId = notesContexts.get(sessionId) ?? await notesContext(sessionId);
+    try {
+      const { result, exceptionDetails } = await cdp.send('Runtime.evaluate', { expression, contextId, awaitPromise: true, returnByValue: true }, sessionId);
+      if (exceptionDetails) throw new Error(exceptionDetails.exception?.description || exceptionDetails.text);
+      return result.value;
+    } catch (err) {
+      if (attempt || !/context/i.test(err.message)) throw err;
+      notesContexts.delete(sessionId);
+    }
+  }
+}
+
+async function nWait(sessionId, expression, timeoutMs = 5000) {
+  return until(async () => nEval(sessionId, expression).catch(() => false), expression, timeoutMs);
+}
+
+const S = 'window.__mcuNotes.shadow';
+const noteCount = (s) => nEval(s, `${S}.querySelectorAll('.note:not(.leaving)').length`);
+const nRect = (s, sel) => nEval(s, `(() => { const r = ${S}.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()`);
+
+async function drag(sessionId, from, to, steps = 8) {
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x, y: from.y }, sessionId);
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: from.x, y: from.y, button: 'left', buttons: 1, clickCount: 1 }, sessionId);
+  for (let i = 1; i <= steps; i++) {
+    const x = from.x + ((to.x - from.x) * i) / steps;
+    const y = from.y + ((to.y - from.y) * i) / steps;
+    await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'left', buttons: 1 }, sessionId);
+  }
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: to.x, y: to.y, button: 'left', buttons: 0, clickCount: 1 }, sessionId);
+}
+
+async function openNotesPage(url = NOTES_URL) {
+  const page = await openWatched(url);
+  notesContexts.delete(page.sessionId);
+  return { ...page, tabId: await tabIdOf(url) };
+}
+
+test('notes: create, type, move, resize, recolour and pin a note; it comes back after reload', async () => {
+  await bg({ type: 'nt:clearAll' });
+  const page = await openNotesPage();
+  const { sessionId: s, tabId } = page;
+  try {
+    const state = await bg({ type: 'nt:pageState', tabId });
+    assert.equal(state.supported, true);
+    assert.deepEqual(state.notes, []);
+
+    assert.equal((await bg({ type: 'nt:command', tabId, command: 'new' })).ok, true);
+    await nWait(s, `${S}.querySelectorAll('.note').length === 1`);
+    await until(async () => (await pageNotes(tabId)).length === 1, 'new note stored');
+
+    // Keys typed into a note never reach the site's own shortcuts; the site cannot reach the notes.
+    await nEval(s, `${S}.querySelector('textarea').focus()`);
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'H', code: 'KeyH', text: 'H' }, s);
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'H', code: 'KeyH' }, s);
+    await cdp.send('Input.insertText', { text: 'alo dari E2E <b>tebal</b>' }, s);
+    await until(async () => (await pageNotes(tabId))[0]?.text === 'Halo dari E2E <b>tebal</b>', 'typed text saved');
+    assert.deepEqual(await evaluate(s, 'window.keys'), [], 'the site saw no key presses');
+    assert.equal(await evaluate(s, "document.querySelector('mcu-notes').shadowRoot"), null, 'closed shadow root');
+    assert.equal(await nEval(s, `${S}.querySelector('b')`), null, 'note text is never parsed as HTML');
+
+    const start = (await pageNotes(tabId))[0];
+    const bar = await nRect(s, '.note .bar');
+    await drag(s, { x: bar.x + 50, y: bar.y + 15 }, { x: bar.x + 50 + 120, y: bar.y + 15 + 80 });
+    await until(async () => { const n = (await pageNotes(tabId))[0]; return n.x === start.x + 120 && n.y === start.y + 80; }, 'moved note saved');
+
+    const grip = await nRect(s, '.note .grip');
+    await drag(s, { x: grip.x + 9, y: grip.y + 9 }, { x: grip.x + 9 + 60, y: grip.y + 9 + 40 });
+    await until(async () => { const n = (await pageNotes(tabId))[0]; return n.w === start.w + 60 && n.h === start.h + 40; }, 'resized note saved');
+
+    await nEval(s, `${S}.querySelector('.b-more').click()`);
+    assert.equal(await nEval(s, `${S}.querySelector('.menu').hidden`), false, 'menu opens');
+    await nEval(s, `${S}.querySelector('.swatch[data-color="ion"]').click()`);
+    assert.equal(await nEval(s, `${S}.querySelector('.menu').hidden`), true, 'picking a colour closes the menu');
+    await until(async () => (await pageNotes(tabId))[0].color === 'ion', 'colour saved');
+    await nEval(s, `${S}.querySelector('.b-pin').click()`);
+    await until(async () => (await pageNotes(tabId))[0].pinned === true, 'pin saved');
+    assert.equal(await nEval(s, `getComputedStyle(${S}.querySelector('.note')).position`), 'fixed');
+    const top = (await nRect(s, '.note')).y;
+    await evaluate(s, 'window.scrollTo(0, 900)');
+    await sleep(100);
+    assert.equal((await nRect(s, '.note')).y, top, 'a pinned note stays on screen while scrolling');
+    await screenshot(s, 'notes-page');
+
+    await cdp.send('Page.reload', {}, s);
+    notesContexts.delete(s);
+    await waitFor(s, "document.readyState === 'complete'");
+    await nWait(s, `${S}.querySelectorAll('.note').length === 1`);
+    const after = await nEval(s, `(() => { const n = ${S}.querySelector('.note'); return { text: n.querySelector('textarea').value, cls: n.className, w: n.style.width }; })()`);
+    assert.equal(after.text, 'Halo dari E2E <b>tebal</b>');
+    assert.match(after.cls, /\bc-ion\b/);
+    assert.match(after.cls, /\bpinned\b/);
+    assert.equal(after.w, `${start.w + 60}px`);
+    assert.deepEqual(page.errors, []);
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId: page.targetId }).catch(() => {});
+  }
+});
+
+test('notes: the popup panel lists the notes, hides, iconizes, jumps to one and clears the page', async () => {
+  await bg({ type: 'nt:clearAll' });
+  const page = await openNotesPage();
+  const { sessionId: s, tabId } = page;
+  let popup = null;
+  try {
+    for (let i = 0; i < 3; i++) assert.equal((await bg({ type: 'nt:command', tabId, command: 'new' })).ok, true);
+    await until(async () => (await pageNotes(tabId)).length === 3, 'three notes stored');
+    const ids = (await pageNotes(tabId)).map((n) => n.id);
+    // Give them colours and text through the page, like a person would.
+    for (const [i, color] of ['nova', 'nebula', 'malam'].entries()) {
+      await nEval(s, `(() => { const n = ${S}.querySelectorAll('.note')[${i}]; n.querySelector('.b-more').click(); n.querySelector('.swatch[data-color="${color}"]').click(); const t = n.querySelector('textarea'); t.value = 'Catatan ${i + 1}\\nbaris kedua'; t.dispatchEvent(new Event('input')); })()`);
+    }
+    await until(async () => (await pageNotes(tabId)).every((n) => n.text.startsWith('Catatan ')), 'texts saved');
+    await nEval(s, `${S}.activeElement?.blur()`);
+    await sleep(700);
+    await screenshot(s, 'notes-colours');
+
+    popup = await openWatched(`chrome-extension://${extId}/popup.html`, { background: true });
+    const p = popup.sessionId;
+    await waitFor(p, `document.querySelector('.mcu-card[data-id="notes"] .mcu-card-status')?.textContent === '3 catatan'`);
+    await openCard(p, 'notes');
+    await waitFor(p, "document.querySelectorAll('#nt-list .nt-item').length === 3");
+    assert.match(await evaluate(p, "document.getElementById('nt-count').textContent"), /3 catatan di halaman ini/);
+    assert.deepEqual(await evaluate(p, "[...document.querySelectorAll('#nt-list .nt-text')].map((t) => t.textContent)").then((t) => t.sort()), ['Catatan 1', 'Catatan 2', 'Catatan 3']);
+    await sleep(700);
+    await screenshot(p, 'popup-notes', 'body');
+
+    await evaluate(p, "document.getElementById('nt-hide').click()");
+    await waitFor(s, "getComputedStyle(document.querySelector('mcu-notes')).display === 'none'");
+    await waitFor(p, "document.getElementById('nt-hide').textContent.includes('Tampilkan')");
+    await evaluate(p, "document.getElementById('nt-hide').click()");
+    await waitFor(s, "getComputedStyle(document.querySelector('mcu-notes')).display === 'block'");
+
+    await evaluate(p, "document.getElementById('nt-icons').click()");
+    await nWait(s, `${S}.querySelectorAll('.note.as-icon').length === 3`);
+    await sleep(300);
+    await screenshot(s, 'notes-icons');
+    // Clicking an orb opens just that note.
+    await nEval(s, `${S}.querySelector('.note .orb').click()`);
+    await nWait(s, `${S}.querySelectorAll('.note.as-icon').length === 2`);
+    await evaluate(p, "document.getElementById('nt-icons').click()");
+    await nWait(s, `${S}.querySelectorAll('.note.as-icon').length === 0`);
+
+    assert.equal((await bg({ type: 'nt:command', tabId, command: 'focus', id: ids[2] })).ok, true);
+    await nWait(s, `${S}.activeElement === ${S}.querySelectorAll('.note')[2].querySelector('textarea')`);
+
+    await evaluate(p, "document.getElementById('nt-clear').click()");
+    await waitFor(p, "document.getElementById('nt-clear').classList.contains('armed')");
+    assert.equal(await noteCount(s), 3, 'the first click only asks');
+    await evaluate(p, "document.getElementById('nt-clear').click()");
+    await nWait(s, `${S}.querySelectorAll('.note').length === 0`);
+    assert.equal((await bg({ type: 'nt:list' })).total, 0);
+    await waitFor(p, "document.getElementById('nt-count').textContent === 'Belum ada catatan di halaman ini'");
+    assert.deepEqual(popup.errors, []);
+    assert.deepEqual(page.errors, []);
+  } finally {
+    for (const id of [popup?.targetId, page.targetId]) if (id) await cdp.send('Target.closeTarget', { targetId: id }).catch(() => {});
+  }
+});
+
+test('notes: work on a page with Trusted Types and a strict CSP', async () => {
+  await bg({ type: 'nt:clearAll' });
+  const url = `${SITE}/notes-strict.html`;
+  const page = await openNotesPage(url);
+  const { sessionId: s, tabId } = page;
+  try {
+    assert.equal((await bg({ type: 'nt:command', tabId, command: 'new' })).ok, true);
+    await nWait(s, `${S}.querySelectorAll('.note').length === 1`);
+    // Styled (the constructed stylesheet applies) and the menu was built (no innerHTML needed).
+    assert.equal(await nEval(s, `getComputedStyle(${S}.querySelector('.note')).borderTopLeftRadius`), '16px');
+    assert.equal(await nEval(s, `${S}.querySelectorAll('.swatch').length`), 7);
+    await until(async () => (await pageNotes(tabId)).length === 1, 'stored');
+    assert.deepEqual(page.errors.filter((e) => /TrustedHTML|Content Security Policy/i.test(e)), []);
+    // The page really is strict: its own scripts may not use innerHTML.
+    assert.match(await evaluate(s, "(() => { try { document.body.innerHTML = '<i></i>'; return 'allowed'; } catch (e) { return e.message; } })()"), /TrustedHTML/);
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId: page.targetId }).catch(() => {});
+    await bg({ type: 'nt:clearAll' });
+  }
+});
+
+test('notes: deleting from the note can be undone', async () => {
+  await bg({ type: 'nt:clearAll' });
+  const page = await openNotesPage();
+  const { sessionId: s, tabId } = page;
+  try {
+    await bg({ type: 'nt:command', tabId, command: 'new' });
+    await until(async () => (await pageNotes(tabId)).length === 1, 'note stored');
+    const [note] = await pageNotes(tabId);
+    await nEval(s, `${S}.querySelector('.b-more').click()`);
+    await nEval(s, `${S}.querySelector('.i-delete').click()`);
+    await until(async () => (await pageNotes(tabId)).length === 0, 'note deleted');
+    await nWait(s, `${S}.querySelector('.toast button')?.textContent === 'Urungkan'`);
+    await nEval(s, `${S}.querySelector('.toast button').click()`);
+    await until(async () => (await pageNotes(tabId))[0]?.id === note.id, 'note restored with its id');
+    await nWait(s, `${S}.querySelectorAll('.note:not(.leaving)').length === 1`);
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId: page.targetId }).catch(() => {});
+  }
+});
+
+test('notes: settings list the pages, change the look and clear everything', async () => {
+  await bg({ type: 'nt:clearAll' });
+  const page = await openNotesPage();
+  const { sessionId: s, tabId } = page;
+  const settings = await openWatched(settingsUrl('#notes'));
+  const o = settings.sessionId;
+  try {
+    await bg({ type: 'nt:command', tabId, command: 'new' });
+    await until(async () => (await bg({ type: 'nt:list' })).total === 1, 'note listed');
+    await waitFor(o, settingsReady);
+    await waitFor(o, "document.getElementById('nt-pages-desc')?.textContent.startsWith('1 catatan di 1 halaman')");
+    await evaluate(o, "document.querySelector('#sec-notes .x-toggle').click()");
+    await waitFor(o, "document.querySelectorAll('#nt-pages .nt-page-row').length === 1");
+    assert.match(await evaluate(o, "document.querySelector('#nt-pages .nt-page-row').innerText"), /Uji catatan/);
+    for (const id of ['nt-export-json', 'nt-export-csv', 'nt-import', 'nt-clear-all']) {
+      assert.equal(await evaluate(o, `!!document.getElementById('${id}')`), true, id);
+    }
+    await sleep(600);
+    await screenshot(o, 'settings-notes');
+
+    // Font and size reach the open page at once.
+    await evaluate(o, `document.querySelector('[data-seg="nt-font"] button[data-v="mono"]').click()`);
+    await until(async () => (await bg({ type: 'nt:getSettings' })).settings.font === 'mono', 'font saved');
+    await nWait(s, "window.__mcuNotes && getComputedStyle(document.querySelector('mcu-notes')).getPropertyValue('--font').includes('monospace')");
+
+    // Backup round trip.
+    const { backup } = await bg({ type: 'nt:export' });
+    assert.equal(backup.pages.length, 1);
+
+    await evaluate(o, "document.getElementById('nt-clear-all').click()");
+    await waitFor(o, "document.getElementById('dialog').open");
+    await evaluate(o, "document.querySelector('#dialog-form button[type=submit]').click()");
+    await until(async () => (await bg({ type: 'nt:list' })).total === 0, 'all cleared');
+    await nWait(s, `${S}.querySelectorAll('.note').length === 0`);
+    await waitFor(o, "document.getElementById('nt-pages-desc').textContent.startsWith('Belum ada catatan')");
+
+    assert.equal((await bg({ type: 'nt:import', backup, mode: 'merge' })).count, 1);
+    await nWait(s, `${S}.querySelectorAll('.note').length === 1`);
+    await waitFor(o, "document.getElementById('nt-pages-desc').textContent.startsWith('1 catatan')");
+    await bg({ type: 'nt:saveSettings', patch: { font: 'sans' } });
+    assert.deepEqual(settings.errors, []);
+  } finally {
+    for (const id of [settings.targetId, page.targetId]) await cdp.send('Target.closeTarget', { targetId: id }).catch(() => {});
+  }
+});
+
+test('notes: single-page navigation switches to the notes of the new address', async () => {
+  await bg({ type: 'nt:clearAll' });
+  const page = await openNotesPage();
+  const { sessionId: s, tabId } = page;
+  try {
+    await bg({ type: 'nt:command', tabId, command: 'new' });
+    await nWait(s, `${S}.querySelectorAll('.note').length === 1`);
+    await until(async () => (await pageNotes(tabId)).length === 1, 'stored');
+    await evaluate(s, "history.pushState({}, '', '/notes-lain.html')");
+    await nWait(s, `${S}.querySelectorAll('.note:not(.leaving)').length === 0`);
+    await evaluate(s, "history.pushState({}, '', '/notes.html')");
+    await nWait(s, `${S}.querySelectorAll('.note').length === 1`);
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId: page.targetId }).catch(() => {});
+  }
+});
+
+test('notes: switching the module off removes notes from open pages, on brings them back', async () => {
+  await bg({ type: 'nt:clearAll' });
+  const page = await openNotesPage();
+  const { sessionId: s, tabId } = page;
+  const registered = () => evaluate(swSession, "chrome.scripting.getRegisteredContentScripts({ ids: ['nt-notes'] }).then((r) => r.length)");
+  try {
+    await bg({ type: 'nt:command', tabId, command: 'new' });
+    await until(async () => (await pageNotes(tabId)).length === 1, 'stored');
+    assert.equal(await registered(), 1);
+    assert.equal((await bg({ type: 'core:setModule', id: 'notes', enabled: false })).ok, true);
+    await waitFor(s, "!document.querySelector('mcu-notes')");
+    await until(async () => (await registered()) === 0, 'content script unregistered');
+    assert.equal((await bg({ type: 'nt:command', tabId, command: 'new' })).ok, false, 'commands refused while off');
+    assert.equal((await bg({ type: 'core:setModule', id: 'notes', enabled: true })).ok, true);
+    await until(async () => (await registered()) === 1, 'content script registered again');
+    notesContexts.delete(s);
+    await nWait(s, `${S}.querySelectorAll('.note').length === 1`, 8000);
+    assert.deepEqual(page.errors, []);
+  } finally {
+    await cdp.send('Target.closeTarget', { targetId: page.targetId }).catch(() => {});
+    await bg({ type: 'nt:clearAll' });
+  }
+});
 
 test('shared settings page has every module setting on one page', async () => {
   const { sessionId: s, targetId, errors } = await openWatched(settingsUrl('#lock'));
@@ -1762,7 +2094,7 @@ test('extension pages make no third-party requests', async () => {
   const dash = await openWithNetwork(dashboardUrl());
   await waitFor(dash.sessionId, dashReady);
   const popup = await openWithNetwork(extUrl('popup.html'));
-  await waitFor(popup.sessionId, "document.querySelectorAll('.mcu-card').length === 3");
+  await waitFor(popup.sessionId, "document.querySelectorAll('.mcu-card').length === 4");
   const options = await openWithNetwork(settingsUrl());
   await waitFor(options.sessionId, settingsReady);
   await sleep(1200); // entrance animations, fonts, favicons
@@ -1824,7 +2156,7 @@ test('the Kunci button collapses the dashboard, then locks', async () => {
 
 test('Kunci in the popup footer and in Settings also collapse first', async () => {
   const pages = [
-    { url: extUrl('popup.html'), ready: "document.querySelectorAll('.mcu-card').length === 3 && !document.getElementById('mcu-lock-now').hidden", button: 'mcu-lock-now', root: 'mcu-pop' },
+    { url: extUrl('popup.html'), ready: "document.querySelectorAll('.mcu-card').length === 4 && !document.getElementById('mcu-lock-now').hidden", button: 'mcu-lock-now', root: 'mcu-pop' },
     { url: settingsUrl('#lock'), ready: `${settingsReady} && !!document.getElementById('lock-now') && !document.getElementById('lock-now').disabled`, button: 'lock-now', root: 'st' },
   ];
   for (const { url, ready, button, root } of pages) {

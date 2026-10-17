@@ -1,6 +1,6 @@
 # Handoff
 
-> Diperbarui: 2026-10-17 (redesign "Universe" selesai, di-merge ke `main` dan di-push)
+> Diperbarui: 2026-10-17 (modul baru **Catatan Tempel** — tiruan Note Anywhere — di branch `notes-module`, belum di-commit)
 > Project: E:\AI\ext (Linux: /media/yusuf/Simpan1/AI/ext) → https://github.com/mahalbangetid-beep/ad-blocker-filters
 > Session summary: seluruh tampilan **My Chrome Universe** (`my-chrome-universe/`) diganti dengan sistem desain "Universe"
 > (tema gelap "Malam" + terang "Fajar", penuh animasi) sesuai prototipe yang disetujui pengguna. Pengguna sudah menguji
@@ -16,6 +16,13 @@ lalu redesign global selesai (desain: `docs/superpowers/specs/2026-10-16-global-
 Filter list Ad Blocker tetap digabung dari banyak sumber dan diperbarui otomatis setiap hari lewat bot di GitHub.
 
 ## Current State
+
+**Sesi terbaru (2026-10-17, branch `notes-module`, belum di-commit/di-push):** Note Anywhere v1.2.0
+(`bohahkiiknkelflnjjlipnaeapefmjbh`) dibedah (REA + bundel yang dirapikan; temuan di `docs/PROJECT_HISTORY.md` §9) dan
+dibangun ulang sebagai modul keempat `modules/notes/` (desain: `docs/superpowers/specs/2026-10-17-notes-module-design.md`).
+Terverifikasi: 112 unit test (`notes` 20) dan seluruh E2E lolos, termasuk 7 tes `notes: ` (buat/ketik/seret/ubah ukuran/
+warna/sematkan/muat ulang, panel popup, urungkan hapus, pengaturan + cadangan, navigasi SPA, sakelar modul, halaman
+ber-Trusted Types + CSP ketat). Belum: uji manual pengguna di Chrome asli, commit, merge.
 
 **Working (terverifikasi di `main` = `1437e9c`, dijalankan ulang sebelum merge):**
 - 92 unit test lolos: `node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs`
@@ -60,6 +67,7 @@ menutup), bagian Ad Blocker di pengaturan tidak sinkron langsung bila diubah dar
 | `my-chrome-universe/modules/adblock/filters.js`, `updater.js` | Konverter filter → DNR; update harian |
 | `tests/universe.e2e.mjs`, `tests/ui.test.mjs` | E2E (tes gerbang kunci tetap terakhir) dan penjaga sistem desain |
 | `tools/make-icons.mjs` | PNG ikon dari `logo()` lewat Chromium (tanpa dependensi) |
+| `my-chrome-universe/modules/notes/` | Catatan Tempel: `store.js` (murni), `background.js` (penulis tunggal `nt:*`), `content.js` (catatan di situs) |
 
 ## What Has Been Tried (and Why It Failed)
 
@@ -86,6 +94,9 @@ dari feed → diff mendekati batas (30.000 dinamis / 5.000 dinonaktifkan). Jawab
 
 ## Next Steps
 
+0. Pengguna menguji Catatan Tempel manual (Load unpacked ulang → klik kanan di situs → "Tempel catatan di sini"), lalu
+   commit + merge `notes-module` bila disetujui. Kandidat lanjutan: catatan tampil di dashboard Tab Manager, shortcut
+   (slot ke-4 masih kosong; perintah `new-note` sudah ada tanpa tombol bawaan).
 1. Jalankan ulang tes langsung `node tests/feed.live.mjs` dan `node tests/youtube.live.mjs` (butuh internet).
 2. (Disarankan) Otomatiskan penyegaran bundel: workflow mingguan `node filter-bot/bot.mjs --update-extension`, naikkan
    `version` di manifest, jalankan E2E, lalu commit/PR.

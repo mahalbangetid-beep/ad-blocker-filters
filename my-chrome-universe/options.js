@@ -20,7 +20,7 @@ installEffects();
 const sky = createSky($('sky'), { mode: 'calm', fxCanvas: $('fx') });
 
 // Browser Lock first (it gates everything), then the other modules in registry order.
-const MODULE_ORDER = ['lock', 'tabs', 'adblock'];
+const MODULE_ORDER = ['lock', 'tabs', 'notes', 'adblock'];
 const rank = (m) => (MODULE_ORDER.includes(m.id) ? MODULE_ORDER.indexOf(m.id) : MODULE_ORDER.length);
 const SECTIONS = [
   { id: 'umum', name: 'Umum', icon: 'sliders', load: async () => general },

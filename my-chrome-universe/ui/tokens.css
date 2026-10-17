@@ -7,7 +7,7 @@
   --void: #06080F; --deep: #0C1020; --panel: rgb(var(--glass) / .74); --panel-solid: #11162A; --raise: rgb(var(--tint) / .04);
   --line: rgb(var(--line-rgb) / .13); --line-strong: rgb(var(--line-rgb) / .26);
   --star: #EEF1FF; --dust: #A3ABCB; --faint: #787FA3;
-  --solar: #FFB547; --ion: #5EEAD4; --nova: #FF8FA8; --danger: #FF6B6B; --ok: #5EEAD4; --nova-ink: #2A0710;
+  --solar: #FFB547; --ion: #5EEAD4; --nova: #FF8FA8; --nebula: #A99BFF; --danger: #FF6B6B; --ok: #5EEAD4; --nova-ink: #2A0710;
   --accent: var(--solar); --accent-ink: #1B1204;
   --f-display: "Unbounded", "Segoe UI", system-ui, sans-serif;
   --f-body: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
@@ -15,7 +15,7 @@
   --ease-out: cubic-bezier(.22, 1, .36, 1); --ease-in: cubic-bezier(.55, 0, 1, .45); --spring: cubic-bezier(.34, 1.56, .64, 1);
   --d1: 160ms; --d2: 280ms; --d3: 520ms;
   --tint: 255 255 255; --shade: 0 0 0; --shade-k: 1; --glass: 17 22 40; --void-rgb: 6 8 15; --scrim: 3 4 10; --scrim-k: 1; --line-rgb: 170 184 235;
-  --solar-text: var(--solar); --ion-text: var(--ion); --nova-text: var(--nova); --ok-text: var(--ok); --danger-text: var(--danger); --accent-text: var(--solar-text);
+  --solar-text: var(--solar); --ion-text: var(--ion); --nova-text: var(--nova); --nebula-text: var(--nebula); --ok-text: var(--ok); --danger-text: var(--danger); --accent-text: var(--solar-text);
   --fav-s: 90%; --fav-l: 74%;
   --chrome-0: #0B0E1A; --chrome-1: #070911; --chrome-2: #121629; --media-bg: #14182B;
   --ad-a: #3A2410; --ad-b: #2A1426; --ad-text: #FFD9A0; --ad-title: #FFE6C2;
@@ -30,8 +30,8 @@
   --void: #EEF1F8; --deep: #E4E9F5; --panel-solid: #FFFFFF;
   --tint: 22 30 70; --shade: 30 40 90; --shade-k: .32; --glass: 255 255 255; --void-rgb: 238 241 248; --scrim: 20 26 55; --scrim-k: .55; --line-rgb: 40 52 110;
   --star: #131A35; --dust: #485073; --faint: #5F678B;
-  --ion: #38D3B8; --nova: #FF7F9C; --danger: #E5484D; --ok: #2BC4A8;
-  --solar-text: #9A5800; --ion-text: #0A7A69; --nova-text: #B8335C; --ok-text: #0A7A69; --danger-text: #C6343A;
+  --ion: #38D3B8; --nova: #FF7F9C; --nebula: #8C78FF; --danger: #E5484D; --ok: #2BC4A8;
+  --solar-text: #9A5800; --ion-text: #0A7A69; --nova-text: #B8335C; --nebula-text: #5A43C9; --ok-text: #0A7A69; --danger-text: #C6343A;
   --fav-s: 62%; --fav-l: 36%;
   --chrome-0: #F7F8FC; --chrome-1: #DCE1EE; --chrome-2: #FFFFFF; --media-bg: #D9E0F0;
   --ad-a: #FFEBCB; --ad-b: #FFDCE5; --ad-text: #7A4A00; --ad-title: #4A2C00;

@@ -64,14 +64,14 @@ const lum = (h) => {
 const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 
 test('light theme overrides every themed token', () => {
-  for (const t of ['void', 'star', 'dust', 'faint', 'tint', 'glass', 'line-rgb', 'solar-text', 'ion-text', 'nova-text', 'title-grad', 'neb-blend']) {
+  for (const t of ['void', 'star', 'dust', 'faint', 'tint', 'glass', 'line-rgb', 'solar-text', 'ion-text', 'nova-text', 'nebula-text', 'title-grad', 'neb-blend']) {
     assert.ok(def(light, '--' + t), `--${t} not overridden in light`);
   }
 });
 
 test('text tokens meet 4.5:1 in both themes', () => {
   for (const theme of ['dark', 'light']) {
-    for (const t of ['star', 'dust', 'faint', 'solar-text', 'ion-text', 'nova-text', 'danger-text']) {
+    for (const t of ['star', 'dust', 'faint', 'solar-text', 'ion-text', 'nova-text', 'nebula-text', 'danger-text']) {
       for (const bg of ['void', 'panel-solid']) {
         const r = contrast(hex('--' + t, theme), hex('--' + bg, theme));
         assert.ok(r >= 4.5, `${theme}: --${t} on --${bg} = ${r.toFixed(2)}`);
