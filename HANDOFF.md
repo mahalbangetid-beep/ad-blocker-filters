@@ -1,10 +1,11 @@
 # Handoff
 
-> Diperbarui: 2026-10-17 (redesign "Universe" selesai)
+> Diperbarui: 2026-10-17 (redesign "Universe" selesai, di-merge ke `main` dan di-push)
 > Project: E:\AI\ext (Linux: /media/yusuf/Simpan1/AI/ext) → https://github.com/mahalbangetid-beep/ad-blocker-filters
 > Session summary: seluruh tampilan **My Chrome Universe** (`my-chrome-universe/`) diganti dengan sistem desain "Universe"
-> (tema gelap "Malam" + terang "Fajar", penuh animasi) sesuai prototipe yang disetujui pengguna. Pekerjaan ada di branch
-> `universe-redesign` (dibuat dari `my-chrome-universe`/`main` lokal `a9c1860`) yang **belum di-merge dan belum di-push**.
+> (tema gelap "Malam" + terang "Fajar", penuh animasi) sesuai prototipe yang disetujui pengguna. Pengguna sudah menguji
+> manual dan menyetujui; branch `universe-redesign` di-fast-forward ke `main` (`1437e9c`) dan di-push ke `origin/main`.
+> CI run 39004277525 (`build` + `ui-e2e`) hijau, feed terbit ke `gh-pages`.
 
 ## Goal
 
@@ -16,7 +17,7 @@ Filter list Ad Blocker tetap digabung dari banyak sumber dan diperbarui otomatis
 
 ## Current State
 
-**Working (terverifikasi di branch `universe-redesign`):**
+**Working (terverifikasi di `main` = `1437e9c`, dijalankan ulang sebelum merge):**
 - 92 unit test lolos: `node --test tests/core.test.mjs tests/browser-lock.test.mjs tests/tab-manager.test.mjs tests/ad-blocker.test.mjs tests/ui.test.mjs`
   (core 17, browser-lock 32, tab-manager 20, ad-blocker 13, ui 10).
 - 44 E2E di Chromium sungguhan lolos (`node --test tests/universe.e2e.mjs`, dua kali berturut-turut setelah perbaikan
@@ -39,11 +40,7 @@ Filter list Ad Blocker tetap digabung dari banyak sumber dan diperbarui otomatis
   `SHOT_DIR=/tmp/shots node --test tests/universe.e2e.mjs`).
 
 **Belum dilakukan / perlu pengguna:**
-- Branch `universe-redesign` belum di-merge ke `main` dan belum di-push (`main` lokal `a9c1860` juga belum di-push ke
-  `origin/main`). Push + CI hanya setelah pengguna setuju.
-- Uji manual di Chrome pengguna: Load unpacked `my-chrome-universe/`, restart Chrome → sambutan → login → dashboard.
-  Periksa juga: impor bookmark dari palet (izin opsional dipanggil ±120 ms setelah Enter; belum diuji di Chrome bermerek),
-  Pengaturan → Tampilan (tema/animasi/aksen), mode Incognito.
+- Branch lokal `universe-redesign` identik dengan `main`; boleh dihapus bila pengguna setuju.
 - `node tests/feed.live.mjs` dan `node tests/youtube.live.mjs` (butuh internet) belum dijalankan ulang setelah redesign.
 
 **Broken:** tidak ada yang diketahui. Catatan kecil yang ditunda: Escape di panel popup kembali ke beranda (bukan
@@ -89,14 +86,12 @@ dari feed → diff mendekati batas (30.000 dinamis / 5.000 dinonaktifkan). Jawab
 
 ## Next Steps
 
-1. Pengguna meninjau dan menguji manual branch `universe-redesign` (lihat "Belum dilakukan").
-2. Bila pengguna setuju: merge ke `main`, push, jalankan CI
-   (`gh workflow run filter-bot.yml --ref main && gh run list --workflow filter-bot.yml --limit 1`) dan pastikan hijau.
-3. (Disarankan) Otomatiskan penyegaran bundel: workflow mingguan `node filter-bot/bot.mjs --update-extension`, naikkan
+1. Jalankan ulang tes langsung `node tests/feed.live.mjs` dan `node tests/youtube.live.mjs` (butuh internet).
+2. (Disarankan) Otomatiskan penyegaran bundel: workflow mingguan `node filter-bot/bot.mjs --update-extension`, naikkan
    `version` di manifest, jalankan E2E, lalu commit/PR.
-4. Kandidat peningkatan Ad Blocker: `$redirect`/`$redirect-rule` dengan resource netral, domain wildcard `example.*`,
+3. Kandidat peningkatan Ad Blocker: `$redirect`/`$redirect-rule` dengan resource netral, domain wildcard `example.*`,
    subset scriptlet aman, pengemasan Chrome Web Store.
-5. Modul baru: ikuti README "Menambah modul baru" (registry, `panel.js` + `settings.js`, token/ikon dari `ui/`, `guardPage`).
+4. Modul baru: ikuti README "Menambah modul baru" (registry, `panel.js` + `settings.js`, token/ikon dari `ui/`, `guardPage`).
 
 ## Key Constraints
 

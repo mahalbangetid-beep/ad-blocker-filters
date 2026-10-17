@@ -11,7 +11,7 @@ mengubah arsitektur.
   membaca file extension yang terpasang, menjelaskan cara kerjanya, dan membangun versi sendiri yang lebih baik/aman.
 - Ketiga extension sudah **disatukan** menjadi satu: **My Chrome Universe** (`my-chrome-universe/`); cara menambah modul
   ada di "Menambah modul baru" di `README.md`. Tampilannya sudah didesain ulang ("Universe": tema gelap "Malam" + terang
-  "Fajar", penuh animasi) di branch `universe-redesign` (belum di-merge/push; lihat `HANDOFF.md`).
+  "Fajar", penuh animasi) dan sudah di-merge ke `main` + di-push (lihat `HANDOFF.md`).
 - Akun GitHub: `mahalbangetid-beep`. Repo publik: https://github.com/mahalbangetid-beep/ad-blocker-filters
 - Prinsip yang ia setujui: lokal/tanpa akun, tanpa telemetri, tanpa "Acceptable Ads", sumber filter berlisensi jelas.
 
