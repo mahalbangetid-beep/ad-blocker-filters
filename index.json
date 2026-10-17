@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "version": "202610161300",
-  "generatedAt": "2026-10-16T13:00:40.666Z",
+  "version": "202610170454",
+  "generatedAt": "2026-10-17T04:54:16.637Z",
   "totals": {
-    "rules": 39691,
+    "rules": 39695,
     "defaultRules": 18132,
     "guaranteedStaticRules": 30000
   },
@@ -16,18 +16,18 @@
       "defaultEnabled": true,
       "language": null,
       "ruleCount": 16944,
-      "networkFilters": 85402,
-      "cosmeticFilters": 55716,
+      "networkFilters": 85638,
+      "cosmeticFilters": 55728,
       "files": {
         "rules": {
           "path": "rules/ads.json",
-          "sha256": "83bdd036eea6c557bb37eaee1b62bc8c4d9043388225cc652f1216739c0d9787",
-          "bytes": 4542965
+          "sha256": "7692bfd1fc4fbe52bf6943d91a2118a7b1410bceb18ad25e0f7b5091e99179d1",
+          "bytes": 4547966
         },
         "cosmetic": {
           "path": "cosmetic/ads.json",
-          "sha256": "c00d31326d268d9a08671e72f59b51592963653333eaf993c2f1d4601f9a6a8c",
-          "bytes": 3303409
+          "sha256": "4ce1862700978e124743c332d00b44667f632942cc6d60e82e1d8a8d6eb6576f",
+          "bytes": 3304329
         }
       },
       "sources": [
@@ -40,11 +40,11 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "202610161253",
+          "version": "202610170443",
           "expires": "4 days (update frequency)",
-          "sha256": "6e5cd46371659527f0833ba3f5e9f47764169c6bd719b342b750d63aa050b1f7",
-          "networkFilters": 54973,
-          "cosmeticFilters": 24276,
+          "sha256": "4e9e929483619ae9138eabd9543e58982c29fd77f6e60a1ee38feb1d237379ae",
+          "networkFilters": 55194,
+          "cosmeticFilters": 24279,
           "skipped": {
             "popup": 2962,
             "badfilter": 26,
@@ -64,10 +64,10 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "202610161252",
+          "version": "202610170441",
           "expires": "1 hours (update frequency)",
-          "sha256": "e1606fbbb466cee0197d554b01f075d9e3339b06030744e8974dfc0a2e675523",
-          "networkFilters": 1890,
+          "sha256": "0960c46c5d72a3ac79e3419664c4a7f40b067fb6e0fcfef8321080adb0aa3431",
+          "networkFilters": 1901,
           "cosmeticFilters": 458,
           "skipped": {
             "snippet": 1976,
@@ -90,9 +90,9 @@
           "from": "AdBlock",
           "status": "fresh",
           "error": null,
-          "version": "202610161252",
+          "version": "202610170441",
           "expires": "1 days (update frequency)",
-          "sha256": "725ce1fa0d19305ec248cc4a01787b10123d873a7cbb66ee54a87d28d49966ab",
+          "sha256": "5a1b5d9f28b040a24a59ec4d07acbf20832af67fdaf831ba2036968645a9552a",
           "networkFilters": 2514,
           "cosmeticFilters": 459,
           "skipped": {
@@ -109,18 +109,18 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "Tue, 13 Oct 2026 17:49:24 +0000",
+          "version": "Fri, 16 Oct 2026 23:52:01 +0000",
           "expires": "5 days",
-          "sha256": "dc66f207a8c7851deecf7b2b88554ecd9db036b2b736e7b89d5df2fd1cfb719f",
+          "sha256": "7e28bd494aadaf5e70698e00ddd7024432e85f442b914b5a7e060577c4dd2262",
           "networkFilters": 3794,
           "cosmeticFilters": 6086,
           "skipped": {
-            "scriptlet": 9474,
-            "procedural": 1201,
+            "scriptlet": 9478,
+            "procedural": 1203,
             "option:replace": 10,
             "option:redirect": 637,
             "domain": 985,
-            "option:redirect-rule": 369,
+            "option:redirect-rule": 370,
             "unsupported-cosmetic": 132,
             "badfilter": 34,
             "popup": 123,
@@ -176,9 +176,9 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "Tue, 13 Oct 2026 08:48:49 +0000",
+          "version": "Fri, 16 Oct 2026 20:52:07 +0000",
           "expires": "5 days",
-          "sha256": "e9d95cbb61cc83990e75104a4103585af146c6c6e8dfda07cad6c9713ddbb632",
+          "sha256": "a4f39f0adb17a6995586e076ba596c581a77ac14a18ddc4816c3a5a801c49b9c",
           "networkFilters": 1289,
           "cosmeticFilters": 215,
           "skipped": {
@@ -212,11 +212,11 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "2.4.97.71",
+          "version": "2.4.97.85",
           "expires": "5 days (update frequency)",
-          "sha256": "0a1f0f1a4e885aaf9c4aaed61c552fed019c9586092e7d7e10c8dfdae4a88afa",
-          "networkFilters": 20827,
-          "cosmeticFilters": 24153,
+          "sha256": "9b19b892750a1d789fe0b349862dbe2ac7986f4a5f7b405796a495f95d5e94fa",
+          "networkFilters": 20831,
+          "cosmeticFilters": 24162,
           "skipped": {
             "popup": 104,
             "option:redirect-rule": 44,
@@ -224,8 +224,8 @@
             "option:redirect": 685,
             "badfilter": 74,
             "non-ascii": 5,
-            "scriptlet": 4349,
-            "procedural": 3116,
+            "scriptlet": 4351,
+            "procedural": 3117,
             "domain": 459,
             "option:csp": 24,
             "option:removeparam": 20,
@@ -252,7 +252,7 @@
       "language": "id",
       "ruleCount": 2800,
       "networkFilters": 5052,
-      "cosmeticFilters": 10802,
+      "cosmeticFilters": 10805,
       "files": {
         "rules": {
           "path": "rules/indonesia.json",
@@ -261,8 +261,8 @@
         },
         "cosmetic": {
           "path": "cosmetic/indonesia.json",
-          "sha256": "af43cfdb7bb0e78bd0eb6944b97bbb859fb8965ee12a49cab2f91e74d45c8e4c",
-          "bytes": 588339
+          "sha256": "2577b43e1c67828df46ad26e6b6f7b8a20d5e117986c8cf55cd4cbcb51e9287a",
+          "bytes": 588460
         }
       },
       "sources": [
@@ -299,11 +299,11 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "Wed, 14 Oct 2026 18:53:27 GMT",
+          "version": "Fri, 16 Oct 2026 18:01:11 GMT",
           "expires": "1 days",
-          "sha256": "2f24d1a9e295cc6bb5509af8225dbf9c4ee0243a996f748241c49b205c9151fb",
+          "sha256": "7cafad8641a344485bc4f990da568874a15a71319d4846efc8a9736323afbd83",
           "networkFilters": 1478,
-          "cosmeticFilters": 5007,
+          "cosmeticFilters": 5010,
           "skipped": {
             "regex": 10,
             "procedural": 215,
@@ -414,14 +414,14 @@
       "description": "Pelacak dan analitik (EasyPrivacy, uBlock Privacy, AdGuard Tracking Protection)",
       "defaultEnabled": false,
       "language": null,
-      "ruleCount": 9909,
-      "networkFilters": 57152,
+      "ruleCount": 9910,
+      "networkFilters": 57157,
       "cosmeticFilters": 7,
       "files": {
         "rules": {
           "path": "rules/privacy.json",
-          "sha256": "f0a2c1f2de4bcb7291f51099210ce26b8a3e7b215fd8c2a0abc550b7262d8c42",
-          "bytes": 2561503
+          "sha256": "b05d2906446f51a5dacd9b5c9bcb50d11f1cc1ab5eca07e83b8e6807e630caf4",
+          "bytes": 2561724
         },
         "cosmetic": {
           "path": "cosmetic/privacy.json",
@@ -439,10 +439,10 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "202610161253",
+          "version": "202610170443",
           "expires": "4 days (update frequency)",
-          "sha256": "2e053ea28a3a3b449af15ba3686733f1afeeb3a9e4564df54c9efd68a099d442",
-          "networkFilters": 56240,
+          "sha256": "d9aa492d63609634214cf98ecbfdbe4cd2bfc7fa8d55c536d958647b7842c3c2",
+          "networkFilters": 56244,
           "cosmeticFilters": 2,
           "skipped": {
             "badfilter": 20,
@@ -467,10 +467,10 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "Mon, 12 Oct 2026 20:02:16 +0000",
+          "version": "Fri, 16 Oct 2026 13:56:28 +0000",
           "expires": "7 days",
-          "sha256": "d893719d5c86d70bfe6a33d1785733f3e5f091fe2285f24215059f31264d08f9",
-          "networkFilters": 912,
+          "sha256": "429d308e778598f8aaacc169b743b3b8b5af4f71b18a6928bb965c8a0d192206",
+          "networkFilters": 913,
           "cosmeticFilters": 5,
           "skipped": {
             "option:redirect": 37,
@@ -509,19 +509,19 @@
       "description": "Pop-up cookie, widget media sosial, notifikasi, dan gangguan lain",
       "defaultEnabled": false,
       "language": null,
-      "ruleCount": 8850,
-      "networkFilters": 10860,
-      "cosmeticFilters": 87377,
+      "ruleCount": 8853,
+      "networkFilters": 10863,
+      "cosmeticFilters": 87384,
       "files": {
         "rules": {
           "path": "rules/annoyances.json",
-          "sha256": "783f82626540a153919848e472d3be5f65fb5a80fd647e93a1694f4b1a44f5c2",
-          "bytes": 1578053
+          "sha256": "03270f12408f85c6e04bd5f0301ed4118e90cc1124a4782df53848484f187065",
+          "bytes": 1578582
         },
         "cosmetic": {
           "path": "cosmetic/annoyances.json",
-          "sha256": "6f8df717db5757ac751b6179972bf99a8ceea322559684d2624a8782a632dd6d",
-          "bytes": 4850650
+          "sha256": "2fab17602be509ee42f806427e3fb4dd3f6f9d52d037157d29e23aee3823186c",
+          "bytes": 4851053
         }
       },
       "sources": [
@@ -534,14 +534,14 @@
           "from": "AdBlock",
           "status": "fresh",
           "error": null,
-          "version": "202610161125",
+          "version": "202610161350",
           "expires": "9 days (update frequency)",
-          "sha256": "eb0f28b0a90b43f5d894e65ee73cf79cbf1a09fb31a88e36ac863b6c51cb44b0",
+          "sha256": "ba54dc9fffed4725b663957821d6c99ed1092a8339732e7394ec48e61a293469",
           "networkFilters": 4146,
-          "cosmeticFilters": 46570,
+          "cosmeticFilters": 46572,
           "skipped": {
             "domain": 42,
-            "procedural": 1384,
+            "procedural": 1385,
             "scriptlet": 5482,
             "popup": 1,
             "badfilter": 1,
@@ -557,9 +557,9 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "Thu, 15 Oct 2026 16:18:19 +0000",
+          "version": "Sat, 17 Oct 2026 01:51:35 +0000",
           "expires": "7 days",
-          "sha256": "c1abc87ad49d0576c39864a6d19c96f7ba8e0541e803d820a49fbaaf81ec7a55",
+          "sha256": "4dc6287beec2be9de5f5a71606dbff7fa5f843995538c821e8917b1c03eb9af0",
           "networkFilters": 159,
           "cosmeticFilters": 519,
           "skipped": {
@@ -587,10 +587,10 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "Fri, 16 Oct 2026 06:10:36 +0000",
+          "version": "Sat, 17 Oct 2026 01:36:37 +0000",
           "expires": "7 days",
-          "sha256": "14ec224f133dbbb39d8c76db2f730ca3661fe48e2981bef97355482fb5cfa5a7",
-          "networkFilters": 58,
+          "sha256": "315d1b1e4da6e740859735f91b839451560e018066f5e61fd7695790daef8537",
+          "networkFilters": 60,
           "cosmeticFilters": 97,
           "skipped": {
             "domain": 6,
@@ -608,11 +608,11 @@
           "from": null,
           "status": "fresh",
           "error": null,
-          "version": "2.2.83.6",
+          "version": "2.2.83.12",
           "expires": "5 days (update frequency)",
-          "sha256": "a1ab4e6d817b74548133bff5018a9d61c4790be468fcd6f235fd7fd6b68eec82",
-          "networkFilters": 6497,
-          "cosmeticFilters": 40191,
+          "sha256": "09ee1b8ca4210dd7f99de52191b1152574aaad3237c0bc4cdd6f7bca12a3e813",
+          "networkFilters": 6498,
+          "cosmeticFilters": 40196,
           "skipped": {
             "regex": 13,
             "domain": 363,
