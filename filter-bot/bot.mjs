@@ -17,6 +17,9 @@
 //   node filter-bot/bot.mjs --offline               rebuild from raw/ without fetching
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
+import { createGunzip, createInflate, createBrotliDecompress } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,13 +58,48 @@ function header(text, key) {
   return new RegExp(`^! ${key}:\\s*(.*)$`, 'mi').exec(text.slice(0, 5000))?.[1]?.trim() || null;
 }
 
+const FETCH_TIMEOUT_MS = 60000;
+const DECODERS = { gzip: createGunzip, 'x-gzip': createGunzip, deflate: createInflate, br: createBrotliDecompress };
+
+// One GET with node:http(s) rather than global fetch: Node 24's fetch (undici) sometimes throws an
+// internal AssertionError from a socket event ("assert(!this.paused)"), which no try/catch can
+// catch and which took the whole bot down in CI. Every failure here rejects the promise instead.
+function getText(url, redirects = 5) {
+  return new Promise((resolveText, reject) => {
+    const target = new URL(url);
+    const send = target.protocol === 'http:' ? httpRequest : target.protocol === 'https:' ? httpsRequest : null;
+    if (!send) return reject(new Error(`unsupported protocol ${target.protocol}`));
+    const timer = setTimeout(() => req.destroy(new Error('timeout')), FETCH_TIMEOUT_MS);
+    const done = (fn, value) => { clearTimeout(timer); fn(value); };
+    const req = send(target, { headers: { 'user-agent': USER_AGENT, 'accept-encoding': 'gzip, deflate, br' } }, (res) => {
+      const status = res.statusCode || 0;
+      if (status >= 300 && status < 400 && res.headers.location) {
+        res.resume();
+        if (redirects <= 0) return done(reject, new Error('too many redirects'));
+        return done(resolveText, getText(new URL(res.headers.location, target).href, redirects - 1));
+      }
+      if (status < 200 || status >= 300) {
+        res.resume();
+        return done(reject, new Error(`HTTP ${status}`));
+      }
+      const decoder = DECODERS[String(res.headers['content-encoding'] || '').toLowerCase()];
+      const body = decoder ? res.pipe(decoder()) : res;
+      const chunks = [];
+      res.on('error', (err) => done(reject, err));
+      body.on('error', (err) => done(reject, err));
+      body.on('data', (chunk) => chunks.push(chunk));
+      body.on('end', () => done(resolveText, Buffer.concat(chunks).toString('utf8')));
+    });
+    req.on('error', (err) => done(reject, err));
+    req.end();
+  });
+}
+
 async function fetchText(url) {
   let lastError;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const res = await fetch(url, { headers: { 'user-agent': USER_AGENT }, signal: AbortSignal.timeout(60000) });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.text();
+      return await getText(url);
     } catch (err) {
       lastError = err;
       await sleep(2000 * attempt);
