@@ -1,10 +1,10 @@
 {
-  "from": "202610170539",
+  "from": "202610170717",
   "categories": {
     "ads": {
-      "rulesAdded": 21,
-      "rulesRemoved": 21,
-      "selectorsBefore": 84259,
+      "rulesAdded": 3,
+      "rulesRemoved": 3,
+      "selectorsBefore": 84267,
       "selectorsAfter": 84267
     },
     "indonesia": {
@@ -20,7 +20,7 @@
       "selectorsAfter": 495
     },
     "privacy": {
-      "rulesAdded": 1,
+      "rulesAdded": 0,
       "rulesRemoved": 0,
       "selectorsBefore": 7,
       "selectorsAfter": 7
@@ -28,9 +28,9 @@
     "annoyances": {
       "rulesAdded": 0,
       "rulesRemoved": 0,
-      "selectorsBefore": 134342,
+      "selectorsBefore": 134344,
       "selectorsAfter": 134344
     }
   },
-  "to": "202610170717"
+  "to": "202610170726"
 }
