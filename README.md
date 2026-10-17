@@ -156,3 +156,10 @@ UI Tab Manager bisa dicoba di browser biasa dengan API `chrome` tiruan:
    (maksimal 4 shortcut ber-`suggested_key`; terpakai 3). Aturan dinamis declarativeNetRequest seluruhnya milik modul adblock.
 9. Tambahkan unit test (`tests/<id>.test.mjs`) dan satu tes di `tests/universe.e2e.mjs` (tes gerbang kunci tetap di akhir berkas;
    awalan nama `adblock: ` hanya untuk tes yang wajib lolos sebelum feed diterbitkan).
+
+## Lisensi
+
+My Chrome Universe dan bot filternya dirilis dengan **GNU General Public License v3** (`LICENSE`; salinan untuk
+paket extension di `my-chrome-universe/LICENSE.txt`). Filter list yang dibundel tetap milik penyusunnya dengan
+lisensi masing-masing (tercantum di Pengaturan → Ad Blocker → "Cara kerja dan sumber filter"); font berlisensi
+SIL OFL (`my-chrome-universe/ui/fonts/OFL.txt`).
