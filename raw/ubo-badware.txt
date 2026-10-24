@@ -1,5 +1,5 @@
 ! Title: uBlock₀ filters – Badware risks
-! Last modified: Wed, 21 Oct 2026 04:56:18 +0000
+! Last modified: Fri, 23 Oct 2026 13:42:14 +0000
 ! Expires: 5 days
 ! Description: For sites documented to put users at risk of installing adware/crapware/malware, having login credentials stolen, etc.
 ! The purpose is to at least ensure a user is warned of the risks ahead.
@@ -3433,6 +3433,10 @@ darumasushiantofagasta.cl##+js(aost, Function, /bxslider|wow/)
 /apph5/?enHash=$doc
 ##html[data-page="macos-download"] > body[data-platform="macos"] > .app_wrap
 
+! https://github.com/uBlockOrigin/uAssets/issues/34992
+||r2.dev/Verifyd1.html$doc
+r2.dev##body > .main-wrapper > .main-content:has(> #checkbox-window.checkbox-window)
+
 ! !SECTION: ClickFix
 
 ! https://www.reddit.com/r/uBlockOrigin/comments/12ng4o8/
@@ -6718,7 +6722,9 @@ ublockorigin.app###main::before:style(content: 'This is not the official uBlock 
 ||cyrexmods.cc^$all
 
 ! https://github.com/uBlockOrigin/uAssets/issues/32206
+! https://github.com/uBlockOrigin/uAssets/pull/34989
 ||audiveris.com^$doc
+||audiveris.net^$doc
 
 ! phishing emails - https://storage.googleapis.com/hmdbox/hmd_v2.html
 ||storage.googleapis.com/hmdbox/$doc

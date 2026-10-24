@@ -1,8 +1,8 @@
 [Adblock Plus 2.0]
-! Version: 202610221309
+! Version: 202610232221
 ! Title: ABPindo
 ! Description: Filter tambahan untuk EasyList memblokir iklan berbahasa Indonesia dan Malaysia.
-! Last modified: 22 Oct 2026 13:09 UTC
+! Last modified: 23 Oct 2026 22:21 UTC
 ! Expires: 4 days (update frequency)
 ! Homepage: https://github.com/ABPindo/indonesianadblockrules/
 ! License: https://raw.githubusercontent.com/ABPindo/indonesianadblockrules/master/LICENSE
@@ -40,6 +40,7 @@
 ||forumiklan.com^$third-party
 ||groupiklan.com^$third-party
 ||gudangbanner.com^$third-party
+||gummy-debt.com^$third-party
 ||halal.ad^$third-party
 ||hitadsmedia.com^$third-party
 ||ibnads.xl.co.id^$third-party
@@ -8737,6 +8738,7 @@ totojitu.gif|$image
 ##[title^="vegas811" i]
 ##[title^="viralQQ" i]
 ##[title^="wahana303" i]
+##a[href^="https://rebrand.ly/pojokan69-update"]
 ##a[title="albaslot" i]
 ##a[title="birutoto" i]
 ##a[title="slot gacor" i]
@@ -9814,6 +9816,9 @@ nekopoi.*###HTML1
 nekopoi.*###HTML9
 krucil.com###KD_adpB
 i-jav.space###ab-wall:style(display: none !important;)
+vivamaxstream.com###ad-slot-13
+vivamaxstream.com###ad-slot-3
+vivamaxstream.com###ad-slot-5
 cctvbokep.bet,dutasex.*,inibokep.bet,perawanbokep.*###ads
 pemersatufun.com###advertisement
 bintangmawar.net###bmpop_adpB
@@ -9904,7 +9909,7 @@ kampungbokep.*##.happy-player-beside
 dicrotin.fun##.happy-section
 bokepinaja.com,dewaporn.*,video.pejuanglendir.site##.happy-sidebar
 bokepinaja.com,video.pejuanglendir.site##.happy-under-player
-bokepinaja.com,video.pejuanglendir.site##.happy-under-player-mobile
+bokepinaja.com,pojokan18.*,video.pejuanglendir.site##.happy-under-player-mobile
 viexx.com##.info-banner
 semprot.com##.jual_tetek
 bokep234.*##.jwp-ad-video
@@ -9922,6 +9927,7 @@ areakomik.com##.lin-ad-img
 areakomik.com##.lin-header-ad-container
 areakomik.com##.lin-native-item.lin-ad-link
 drbokep.*##.loaded.ads-50
+vivamaxstream.com##.movie-top-ads
 javdesu.tv##.overflow-hidden.w-full.aspect-\[728\/90\].relative
 doujin.desu.xxx##.partner-slot-frame
 podjav.tv##.player-banner-ads-top
@@ -10072,6 +10078,7 @@ kingbokep.media##video[src*=".webm"]:not(div[class*="video"] > img)
 ||dewijudi.com^$third-party
 ||dewitogel.com^$third-party
 ||directyp.org^$third-party
+||dtscout.com^$third-party
 ||dutatoto.com^$third-party
 ||dwabt.pro^$third-party
 ||dwagg.me^$third-party
@@ -10090,6 +10097,7 @@ kingbokep.media##video[src*=".webm"]:not(div[class*="video"] > img)
 ||goldentigerpoker.com^$third-party
 ||goldentoto.com^$third-party
 ||goldtoto.com^$third-party
+||histats.com^$third-party
 ||hokijudi99.com^$third-party
 ||hokitogel.com^$third-party
 ||homepokergames.com^$third-party
