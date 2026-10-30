@@ -1,36 +1,36 @@
 {
-  "from": "202610270622",
+  "from": "202610280653",
   "categories": {
     "ads": {
-      "rulesAdded": 133,
-      "rulesRemoved": 131,
-      "selectorsBefore": 84427,
-      "selectorsAfter": 84438
+      "rulesAdded": 154,
+      "rulesRemoved": 147,
+      "selectorsBefore": 84438,
+      "selectorsAfter": 84517
     },
     "indonesia": {
-      "rulesAdded": 0,
-      "rulesRemoved": 0,
+      "rulesAdded": 2,
+      "rulesRemoved": 1,
       "selectorsBefore": 16288,
-      "selectorsAfter": 16288
+      "selectorsAfter": 16315
     },
     "security": {
-      "rulesAdded": 1,
-      "rulesRemoved": 1,
+      "rulesAdded": 0,
+      "rulesRemoved": 0,
       "selectorsBefore": 498,
       "selectorsAfter": 498
     },
     "privacy": {
-      "rulesAdded": 6,
-      "rulesRemoved": 5,
+      "rulesAdded": 19,
+      "rulesRemoved": 19,
       "selectorsBefore": 7,
       "selectorsAfter": 7
     },
     "annoyances": {
-      "rulesAdded": 13,
-      "rulesRemoved": 4,
-      "selectorsBefore": 134761,
-      "selectorsAfter": 134803
+      "rulesAdded": 15,
+      "rulesRemoved": 13,
+      "selectorsBefore": 134803,
+      "selectorsAfter": 134876
     }
   },
-  "to": "202610280653"
+  "to": "202610300714"
 }
