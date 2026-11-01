@@ -1,10 +1,10 @@
 ![Adblock Plus 2.0]
-! Checksum: Y1cB1WZZt6SxCw33LGS6pA
-! Diff-Path: ../patches/14/14-s-1793423522-3600.patch
+! Checksum: AOs5KREiLzAZ68G4jeSO5w
+! Diff-Path: ../patches/14/14-s-1793473845-3600.patch
 ! Title: AdGuard Annoyances filter
 ! Description: Blocks irritating elements on web pages including cookie notices, third-party widgets and in-page pop-ups. Contains the following AdGuard filters: Cookie Notices, Popups, Mobile App Banners, Other Annoyances and Widgets.
-! Version: 2.2.84.82
-! TimeUpdated: 2026-10-31T05:08:44+00:00
+! Version: 2.2.84.87
+! TimeUpdated: 2026-10-31T19:07:08+00:00
 ! Expires: 5 days (update frequency)
 ! Homepage: https://github.com/AdguardTeam/AdGuardFilters
 ! License: https://github.com/AdguardTeam/AdguardFilters/blob/master/LICENSE
@@ -9844,7 +9844,7 @@ xpadder.com###cookieOkDiv
 tedbaker.com###__tealiumGDPRecModal:style(display: none !important;)
 tedbaker.com##+js(remove-class, fixedPage, #__next)
 ilvescovado.it##.glatCookieBar
-telset.ee##.accept-cookie-wrap
+yoshimura-jp.com,telset.ee##.accept-cookie-wrap
 xn--90aivcdt6dxbc.xn--p1ai##.l-modal-cookie
 holiday.by###pop-up-policy
 you-ladies.de,leierkasten.sexy##.cookie-notice-dsvgo
@@ -27039,8 +27039,8 @@ sport-express.ru,pikabu.ru##iframe[src^="https://autofill.yandex.ru/suggest?"]
 !
 ! SECTION: Popups - Regular rules
 !
-realtree.com##.needsclick:style(display: none !important;)
-realtree.com##.klaviyo-prevent-body-scrolling:style(overflow: auto !important;)
+ugreen.com,realtree.com##.needsclick:style(display: none !important;)
+ugreen.com,realtree.com##.klaviyo-prevent-body-scrolling:style(overflow: auto !important;)
 doramaexpress.com,yandispoiler.net###pa-code-float
 doramaexpress.com,yandispoiler.net##.pa-counter-badge
 catchsecu.com###wpfront-notification-bar-spacer
@@ -43939,7 +43939,7 @@ order-order.com##.column--right > div.v-card:has(> div.v-card__text > div[id^="m
 milatgazetesi.com##div[class^="col-"] > div.row:has(> a[href^="https://news.google.com"])
 informator.ua##.post__subscribe-banner
 informator.ua##.post__text > p:has(> a[href="https://t.me/informator_live"])
-3downnation.com,ugreen.com,gasjeans.com,dollardays.com,lawnmowertirestore.com,geekom.de,secretlab.eu,cross.com,flip.gr,hoffmann-germany.de,centrumzdrowegowlosa.pl,groworganic.com,urnex.com,hermanmiller.co.jp,audeze.com,shopyalehome.com,hanfgefluester.de,bleachpraylove.com,720dgree.de,vpd.fi##.needsclick
+3downnation.com,gasjeans.com,dollardays.com,lawnmowertirestore.com,geekom.de,secretlab.eu,cross.com,flip.gr,hoffmann-germany.de,centrumzdrowegowlosa.pl,groworganic.com,urnex.com,hermanmiller.co.jp,audeze.com,shopyalehome.com,hanfgefluester.de,bleachpraylove.com,720dgree.de,vpd.fi##.needsclick
 idiva.com##.sunscribe-cont
 donbasstoday.ru##a[href^="https://yandex.ru/news/"] > img
 muzikmp3indir.com##.facereklam
@@ -49351,7 +49351,6 @@ otvet.mail.ru##+js(set-cookie, OTVET-9223-shown, 1)
 editpad.org##.content > div[style^="display:"]:has(> a[href^="https://play.google.com/"])
 tokyostarbank.co.jp##+js(set-cookie, app-dl-banner, true)
 tranquilidade.pt##.app-cta
-tokubai.co.jp##.track_hakari_once
 letgo.com##section[class^="_"] > div[class^="_"]:has(> a[href^="https://letgo.onelink.me/"])
 shonenjumpplus.com###page-viewer:not(.private) div[class^="smartapp-"]:not(.hidden) + .header:style(margin-top: 0 !important;)
 shonenjumpplus.com##div[class^="smartapp-"]:style(display: none !important;)
@@ -51789,6 +51788,10 @@ m.tokopedia.com##div[data-testid="divOverlay"]:style(display: none!important;)
 ! Limit it to mobile versions only
 ! causes some issues: https://github.com/AdguardTeam/AdguardForMac/issues/550
 !
+tokubai.co.jp###float_web2app_smart_phone_wrapper
+tokubai.co.jp##.popup_banner_image[data-imp-hakari-keyword]:style(display: none !important;)
+tokubai.co.jp##body[style="overflow-y: hidden;"]:style(overflow-y: auto !important;)
+tokubai.co.jp##.track_hakari_once:style(display: none !important;)
 news.nextapple.com##.app-m
 foxtrot.com.ua##+js(set-cookie, download_mobile_app_popup, true)
 dak.gg##+js(set-cookie, install_banner, disabled)
@@ -66740,6 +66743,7 @@ daddyhd.com##.sidebar__inner
 ||static.zdassets.com/web_widget/messenger/$domain=op.gg|p2pb2b.com|revouninstaller.com
 litres.ru###call_support
 !
+ford.com.tr##.fop-chatbot-toggle-container
 alfemo.com##.online-sales-popup
 publikations-plattform.de###moinai-container
 dobro.ru##.widget-icon
