@@ -1,5 +1,5 @@
 ! Title: uBlock filters – Privacy
-! Last modified: Wed, 11 Nov 2026 06:45:42 +0000
+! Last modified: Thu, 12 Nov 2026 04:24:52 +0000
 ! Expires: 7 days
 ! Description: |
 !   Some of these filters make use of the `important` filter option,`
@@ -3421,9 +3421,12 @@ tiktok.com##+js(set-local-storage-item, /__tea_cache_events_.*/, $remove$)
 ||mediamarkt.be/api/v1/msg
 ||1.1.1.1/dns-query$domain=mediamarkt.be,method=post,xhr
 
+! https://github.com/uBlockOrigin/uAssets/issues/33031
+||pxtrkapp.com^
+
 ! Merge in resource-abuse.txt
 ! Title: uBlock filters – Resource abuse
-! Last modified: Fri, 02 Oct 2026 05:29:20 +0000
+! Last modified: Wed, 11 Nov 2026 15:49:48 +0000
 ! Expires: 7 days
 ! Description: To foil sites potentially abusing CPU/bandwidth resources without informed consent. 
 ! Any such resource-abuse scripts MUST be opt-in, with complete informed consent from the visitor.
@@ -3649,3 +3652,5 @@ xhamster.com##+js(no-fetch-if, /hpyjmp|marzaent/)
 cnn.com,play.discoveryplus.com,play.hbomax.com##+js(no-xhr-if, brightline.tv)
 cnn.com,play.discoveryplus.com,play.hbomax.com##+js(no-fetch-if, litix.io)
 
+! https://github.com/uBlockOrigin/uAssets/issues/35272
+m.economictimes.com##+js(nosiif, _grx)
