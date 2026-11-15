@@ -1,8 +1,8 @@
 [Adblock Plus 3.1]
-! Checksum: FIXAZwiPAUt3hL3nSf3PKg
-! Version: 202611140731
+! Checksum: bS/oO2tkWVTU97qIQdXmcQ
+! Version: 202611150741
 ! Title: ABP filters
-! Last modified: 14 Nov 2026 07:31 UTC
+! Last modified: 15 Nov 2026 07:41 UTC
 ! Expires: 1 hours (update frequency)
 ! Homepage: https://gitlab.com/eyeo/anti-cv/abp-filters-anti-cv
 !
