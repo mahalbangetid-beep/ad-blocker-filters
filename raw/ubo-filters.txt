@@ -13867,7 +13867,8 @@ ab.nanacdn.com,abysscdn.com,abyssplayer.com,fembedx.top,fullfreeimage.com,hihiha
 ! popups when moving out of fullscreen
 ab.nanacdn.com,abysscdn.com,abyssplayer.com,fembedx.top,fullfreeimage.com,gogatv.net,hihihaha1.xyz,hihihaha2.xyz,hydraxcdn.biz,imagelovers.com,mov18plus.cloud,playembedapi.site,player-cdn.com,playermeow.com,playhydrax.com##+js(aost, HTMLElement.prototype.click, _0x)
 ! https://github.com/uBlockOrigin/uAssets/issues/24918
-ab.nanacdn.com,abysscdn.com,abyssplayer.com,fembedx.top,fullfreeimage.com,gogatv.net,hydraxcdn.biz,imagelovers.com,playembedapi.site,playermeow.com,playhydrax.com###overlay||com/ick.infonium.org^$frame,1p
+ab.nanacdn.com,abysscdn.com,abyssplayer.com,fembedx.top,fullfreeimage.com,gogatv.net,hydraxcdn.biz,imagelovers.com,playembedapi.site,playermeow.com,playhydrax.com###overlay
+||com/ick.infonium.org^$frame,1p
 ||infonium.org^$frame,3p
 ab.nanacdn.com,abysscdn.com,abyssplayer.com,fullfreeimage.com,gogatv.net,hihihaha1.xyz,hihihaha2.xyz,playhydrax.com,rufiiguta.com##.loading-overlay ~ div[style^="position: relative;"]
 ab.nanacdn.com,abysscdn.com,abyssplayer.com,fullfreeimage.com,gogatv.net,hihihaha1.xyz,hihihaha2.xyz,playhydrax.com,rufiiguta.com##.loading-overlay:has-text(ad)
@@ -14689,8 +14690,6 @@ videonode.de##body > a[target="_blank"]
 !bus-location.1507t.xyz##+js(nostif, ()=>{, 2501-)
 ! https://solispia.com adwall
 solispia.com##+js(trusted-rpnt, script, /document\.addEventListener\('DOMContentLoaded'\, function[\S\s]+?const novelId\s*=\s*(\d+);\s*const targetUrl\s*=.+?novel\\\/\d+";\s*const backToTitle[\S\s]+?SolispiaRewardedAdGate\.init\(\{\s*cancelUrl: backToTitle[\S\s]+/, !async function(){const e=$1\,t=`https://solispia.com/novel/${e}`\,o=document.querySelector('meta[name="csrf-token"]')?.getAttribute("content")||"";try{const a=await fetch(`/api/ad/rewarded/start/${e}`\,{method:"POST"\,headers:{"Content-Type":"application/json"\,"X-CSRF-TOKEN":o\,"X-Requested-With":"XMLHttpRequest"}\,body:JSON.stringify({})})\,i=await a.json();if(!i?.ok)return;await(n=5e3+Math.floor(1e3*Math.random())+500\,new Promise((e=>setTimeout(e\,n))));const d=await fetch("/api/ad/rewarded/complete"\,{method:"POST"\,headers:{"Content-Type":"application/json"\,"X-CSRF-TOKEN":o\,"X-Requested-With":"XMLHttpRequest"}\,body:JSON.stringify({challenge_id:i.challenge_id\,unlock_token:i.unlock_token\,event_key:i.event_key\,novel_id:e\,ad_meta:{}})})\,s=await d.json();s?.ok&&(window.location.href=t)}catch(e){}var n}();)
-! AdMax detection script v1.0.0 backup for Firefox ETP
-erotaredogaonly.xyz,hirotron.com,jyankuotakarakanteidan.blogspot.com,lyrics-jpop.net,marvelousact.hatenablog.jp,masa-web.jp,monte-carlo-lab.pages.dev,presscarry.com,travel-bookmark.net##+js(set, __ninjaAdMaxAbdLoaded, true)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/33714
 vk.sportsbull.jp##.hidden-by-ima:remove-class(hidden-by-ima)
@@ -38751,7 +38750,7 @@ adhs-zentrum.de##div.box:has(.adsbygoogle)
 adhs-zentrum.de###babasbmsgx
 
 ! Title: uBlock filters (2026)
-! Last modified: Mon, 16 Nov 2026 17:54:53 +0000
+! Last modified: Tue, 17 Nov 2026 12:21:37 +0000
 ! Description: Filters optimized for uBlock, to be used along EasyList
 ! Homepage: https://github.com/uBlockOrigin/uAssets
 ! License: https://github.com/uBlockOrigin/uAssets/blob/master/LICENSE
@@ -40725,6 +40724,7 @@ planetminecraft.com##+js(nano-sib, countdown)
 ! https://github.com/uBlockOrigin/uAssets/issues/34537
 up-4ever.net##+js(rmnt, script, .offsetHeight)
 up-4ever.net##.u4dl-spotcol.u4dl-choice
+||up-4ever.net/js/bravenote.js
 
 ! https://github.com/uBlockOrigin/uAssets/issues/34540
 reuters.com##+js(rmnt, script, rcom_bdScriptLoaded)
@@ -41244,6 +41244,9 @@ applescoop.org##.as-ad
 
 ! https://github.com/uBlockOrigin/uAssets/issues/35383
 ||laviola.it/jaqisharam.js
+
+! https://github.com/uBlockOrigin/uAssets/issues/35395
+anytimesbook.com##+js(rmnt, script, .offsetWidth)
 
 
 ! Link shortener filters go into their own dedicated list
