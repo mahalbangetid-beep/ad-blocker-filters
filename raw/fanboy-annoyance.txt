@@ -1,8 +1,8 @@
 [Adblock Plus 2.0]
-! Checksum: EswzVi6380jatAsysjonoA
-! Version: 202611250935
+! Checksum: pbeGyC3Kg8JEHAeI4SdcTQ
+! Version: 202611260100
 ! Title: Fanboy's Annoyance List
-! Last modified: 2026-11-25 09:35 UTC
+! Last modified: 2026-11-26 01:00 UTC
 ! Expires: 9 days (update frequency)
 ! Homepage: https://easylist.to/
 ! License: http://creativecommons.org/licenses/by/3.0/
@@ -15767,7 +15767,7 @@ anthropocenemagazine.org##.dssb_sharing_buttons
 mississippitoday.org##.dst-google-news-source
 theverge.com,vox.com##.duet--article--share-buttons
 conservativewoman.co.uk##.dvk-social-sharing
-dailyboulder.com,echonewshub.com,jugomobile.com,thartribune.com,thedailyadda.com,thegamepost.com,townflex.com##.e-shared-sec
+dailyboulder.com,echonewshub.com,jugomobile.com,scienceinhand.com,thartribune.com,thedailyadda.com,thegamepost.com,townflex.com##.e-shared-sec
 androidauthority.com##.e_2c
 breakingdefense.com##.ea-share-count-wrap
 euractiv.com##.ea-social
@@ -16134,7 +16134,7 @@ evinfocus.com##.kg-bookmark-card
 levernews.com,overkill.wtf##.kg-callout-card-blue
 4sysops.com##.kleo-quick-contact-wrapper
 techcrawlr.com##.kt_simple_share_container
-thedailyadda.com##.l-shared-sec
+scienceinhand.com,thedailyadda.com##.l-shared-sec
 observervoice.com##.latest-tweets-widget
 sendatext.co##.lb_overlay
 coxautoinc.com##.lc-article_share
@@ -36687,6 +36687,7 @@ acoup.blog,candidcyber.com,commonplacefacts.com,decorado.co.il,maxstock.co.il,po
 wpx.net###wpx-cookie-agreement
 here.com###wrapper
 groners.com###wrapper_cookiebanner
+web-site.care###wsc-consent
 wyze.com###wyze-cookie-banner
 xhorsetool.com###xri_GoogConsent
 hydramatics.co.za###zcb-banner
@@ -47934,6 +47935,7 @@ lartigiano.gr###CookiesSection
 traderetail.gr###NMCookie_container
 restiasuites.gr###advert-once
 stigmap.gr###btm_terms
+24ores.gr###ck
 digea.gr###ck_cookies
 eudoxus.gr###consentPlaceholder
 krikri.gr###cookSETwin
@@ -50461,6 +50463,7 @@ fptshop.com.vn##[data-cookie-consent-modal="true"]
 ||oeaw.ac.at^*/js.cookie.min.js
 ||piazza.cc/public/app.js
 ||postleitzahl.org/images/consent.php
+||privacy.diepresse.com^
 ||rheinenergie.com/libs/cookiebanner/
 ||seduction-magazin.de/wp-content/plugins/borlabs-cookie/
 ||sprengel-pr.com/public/app.js
@@ -50494,6 +50497,7 @@ fptshop.com.vn##[data-cookie-consent-modal="true"]
 ||privacy.heidi.news^
 ||privacy.letemps.ch^
 ||privacy.luxair.lu^
+||privacy.maison-travaux.fr^
 ||ratp.fr/modules/custom/ratp_tarteaucitron/
 ||thesiteoueb.net/js/cm-head.js
 ||vape-phone.fr/bundles/webtoolcore/js/newCookieChoice.js
